@@ -8,7 +8,11 @@ Tool for encrypting and hiding files.
 
 ## Install
 
+```bash
+$ pip install tird
 ```
+or
+```bash
 $ git clone https://github.com/hakavlad/tird.git && cd tird
 $ sudo make install
 ```
