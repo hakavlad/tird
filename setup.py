@@ -2,20 +2,20 @@ from setuptools import find_packages, setup
 
 
 def readme():
-    with open('README.md', 'r') as f:
-        return f.read()
+    with open('README.md', 'r') as file:
+        return file.read()
 
 
 NAME = 'tird'
+VERSION = '0.1.0'
 
 setup(
     name=NAME,
-    version='0.0.0',
+    version=VERSION,
     license='CC0',
     author='Alexey Avramov',
     author_email='hakavlad@gmail.com',
-    description='File encryption and plausible deniability for multiple '
-                'hidden files (user-driven fs in any byte arrays)',
+    description='Tool for encrypting and hiding files',
     long_description=readme(),
     long_description_content_type='text/markdown',
     url='https://github.com/hakavlad/tird',
@@ -31,14 +31,14 @@ setup(
         'Topic :: Security :: Cryptography',
         'Topic :: Utilities'
     ],
-    keywords='encryption',
+    keywords='encryption hiding',
     project_urls={
         'Homepage': 'https://github.com/hakavlad/tird',
         'Bug Tracker': 'https://github.com/hakavlad/tird/issues',
         'Documentation': 'https://github.com/hakavlad/tird/blob/main/README.md'
     },
     entry_points={'console_scripts': [
-        '{} = {}.{}:main'.format(NAME, NAME, NAME),
+        '{n} = {n}.{n}:main'.format(n=NAME),
     ]},
     python_requires='>=3.6'
 )
