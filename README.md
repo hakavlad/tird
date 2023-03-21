@@ -1,7 +1,7 @@
 # tird: this is random data
 
-[![Licence](https://img.shields.io/badge/licence-CC0-blue)](https://repology.org/project/nohang/versions)
-[![Releases](https://img.shields.io/github/v/release/hakavlad/tird)](https://repology.org/project/nohang/versions)
+[![Licence](https://img.shields.io/badge/licence-CC0-blue)](https://github.com/hakavlad/tird/blob/main/LICENSE)
+[![Releases](https://img.shields.io/github/v/release/hakavlad/tird)](https://github.com/hakavlad/tird/releases)
 [![PyPI](https://img.shields.io/pypi/v/tird?color=blue&label=PyPI)](https://pypi.org/project/tird/)
 
 Tool for encrypting and hiding files.
