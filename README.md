@@ -1,5 +1,9 @@
 # tird: this is random data
 
+![Licence](https://img.shields.io/badge/licence-CC0-blue)
+![Version](https://img.shields.io/github/v/release/hakavlad/tird)
+![PyPI version](https://img.shields.io/pypi/v/tird?color=blue&label=PyPI)
+
 Tool for encrypting and hiding files.
 
 ## Install
