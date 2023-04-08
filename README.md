@@ -1,4 +1,4 @@
-# tird: this is random data
+# tird
 
 [![License](https://img.shields.io/badge/License-CC0-blue)](https://github.com/hakavlad/tird/blob/main/LICENSE)
 [![Releases](https://img.shields.io/github/v/release/hakavlad/tird)](https://github.com/hakavlad/tird/releases)
@@ -6,7 +6,9 @@
 
 Tool for encrypting and hiding files.
 
-![Logo](https://i.imgur.com/kZc0el8.png)
+`tird` *(an acronym for "this is random data")* is a tool for encrypting and hiding files.
+
+![Logo: random data visualization](https://i.imgur.com/kZc0el8.png)
 
 ## Install
 
