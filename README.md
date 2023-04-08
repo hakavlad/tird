@@ -6,6 +6,8 @@
 
 Tool for encrypting and hiding files.
 
+![Logo](https://i.imgur.com/kZc0el8.png)
+
 ## Install
 
 ```bash
@@ -13,27 +15,24 @@ $ pip install tird
 ```
 or
 ```bash
-$ git clone https://github.com/hakavlad/tird.git && cd tird
+$ git clone -b v0.1.0 https://github.com/hakavlad/tird.git && cd tird
 $ sudo make install
 ```
 
 ## Usage
 
-Just run the script:
+Just run the script and answer its questions:
 ```
 $ tird
-Select the action to take
-0 - exit
-1 - get info
-2 - encrypt file
-3 - decrypt file
-4 - encrypt and hide file
-5 - decrypt and unhide file
-6 - hide file (without  encryption)
-7 - unhide file (without decryprion)
-8 - create file with random data
-9 - overwrite file with random or specific bytes
-:
+                      MENU
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  0. Exit               1. Get info
+  2. Encrypt            3. Decrypt
+  4. Hide               5. Unhide
+  6. Encrypt and hide   7. Unhide and decrypt
+  8. Create w/ urandom  9. Overwrite w/ urandom
+
+Please enter [0-9]: 
 ```
 
 ## Requirements
