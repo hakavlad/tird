@@ -9,17 +9,20 @@
 - `tird` *(an acronym for "this is random data")* is a tool for encrypting and hiding file contents among random data.
 - The result of encryption (mode 2) is PURB-like objects (call this "cryptoblob").
 - Cryptoblobs are indistinguishable from random data.
-- `tird` allows you to hide cryptoblobs among other random data (mode 6), use arrays of any other random data as containers for hiding cryptoblobs.
+- `tird` allows you to hide cryptoblobs among other random data (mode 6), use arrays of any other random data as containers for hiding cryptoblobs. Thus, deniable encryption is implemented.
 - Auxiliary modes (8 and 9) allow you to create arrays of random data: create files with random data (mode 8) and overwrite files or devices with random data (mode 9) for subsequent hiding of cryptoblobs.
 - `tird` supports an unlimited number of passphrases and keyfiles for encryption.
 - Directories and devices can also be used as keys.
 - `tird` allows you to add metadata (description) and an authentication tag to the encrypted file contents.
-- Any file larger than a certain minimum size is a valid tird cryptoblob: the use of any keys when decrypting will give some output with the result `OK`.
+- Any file larger than a certain minimum size is a valid `tird` cryptoblob: the use of any keys when decrypting will give some output with the result `OK`.
 - `tird` only provides symmetric encryption with stream cipher based on XORing plaintext with keystream blocks.
 - SHAKE256 XOF output is used to create keystream blocks (chunks of pseudo-random size are used mixed in a pseudo-random way).
+- Presumably, `tird` can provide a key space larger than 256 bits: when constructing a keystream block, three different outputs of SHAKE256 are used, for which different parts of the key input are used.
 - `tird` is written in Python and uses only the Python standard library (`hashlib` module and the hash functions: `BLAKE2b` for files hashing, `scrypt` as KDF, `SHAKE256` for building keystrem blocks).
 - `tird` has not been independently audited.
 - Development is ongoing, there may be backward compatibility issues in the future.
+- `tird` uses randomized padding with max size up to 20% (by default) of the message size.
+- When encrypting, you can set custom values for the block size of the keystream, number of rounds, derived keys length, metadata size, padding size, and enable debug messages.
 
 ## Cryptoblob structure
 ```
