@@ -28,6 +28,8 @@
 - `tird` can also be called software for steganography: a cryptoblob can be written over a flash drive or disk. Then the existence of a cryptoblob cannot be detected without statistical analysis to identify areas of high entropy (even this will only suspect, not prove the existence of a cryptoblob).
 - If random data is encrypted with default options (without MAC and metadata specified), then it is impossible to prove that this or that key was used for encryption: the decryption result will always be random data.
 - `tird` does not report whether this or that decryption key is correct. If a MAC was added during encryption, then when using the correct key, it can be reported "MAC is valid: True". If the MAC was not added during encryption (this is the default behavior), then the only way to find out to pick up the correct key is to statistically analyze the output files.
+- `tird` does not force you to use any standard extension for output file names. The name of the output file is always set by the user.
+- Keyed `BLAKE2b` is used for creating message authentication code (MAC is not added by default). Adding a MAC will help you check the integrity of the data when decrypting.
 
 ## Cryptoblob structure
 ```
@@ -48,7 +50,7 @@
 
 ## Usage
 
-`tird` has no config file and no command line options. Just run the script, select the option you want and then answer the questions.
+Just run the script, select the option you want and then answer the questions.
 ```
 $ tird
 
