@@ -8,8 +8,6 @@
 
 `tird` *(an acronym for "this is random data")* is a tool for encrypting and hiding file contents among random data.
 
-![Mode 2 screenshot](https://i.imgur.com/UbKFLG5.png)
-
 ## Install
 
 ```bash
@@ -23,7 +21,7 @@ $ sudo make install
 
 ## Usage
 
-Just run the script and answer its questions:
+`tird` has no config file and no command line options. Just run the script, select the option you want and then answer the questions.
 ```
 $ tird
 
@@ -38,7 +36,8 @@ $ tird
 Please enter [0-9]: 
 ```
 
+![Mode 2 screenshot](https://i.imgur.com/UbKFLG5.png)
+
 ## Requirements
 
 - Python >= 3.6
-
