@@ -23,6 +23,11 @@
 - Development is ongoing, there may be backward compatibility issues in the future.
 - `tird` uses randomized padding with max size up to 20% (by default) of the message size.
 - When encrypting, you can set custom values for the block size of the keystream, number of rounds, derived keys length, metadata size, padding size, and enable debug messages.
+- `tird` is a single Python file with no external dependencies.
+- `tird` has no config file and no command line options. Studying bash history will not provide information on how `tird` was used.
+- `tird` can also be called software for steganography: a cryptoblob can be written over a flash drive or disk. Then the existence of a cryptoblob cannot be detected without statistical analysis to identify areas of high entropy (even this will only suspect, not prove the existence of a cryptoblob).
+- If random data is encrypted with default options (without MAC and metadata specified), then it is impossible to prove that this or that key was used for encryption: the decryption result will always be random data.
+- `tird` does not report whether this or that decryption key is correct. If a MAC was added during encryption, then when using the correct key, it can be reported "MAC is valid: True". If the MAC was not added during encryption (this is the default behavior), then the only way to find out to pick up the correct key is to statistically analyze the output files.
 
 ## Cryptoblob structure
 ```
