@@ -221,8 +221,9 @@ def get_metadata_size():
             print(f'  {ERR}E: invalid value{END}')
             continue
 
-        if metadata_size < 0:
-            print(f'  {ERR}E: invalid value; must be >= 0{END}')
+        if metadata_size < 0 or metadata_size > MAX_METADATA_SIZE:
+            print(f'  {ERR}E: invalid value; must be >= 0 and '
+                  f'<= {MAX_METADATA_SIZE}{END}')
             continue
 
         return metadata_size
@@ -2639,6 +2640,7 @@ DEFAULT_DK_LEN_M = 4
 DEFAULT_DK_LEN = DEFAULT_DK_LEN_M * M
 
 DEFAULT_METADATA_SIZE = 512
+MAX_METADATA_SIZE = 16 * K
 
 METADATA_DIV_BYTE = b'\xff'
 
