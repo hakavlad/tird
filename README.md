@@ -10,7 +10,7 @@
 
 ## Features
 
-- The result of encryption (mode 2) is PURB-like objects (call this "cryptoblob").
+- The result of encryption (mode 2) is [PURB](https://en.wikipedia.org/wiki/PURB_(cryptography))-like objects (call this "cryptoblob").
 - Cryptoblobs are indistinguishable from random data.
 - `tird` allows you to hide cryptoblobs among other random data (mode 6), use arrays of any other random data as containers for hiding cryptoblobs. Thus, deniable encryption is implemented.
 - Auxiliary modes (8 and 9) allow you to create arrays of random data: create files with random data (mode 8) and overwrite files or devices with random data (mode 9) for subsequent hiding of cryptoblobs.
@@ -22,7 +22,7 @@
 - SHAKE256 XOF output is used to create keystream blocks (chunks of pseudo-random size are used mixed in a pseudo-random way).
 - Presumably, `tird` can provide a key space larger than 256 bits: when constructing a keystream block, three different outputs of SHAKE256 are used, for which different parts of the key input are used.
 - `tird` is written in Python and uses only the Python standard library (`hashlib` module and the hash functions: `BLAKE2b` for files hashing, `scrypt` as KDF, `SHAKE256` for building keystrem blocks).
-- `tird` uses randomized padding with max size up to 20% (by default) of the message size.
+- `tird` uses [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with max size up to 20% (by default) of the message size.
 - When encrypting, you can set custom values for the block size of the keystream, number of rounds, derived keys length, metadata size, padding size, and enable debug messages.
 - `tird` is a single Python file with no external dependencies.
 - `tird` has no config file and no command line options. Looking at the bash history will not provide information on how `tird` was used.
@@ -40,6 +40,7 @@
 - `tird` does not support ASCII armored output.
 - `tird` does not support Reed–Solomon error correction.
 - `tird` does not support splitting the output into chunks.
+- `tird` does not support low-level device reading and writing when used on MS Windows (devices cannot be used as keyfiles, cannot be overwritten, cannot be encrypted or hidden).
 - `tird` does not provide a graphical user interface.
 - `tird` does not provide a password generator.
 - `tird` does not wipe sensitive data from the heap.
@@ -106,3 +107,7 @@ or
 $ git clone -b v0.1.0 https://github.com/hakavlad/tird.git && cd tird
 $ sudo make install
 ```
+
+## Feedback
+
+Test reports are welcome. Feel free to post any questions, feedback or criticisms to the [Issues](https://github.com/hakavlad/tird/issues).
