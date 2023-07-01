@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""tird is a tool for encrypting and hiding files."""
+"""tird is a tool for encrypting and hiding file contents among random data."""
 
 from copy import deepcopy
 from getpass import getpass
@@ -2664,8 +2664,8 @@ MENU = f"""
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 {BOL}Please enter [0-9]:{END} """
 
-INFO = f"""{ITA}I: tird is a tool for encrypting and hiding files
-I: more info: https://github.com/hakavlad/tird{END}"""
+INFO = f'{ITA}I: tird is a tool for encrypting and hiding file contents ' \
+    f'among random data\nI: more info: https://github.com/hakavlad/tird{END}'
 
 if __name__ == '__main__':
     main()
