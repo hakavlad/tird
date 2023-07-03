@@ -8,6 +8,8 @@
 
 `tird` *(an acronym for "this is random data")* is a tool for encrypting and hiding file contents among random data.
 
+![screenshot: menu](https://i.imgur.com/HmwR7vV.png)
+
 ## Features
 
 - The result of encryption (mode 2) is [PURB](https://en.wikipedia.org/wiki/PURB_(cryptography))-like objects (call this "cryptoblob").
@@ -90,8 +92,6 @@ $ tird
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Please enter [0-9]:
 ```
-
-![Mode 2 screenshot](https://i.imgur.com/UbKFLG5.png)
 
 ## Requirements
 
