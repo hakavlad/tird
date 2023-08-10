@@ -104,7 +104,7 @@ $ pip install tird
 ```
 or
 ```bash
-$ git clone -b v0.1.0 https://github.com/hakavlad/tird.git && cd tird
+$ git clone -b v0.2.0 https://github.com/hakavlad/tird.git && cd tird
 $ sudo make install
 ```
 
