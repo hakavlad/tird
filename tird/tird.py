@@ -285,9 +285,6 @@ def get_input_keys():
         else:
             print(f'{ERR}E: passphrase confirmation failed!{END}')
 
-            pp_list = pp_to_list(pp0)
-            k_list_list.append(pp_list)
-
     return k_list_list
 
 
