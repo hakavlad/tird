@@ -15,7 +15,7 @@ setup(
     license='CC0',
     author='Alexey Avramov',
     author_email='hakavlad@gmail.com',
-    description='Tool for encrypting and hiding files',
+    description='A tool for encrypting file contents and hiding random data among other random data',
     long_description=readme(),
     long_description_content_type='text/markdown',
     url='https://github.com/hakavlad/tird',

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""tird is a tool for encrypting and hiding file contents among random data."""
+"""A tool for encrypting file contents and hiding random data
+among other random data.
+"""
 
 from copy import deepcopy
 from getpass import getpass
