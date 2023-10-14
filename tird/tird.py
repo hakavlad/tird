@@ -3,17 +3,89 @@
 among other random data.
 """
 
-from copy import deepcopy
+from gc import collect
 from getpass import getpass
 from hashlib import blake2b, scrypt, shake_256
-from operator import itemgetter
 from os import fsync, path, urandom, walk
 from signal import SIGINT, signal
-from sys import byteorder, exit, platform
+from sys import argv, byteorder, exit, platform
 from time import monotonic
+from typing import Any, NoReturn, Optional, Union
+
+# pylint: disable=invalid-name
+# pylint: disable=pointless-string-statement
+# pylint: disable=empty-docstring
+# pylint: disable=broad-exception-caught
+# pylint: disable=consider-using-with
+# pylint: disable=too-many-arguments
+# pylint: disable=too-many-branches
+# pylint: disable=too-many-locals
+# pylint: disable=too-many-lines
+# pylint: disable=too-many-return-statements
+# pylint: disable=too-many-statements
 
 
-def get_mode():
+def open_file(f_path: str, f_mode: str) -> Any:
+    """
+    """
+    try:
+        return open(f_path, f_mode)
+    except Exception as e:
+        print(f'{ERR}E: {e}{END}')
+        return None
+
+
+def seek_pos(f: Any, offset: int, whence: int = 0) -> bool:
+    """
+    """
+    try:
+        f.seek(offset, whence)
+        return True
+    except OSError as e:
+        print(f'{ERR}E: {e}{END}')
+        return False
+
+
+def read_data(size: int, f: Any) -> Optional[bytes]:
+    """
+    """
+    try:
+        data = f.read(size)
+    except OSError as e:
+        print(f'{ERR}E: {e}{END}')
+        return None
+
+    if len(data) < size:
+        print(f'{ERR}E: the read data size is less than expected{END}')
+        return None
+
+    return data
+
+
+def write_data(data: bytes) -> bool:
+    """
+    """
+    try:
+        fod['o'].write(data)
+        return True
+    except OSError as e:
+        print(f'{ERR}E: {e}{END}')
+        return False
+
+
+def fsync_data() -> bool:
+    """
+    """
+    try:
+        fod['o'].flush()
+        fsync(fod['o'].fileno())
+        return True
+    except OSError as e:
+        print(f'{ERR}E: {e}{END}')
+        return False
+
+
+def get_mode() -> int:
     """
     """
     while True:
@@ -27,218 +99,139 @@ def get_mode():
             return 1
 
         if mode == '2':
-            print(f'{ITA}I: mode: encrypt file{END}')
+            print(f'{ITA}I: mode: encrypt file contents{END}')
             return 2
 
         if mode == '3':
-            print(f'{ITA}I: mode: decrypt file{END}')
+            print(f'{ITA}I: mode: decrypt file contents{END}')
             return 3
 
         if mode == '4':
-            print(f'{ITA}I: mode: hide file (without encryption){END}')
+            print(f'{ITA}I: mode: hide file contents (no encryption){END}')
             return 4
 
         if mode == '5':
-            print(f'{ITA}I: mode: unhide file (without decryprion){END}')
+            print(f'{ITA}I: mode: unhide file contents (no decryprion){END}')
             return 5
 
         if mode == '6':
-            print(f'{ITA}I: mode: encrypt and hide file{END}')
+            print(f'{ITA}I: mode: encrypt and hide file contents{END}')
             return 6
 
         if mode == '7':
-            print(f'{ITA}I: mode: unhide and decrypt file{END}')
+            print(f'{ITA}I: mode: unhide and decrypt file contents{END}')
             return 7
 
         if mode == '8':
-            print(f'{ITA}I: mode: create file with random data{END}')
+            print(f'{ITA}I: mode: create a file with uniform random data{END}')
             return 8
 
         if mode == '9':
-            print(f'{ITA}I: mode: overwrite file with random data{END}')
+            print(f'{ITA}I: mode: overwrite file contents with uniform '
+                  f'random data{END}')
             return 9
 
         print(f'{ERR}E: invalid value{END}')
 
 
-def is_custom():
+def is_custom() -> bool:
     """
     """
     while True:
-        custom = input(f'{BOL}Custom options (0|1):{END} ')
-        if custom in ('', '0'):
+        custom: str = input(f'{BOL}Use custom settings? (N/y):{END} ')
+
+        if custom in ('', 'N', 'n', '0'):
             return False
-        if custom == '1':
+
+        if custom in ('Y', 'y', '1'):
             return True
+
         print(f'{ERR}E: invalid value{END}')
         continue
 
 
-def is_debug():
+def get_pad_max_percent() -> int:
     """
     """
     while True:
-        debug = input(f'  {BOL}Debug (0|1):{END} ')
-        if debug in ('', '0'):
-            return False
-        if debug == '1':
-            return True
-        print(f'  {ERR}E: invalid value{END}')
-        continue
+        pad_max_percent_s: str = input(
+            f'    {BOL}Randomized padding max percent (default'
+            f'={DEFAULT_PAD_MAX_PERCENT}):{END} ')
 
-
-def get_num_rounds():
-    """
-    """
-    while True:
-        num_rounds = input(f'  {BOL}Number of rounds (default'
-                           f'={DEFAULT_NUM_ROUNDS}):{END} ')
-
-        if num_rounds in ('', str(DEFAULT_NUM_ROUNDS)):
-            return DEFAULT_NUM_ROUNDS
+        if pad_max_percent_s in ('', str(DEFAULT_PAD_MAX_PERCENT)):
+            return DEFAULT_PAD_MAX_PERCENT
 
         try:
-            num_rounds = int(num_rounds)
+            pad_max_percent: int = int(pad_max_percent_s)
         except Exception:
             print(f'  {ERR}E: invalid value{END}')
             continue
 
-        if num_rounds < 1:
-            print(f'  {ERR}E: invalid value; must be >= 1{END}')
-            continue
-
-        return num_rounds
-
-
-def get_keystream_block_size():
-    """
-    """
-    while True:
-        keystram_block_size_m = input(
-            f'  {BOL}Keystream block size, MiB (default'
-            f'={DEFAULT_KEYSTREAM_BLOCK_SIZE_M}):{END} ')
-
-        if keystram_block_size_m in ('', str(DEFAULT_KEYSTREAM_BLOCK_SIZE_M)):
-            return DEFAULT_KEYSTREAM_BLOCK_SIZE_M * M
-
-        try:
-            keystram_block_size_m = int(keystram_block_size_m)
-        except Exception:
-            print(f'  {ERR}E: invalid value{END}')
-            continue
-
-        if keystram_block_size_m < 1 or keystram_block_size_m > 2047:
-            print(f'  {ERR}E: invalid value; must be >= 1 and <= 2047{END}')
-            continue
-
-        return keystram_block_size_m * M
-
-
-def get_padding_order():
-    """
-    """
-    while True:
-        padding_order = input(
-            f'  {BOL}Randomized padding order (default'
-            f'={DEFAULT_PADDING_ORDER}):{END} ')
-
-        if padding_order in ('', str(DEFAULT_PADDING_ORDER)):
-            return DEFAULT_PADDING_ORDER
-
-        try:
-            padding_order = int(padding_order)
-        except Exception:
-            print(f'  {ERR}E: invalid value{END}')
-            continue
-
-        if padding_order < 0 or padding_order > MAX_PADDING_ORDER:
-            print(f'  {ERR}E: invalid value; must be >= 0 and '
-                  f'<= {MAX_PADDING_ORDER}{END}')
-            continue
-
-        return padding_order
-
-
-def get_padding_max_percent():
-    """
-    """
-    while True:
-        padding_max_percent = input(
-            f'  {BOL}Randomized padding max percent (default'
-            f'={DEFAULT_PADDING_MAX_PERCENT}):{END} ')
-
-        if padding_max_percent in ('', str(DEFAULT_PADDING_MAX_PERCENT)):
-            return DEFAULT_PADDING_MAX_PERCENT
-
-        try:
-            padding_max_percent = int(padding_max_percent)
-        except Exception:
-            print(f'  {ERR}E: invalid value{END}')
-            continue
-
-        if padding_max_percent < 0:
+        if pad_max_percent < 0:
             print(f'  {ERR}E: invalid value; must be >= 0{END}')
             continue
 
-        return padding_max_percent
+        return pad_max_percent
 
 
-def get_dk_len():
+def get_catpig_space_mib() -> int:
     """
     """
     while True:
-        dk_len_m = input(
-            f'  {BOL}Derived key length, MiB '
-            f'(default={DEFAULT_DK_LEN_M}):{END} ')
+        catpig_space_mib_s: str = input(
+            f'    {BOL}Catpig KDF space, MiB (default'
+            f'={DEFAULT_CATPIG_SPACE_MIB}): {END}')
 
-        if dk_len_m in ('', str(DEFAULT_DK_LEN_M)):
-            return DEFAULT_DK_LEN
+        if catpig_space_mib_s in ('', str(DEFAULT_CATPIG_SPACE_MIB)):
+            return DEFAULT_CATPIG_SPACE_MIB
 
         try:
-            dk_len_m = int(dk_len_m)
+            catpig_space_mib: int = int(catpig_space_mib_s)
         except Exception:
             print(f'  {ERR}E: invalid value{END}')
             continue
 
-        if dk_len_m < 1:
+        if catpig_space_mib < 1 or catpig_space_mib > MAX_SPACE_MIB:
+            print(f'  {ERR}E: invalid value; must be >= 1 and '
+                  f'<= {MAX_SPACE_MIB}{END}')
+            continue
+
+        return catpig_space_mib
+
+
+def get_catpig_passes() -> int:
+    """
+    """
+    while True:
+        catpig_passes_s: str = input(
+            f'    {BOL}Catpig KDF passes (default'
+            f'={DEFAULT_CATPIG_PASSES}): {END}')
+
+        if catpig_passes_s in ('', str(DEFAULT_CATPIG_PASSES)):
+            return DEFAULT_CATPIG_PASSES
+
+        try:
+            catpig_passes: int = int(catpig_passes_s)
+        except Exception:
+            print(f'  {ERR}E: invalid value{END}')
+            continue
+
+        if catpig_passes < 1:
             print(f'  {ERR}E: invalid value; must be >= 1{END}')
             continue
 
-        return dk_len_m * M
+        return catpig_passes
 
 
-def get_metadata_size():
-    """
-    """
-    while True:
-        metadata_size = input(
-            f'  {BOL}Metadata size (default={DEFAULT_METADATA_SIZE}): {END}')
-
-        if metadata_size in ('', str(DEFAULT_METADATA_SIZE)):
-            return DEFAULT_METADATA_SIZE
-
-        try:
-            metadata_size = int(metadata_size)
-        except Exception:
-            print(f'  {ERR}E: invalid value{END}')
-            continue
-
-        if metadata_size < 0 or metadata_size > MAX_METADATA_SIZE:
-            print(f'  {ERR}E: invalid value; must be >= 0 and '
-                  f'<= {MAX_METADATA_SIZE}{END}')
-            continue
-
-        return metadata_size
-
-
-def get_input_keys():
+def get_input_keys() -> list:
     """
     Get input keys (keyfiles and passphrases).
     """
-    k_list_list = []
+    key_digest_list: list = []
 
+    # get digests of keyfiles
     while True:
-        k_file = input(f'{BOL}Keyfile (optional):{END} ')
+        k_file: str = input(f'{BOL}Keyfile (optional):{END} ')
 
         if k_file == '':
             break
@@ -251,93 +244,106 @@ def get_input_keys():
             continue
 
         if path.isdir(k_file):
+            digest_list: Optional[list] = get_keyfile_digest_list(k_file)
 
-            dir_list = dir_to_list_list(k_file)
-
-            if dir_list is None:
+            if digest_list is None:
                 print(f'{ERR}E: keyfiles NOT accepted!{END}')
                 continue
-            if dir_list == []:
-                print(f'{ERR}E: nothing to accept!{END}')
+
+            if digest_list == []:
+                print(f'{WAR}W: this is empty directory; no keyfiles '
+                      f'to accept!{END}')
             else:
-                k_list_list.extend(dir_list)
+                key_digest_list.extend(digest_list)
                 print(f'{ITA}I: keyfiles accepted!{END}')
 
+                del k_file, digest_list
+                collect()
         else:
-            file_list = keyfile_to_list(k_file)
-            if file_list is None:
+            f_digest = get_keyfile_digest(k_file)
+
+            if f_digest is None:
                 print(f'{ERR}E: keyfile NOT accepted!{END}')
             else:
-                k_list_list.append(file_list)
+                key_digest_list.append(f_digest)
                 print(f'{ITA}I: keyfile accepted!{END}')
             continue
 
+    # get digests of passphrases
     while True:
-        pp0 = getpass(f'{BOL}Passphrase (optional):{END} ')
+        pp0: str = getpass(f'{BOL}Passphrase (optional):{END} ')
         if pp0 == '':
             break
 
-        pp1 = getpass(f'{BOL}Confirm passphrase:{END} ')
+        pp1: str = getpass(f'{BOL}Confirm passphrase:{END} ')
+
         if pp0 == pp1:
-            pp_list = pp_to_list(pp0)
-            k_list_list.append(pp_list)
+            pp: bytes = pp0.encode()
+
+            pp_digest: bytes = get_passphrase_digest(pp)
+
+            key_digest_list.append(pp_digest)
+
+            del pp0, pp1, pp, pp_digest
+            collect()
+
             print(f'{ITA}I: passphrase accepted!{END}')
         else:
             print(f'{ERR}E: passphrase confirmation failed!{END}')
 
-    return k_list_list
+            del pp0, pp1
+            collect()
+
+    return key_digest_list
 
 
-def get_input_file(mode):
+def get_input_file(mode: int) -> tuple:
     """
     """
     if mode == 2:
-        i = 'File to encrypt: '
+        i: str = 'File to encrypt: '
     elif mode == 3:
         i = 'File to decrypt: '
     elif mode == 6:
         i = 'File to encrypt and hide: '
     elif mode in (7, 5):
         i = 'Container: '
-    elif mode == 4:
+    else:  # 4
         i = 'File to hide: '
-    else:
-        print(f'{ERR}E: invalid mode{END}')
-        exit(1)
 
     while True:
-        i_file = input(f'{BOL}{i}{END}')
+        i_file: str = input(f'{BOL}{i}{END}')
 
         if i_file == '':
             print(f'{ERR}E: input file is not set{END}')
             continue
 
         i_file = path.realpath(i_file)
-        i_size = get_file_size(i_file)
+
+        i_size: Optional[int] = get_file_size(i_file)
+
         if i_size is None:
             continue
 
-        try:
-            i_object = open(i_file, 'rb')
-            break
-        except Exception as e:
-            print(f'{ERR}E: {e}{END}')
+        i_object: Any = open_file(i_file, 'rb')
+
+        if i_object is None:
+            continue
+
+        break
 
     return i_file, i_size, i_object
 
 
-def get_output_file_c(mode):
+def get_output_file_c(mode: int) -> tuple:
     """
     """
     if mode == 2:
         i = 'Output (encrypted) file: '
     elif mode in (3, 7):
         i = 'Output (decrypted) file: '
-    elif mode in (5, 8):
+    else:  # 5, 8
         i = 'Output file: '
-    else:
-        print(f'{ERR}E: invalid mode{END}')
-        exit(1)
 
     while True:
         o_file = input(f'{BOL}{i}{END}')
@@ -347,38 +353,38 @@ def get_output_file_c(mode):
             continue
 
         o_file = path.realpath(o_file)
+
         if path.exists(o_file):
             print(f'{ERR}E: this file already exists{END}')
             continue
 
-        try:
-            o_object = open(o_file, 'wb')
-            break
-        except Exception as e:
-            print(f'{ERR}E: {e}{END}')
+        o_object: Any = open_file(o_file, 'wb')
+
+        if o_object is None:
+            continue
+
+        break
 
     return o_file, o_object
 
 
-def get_output_file_w(i_file, i_size, mode):
+def get_output_file_w(i_file, i_size: int, mode: int) -> tuple:
     """
     """
     if mode in (6, 4):
-        i = 'File to overwrite (container): '
-    elif mode == 9:
+        i: str = 'File to overwrite (container): '
+    else:  # 9
         i = 'File to overwrite: '
-    else:
-        print(f'{ERR}E: invalid mode{END}')
-        exit(1)
 
     while True:
-        o_file = input(f'{BOL}{i}{END}')
+        o_file: str = input(f'{BOL}{i}{END}')
 
         if o_file == '':
             print(f'{ERR}E: output file is not set{END}')
             continue
 
-        o_size = get_file_size(o_file)
+        o_size: Optional[int] = get_file_size(o_file)
+
         if o_size is None:
             continue
 
@@ -390,41 +396,40 @@ def get_output_file_w(i_file, i_size, mode):
             continue
 
         if o_size < i_size:
-
             print(f'{ERR}E: output file must be not smaller '
                   f'than {i_size} bytes{END}')
-
             continue
 
-        try:
-            o_object = open(o_file, 'rb+')
-            break
-        except Exception as e:
-            print(f'{ERR}E: {e}{END}')
+        o_object: Any = open_file(o_file, 'rb+')
+
+        if o_object is None:
             continue
+
+        break
 
     return o_file, o_size, o_object
 
 
-def get_init_pos(max_init_pos, fix):
+def get_init_pos(max_init_pos: int, fix: bool) -> int:
     """
     fix=True for wiper()
     """
     while True:
         if fix:
-            init_pos = input(f'{BOL}Initial position, valid values are '
-                             f'[0; {max_init_pos}], default=0:{END} ')
-            if init_pos == '':
-                init_pos = 0
+            init_pos_s: str = input(
+                f'{BOL}Initial position, valid values are [0; {max_init_pos}],'
+                f' default=0:{END} ')
+            if init_pos_s == '':
+                init_pos_s = '0'
         else:
-            init_pos = input(f'{BOL}Initial position, valid values are '
-                             f'[0; {max_init_pos}]:{END} ')
-            if init_pos == '':
+            init_pos_s = input(f'{BOL}Initial position, valid values are '
+                               f'[0; {max_init_pos}]:{END} ')
+            if init_pos_s == '':
                 print(f'{ERR}E: initial position is not set{END}')
                 continue
 
         try:
-            init_pos = int(init_pos)
+            init_pos = int(init_pos_s)
         except Exception:
             print(f'{ERR}E: invalid value{END}')
             continue
@@ -436,22 +441,22 @@ def get_init_pos(max_init_pos, fix):
         return init_pos
 
 
-def get_final_pos(min_pos, max_pos, fix):
+def get_final_pos(min_pos: int, max_pos: int, fix: bool) -> int:
     """
     """
     while True:
         if fix:
-            final_pos = input(
+            final_pos_s: str = input(
                 f'{BOL}Final position, valid values are [{min_pos};'
                 f' {max_pos}], default={max_pos}:{END} ')
-            if final_pos == '':
-                final_pos = max_pos
+            if final_pos_s == '':
+                final_pos_s = str(max_pos)
         else:
-            final_pos = input(f'{BOL}Final position, valid values are '
-                              f'[{min_pos}; {max_pos}]:{END} ')
+            final_pos_s = input(f'{BOL}Final position, valid values are '
+                                f'[{min_pos}; {max_pos}]:{END} ')
 
         try:
-            final_pos = int(final_pos)
+            final_pos = int(final_pos_s)
         except Exception:
             print(f'{ERR}E: invalid value{END}')
             continue
@@ -463,54 +468,63 @@ def get_final_pos(min_pos, max_pos, fix):
         return final_pos
 
 
-def get_metadata_bytes():
+def get_comments_bytes() -> bytes:
     """
-    Get binary data to save as metadata.
     """
-    md_size = od['metadata_size']
-    meta_utf = input(f'{BOL}Metadata (optional, up to {md_size} bytes):{END} ')
+    comments: str = input(
+        f'{BOL}Comments (optional, up to '
+        f'{KS_COMMENTS_SITE_SIZE} bytes):{END} ')
 
-    if meta_utf == '':
-        m_bytes = urandom(md_size)
+    rnd_bytes: bytes = urandom(KS_COMMENTS_SITE_SIZE)
+
+    if comments == '':
+        comments_bytes: bytes = rnd_bytes
     else:
-        m_bytes = meta_utf.encode()
-        m_bytes += METADATA_DIV_BYTE
-        m_bytes = m_bytes[:md_size]
-        m_bytes += urandom(max(md_size - len(m_bytes), 0))
+        comments_bytes = comments.encode()
 
-    meta_utf = metadata_to_utf(m_bytes)
-    print(f'{ITA}I: metadata as it will be shown: {[meta_utf]}{END}')
-    return m_bytes
+        comments_bytes = b''.join([
+            comments_bytes,
+            INVALID_UTF8_BYTE,
+            rnd_bytes
+        ])[:KS_COMMENTS_SITE_SIZE]
+
+    comments_decoded: Optional[str] = decode_comments(comments_bytes)
+    print(f'{ITA}I: comments will be shown as: {[comments_decoded]}{END}')
+
+    return comments_bytes
 
 
-def get_mac():
+def is_real_mac() -> bool:
     """
     """
     while True:
-        add_mac = input(f'{BOL}Add MAC (0|1):{END} ')
-        if add_mac in ('', '0', '1'):
+        add_mac: str = input(
+            f'{BOL}Add an authentication tag? (Y/n):{END} ')
+
+        if add_mac in ('', '0', '1', 'y', 'n', 'Y', 'N'):
             break
+
         print(f'{ERR}E: invalid value{END}')
         continue
 
-    if add_mac in ('', '0'):
-        return False
+    if add_mac in ('', 'Y', 'y', '1'):
+        return True
 
-    return True
+    return False
 
 
-def get_output_file_size():
+def get_output_file_size() -> int:
     """
     """
     while True:
-        o_size = input(f'{BOL}Output file size in bytes:{END} ')
+        o_size_s: str = input(f'{BOL}Output file size in bytes:{END} ')
 
-        if o_size == '':
+        if o_size_s == '':
             print(f'{ERR}E: output file is not set{END}')
             continue
 
         try:
-            o_size = int(o_size)
+            o_size: int = int(o_size_s)
         except Exception as e:
             print(f'{ERR}E: {e}{END}')
             continue
@@ -522,61 +536,41 @@ def get_output_file_size():
         return o_size
 
 
-def do_continue(fix):
+def do_continue(fix: str) -> bool:
     """
     """
     while True:
-        do_cont = input(f'{BOL}Output file will be partially overwritten{fix}.'
-                        f' Proceed? (y|n):{END} ')
-        if do_cont in ('y', 'Y'):
+        do_cont: str = input(f'{BOL}Output file will be partially '
+                             f'overwritten{fix}.'
+                             f' Proceed? (y/n):{END} ')
+        if do_cont in ('y', 'Y', '1'):
             return True
-        if do_cont in ('n', 'N'):
+        if do_cont in ('n', 'N', '0'):
             return False
 
 
-def eprint(i_list):
+def print_positions() -> None:
     """
     """
-    for i in i_list:
-        print(f'  - {i.hex()}')
+    i: int = fod['i'].tell()
+    o: int = fod['o'].tell()
+    print(f'{ITA}D: current pointer positions: if={i}, of={o}{END}')
 
 
-def eeprint(i_list_list):
-    """
-    """
-    i_len = len(i_list_list)
-    for i in range(i_len):
-        print(f'  {ITA}round {i + 1}/{i_len}:{END}')
-        i_list = i_list_list[i]
-        eprint(i_list)
-
-
-def kprint(i_list):
-    """
-    """
-    x_list = deepcopy(i_list)
-
-    for x in x_list:
-        x[4] = x[4].hex()
-        print(f'{ITA}  - {x}{END}')
-
-
-def print_positions():
-    """
-    """
-    ift = od['i'].tell()
-    oft = od['o'].tell()
-    print(f'{ITA}D: current pointer positions: if={ift}, of={oft}{END}')
-
-
-def print_progress(written_sum, data_size, T0, fix):
+def print_progress(
+    written_sum: int,
+    data_size: int,
+    t_start: float,
+    fix: str
+) -> None:
     """
     """
     if data_size == 0:
         print(f'{ITA}I: written 0 bytes{END}')
         return
 
-    t = monotonic() - T0
+    t = monotonic() - t_start
+
     if t > 0:
         print(
             f'{ITA}I: written{fix} {written_sum} bytes'
@@ -590,58 +584,78 @@ def print_progress(written_sum, data_size, T0, fix):
               f' {round(t, 1)}s{END}')
 
 
-def xor(a, b):
+def xor(a: bytes, b: bytes) -> bytes:
     """
     """
-    length = min(len(a), len(b))
-    a_int = int.from_bytes(a[:length], byteorder=byteorder)
-    b_int = int.from_bytes(b[:length], byteorder=byteorder)
-    c_int = a_int ^ b_int
-    c = c_int.to_bytes(length, byteorder=byteorder)
+    length: int = min(len(a), len(b))
+    a_int: int = int.from_bytes(a[:length], byteorder=byteorder)
+    b_int: int = int.from_bytes(b[:length], byteorder=byteorder)
+    c_int: int = a_int ^ b_int
+    c: bytes = c_int.to_bytes(length, byteorder=byteorder)
     return c
 
 
-def shake_256_digest(data, size):
+def shake_256_digest(data: bytes, size: int) -> bytes:
     """
     """
-    m = shake_256()
-    m.update(data)
-    return m.digest(size)
+    ho: Any = shake_256()
+    ho.update(data)
+    return ho.digest(size)
 
 
-def blake2b_digest(data, person=b''):
+def blake2b_digest(
+    data: bytes,
+    person: bytes = b'',
+    salt: bytes = b''
+) -> bytes:
     """
     """
-    m = blake2b(digest_size=BLAKE_DIGEST_SIZE, person=person)
-    m.update(data)
-    return m.digest()
+    ho: Any = blake2b(
+        digest_size=BLAKE_DIGEST_SIZE,
+        person=person,
+        salt=salt
+    )
+
+    ho.update(data)
+
+    return ho.digest()
 
 
-def blake2b_file_digest(f_object, f_size, person=b''):
+def blake2b_file_digest(
+    f_object: Any,
+    f_size: int,
+    person: bytes = b'',
+    salt: bytes = b''
+) -> Optional[bytes]:
     """
     """
-    m = blake2b(digest_size=BLAKE_DIGEST_SIZE, person=person)
+    ho: Any = blake2b(digest_size=BLAKE_DIGEST_SIZE, person=person, salt=salt)
 
-    n = f_size // RW_CHUNK_SIZE
-    r = f_size % RW_CHUNK_SIZE
+    n: int = f_size // RW_CHUNK_SIZE
+    r: int = f_size % RW_CHUNK_SIZE
 
-    try:
-        for _ in range(n):
-            data = f_object.read(RW_CHUNK_SIZE)
-            m.update(data)
-        data = f_object.read(r)
-        m.update(data)
-    except OSError as e:
-        print(f'{ERR}E: {e}{END}')
+    for _ in range(n):
+        data: Optional[bytes] = read_data(RW_CHUNK_SIZE, f_object)
+
+        if data is None:
+            return None
+
+        ho.update(data)
+
+    data = read_data(r, f_object)
+
+    if data is None:
         return None
 
-    return m.digest()
+    ho.update(data)
+
+    return ho.digest()
 
 
-def keyfile_to_list(f_path):
+def get_keyfile_digest(f_path: str) -> Optional[bytes]:
     """
     """
-    f_size = get_file_size(f_path)
+    f_size: Optional[int] = get_file_size(f_path)
 
     if f_size is None:
         return None
@@ -649,922 +663,580 @@ def keyfile_to_list(f_path):
     print(f'{ITA}I: keyfile size: {f_size} bytes, real path: "{f_path}"{END}')
     print(f'{ITA}I: hashing the keyfile...{END}')
 
-    with open(f_path, 'rb') as f:
-        f_digest = blake2b_file_digest(f, f_size, person=BLAKE_PERSON_KEYFILE)
+    f: Any = open_file(f_path, 'rb')
+
+    if f is None:
+        return None
+
+    salt_keys: bytes = sd['keys']
+
+    f_digest: Optional[bytes] = blake2b_file_digest(
+        f,
+        f_size,
+        person=BLAKE_PERSON_KEYFILE,
+        salt=salt_keys
+    )
+
+    f.close()
 
     if f_digest is None:
         return None
 
-    f_list = [False, f_path, None, f_size, f_digest]
+    if DEBUG:
+        print(f'{ITA}D: digest: {f_digest.hex()}{END}')
 
-    if od['debug']:
-        print(f'{ITA}D: {f_list}{END}')
-
-    return f_list
+    return f_digest
 
 
-def dir_to_list_list(d_path):
+def get_keyfile_digest_list(d_path: str) -> Optional[list]:
     """
     """
-    f_list_list = []
-    size_sum = 0
+    f_tuple_list: list = []
+
+    size_sum: int = 0
+
     print(f'{ITA}I: scanning the directory "{d_path}"{END}')
 
     for root, _, files in walk(d_path):
-        for f in files:
-            k_file = path.join(root, f)
+        for fp in files:
+            f_path: str = path.join(root, fp)
 
-            if od['debug']:
-                print(f'{ITA}D: getting the size of "{k_file}"{END}')
+            if DEBUG:
+                print(f'{ITA}D: getting the size of "{f_path}"{END}')
 
-            f_size = get_file_size(k_file)
+            f_size: Optional[int] = get_file_size(f_path)
 
             if f_size is None:
                 return None
 
+            if DEBUG:
+                print(f'{ITA}D: size: {f_size} bytes{END}')
+
             size_sum += f_size
 
-            f_list = [False, k_file, None, f_size, None]
-            f_list_list.append(f_list)
+            f_tuple: tuple = (f_path, f_size)
 
-    f_list_list_len = len(f_list_list)
+            f_tuple_list.append(f_tuple)
 
-    print(f'{ITA}I: found {f_list_list_len} files, total '
+    f_tuple_list_len: int = len(f_tuple_list)
+
+    print(f'{ITA}I: found {f_tuple_list_len} files, total '
           f'size: {size_sum} bytes{END}')
 
-    if f_list_list_len == 0:
+    if f_tuple_list_len == 0:
         return []
 
     print(f'{ITA}I: hashing files in the directory "{d_path}"{END}')
 
-    for i in range(f_list_list_len):
-        f_list = f_list_list[i]
+    salt_keys: bytes = sd['keys']
 
-        _, f_path, _, f_size, _ = f_list
+    digest_list: list = []
 
-        if od['debug']:
-            print(f'{ITA}D: hashing "{k_file}"{END}')
+    for f_tuple in f_tuple_list:
 
-        with open(f_path, 'rb') as f:
-            f_digest = blake2b_file_digest(
-                f, f_size, person=BLAKE_PERSON_KEYFILE)
+        f_path, f_size = f_tuple
 
-            if f_digest is None:
-                return None
+        if DEBUG:
+            print(f'{ITA}D: hashing "{f_path}"{END}')
 
-        f_list_list[i][4] = f_digest
+        f = open_file(f_path, 'rb')
 
-    if od['debug']:
-        print(f'{ITA}D: final lists:{END}')
-        for f_list in f_list_list:
-            print(f'{ITA}D: {f_list}{END}')
+        if f is None:
+            return None
 
-    return f_list_list
+        f_digest = blake2b_file_digest(
+            f,
+            f_size,
+            person=BLAKE_PERSON_KEYFILE,
+            salt=salt_keys
+        )
+
+        f.close()
+
+        if f_digest is None:
+            return None
+
+        if DEBUG:
+            print(f'{ITA}D: digest: {f_digest.hex()}{END}')
+
+        digest_list.append(f_digest)
+
+    return digest_list
 
 
-def pp_to_list(pp):
+def get_passphrase_digest(pp: bytes) -> bytes:
     """
     """
-    pp = pp.encode()
-    pp_len = len(pp)
-    pp_digest = blake2b_digest(pp, person=BLAKE_PERSON_PASSPHRASE)
-    pp_list = [True, None, pp, pp_len, pp_digest]
+    salt_keys: bytes = sd['keys']
 
-    if od['debug']:
-        print(f'{ITA}D: {pp_list}{END}')
+    pp_digest: bytes = blake2b_digest(
+        pp,
+        person=BLAKE_PERSON_PASSPHRASE,
+        salt=salt_keys
+    )
 
-    return pp_list
+    if DEBUG:
+        print(f'{ITA}D: passphrase length: {len(pp)} bytes{END}')
+        print(f'{ITA}D: passphrase digest: {pp_digest.hex()}{END}')
+
+    return pp_digest
 
 
-def get_keys_for_kdf():
+def get_key_for_kdf() -> bytes:
     """
-    Get N keys for KDF from M key units
-    (keyfiles and passphrases from user input).
-
-    =--====--------------=----=====-=--  M keys
-    -----+++++-----+++++-----+++++-----  N blocks
-
-    ======================-----=-==----  M keys
-    -----+++++-----+++++-----+++++-----  N blocks
     """
-    k_list_list = get_input_keys()
+    digest_list: list = get_input_keys()
 
-    if not k_list_list:
-        print(f'{ITA}W: keys are not set!{END}')
+    collect()
 
-    # sort by digests
-    k_list_list.sort(key=itemgetter(4))
+    print(f'{ITA}I: getting user keys completed{END}')
 
-    if od['debug'] and len(k_list_list) > 0:
-        print(f'{ITA}D: keyfiles and passphrases:{END}')
-        kprint(k_list_list)
+    if not digest_list:
+        print(f'{WAR}W: no passphrase or keyfile specified!{END}')
 
-    keys_total_size = 0
+    if DEBUG:
+        print(f'{ITA}D: getting user input completed{END}')
+        print_positions()
 
-    basic_m = blake2b(
+    digest_list.sort()
+
+    if DEBUG:
+        print(f'{ITA}D: sorted digests of key units:{END}')
+        for digest in digest_list:
+            print(f'{ITA}  - {digest.hex()}{END}')
+
+    salt_keys: bytes = sd['keys']
+
+    ho: Any = blake2b(
         digest_size=BLAKE_DIGEST_SIZE,
-        person=BLAKE_PERSON_BASIC_KEY)
+        salt=salt_keys
+    )
 
-    for k_list in k_list_list:
-        _, _, _, k_size, k_digest = k_list
-        keys_total_size += k_size
-        basic_m.update(k_digest)
+    for digest in digest_list:
+        ho.update(digest)
 
-    if od['debug']:
-        print(f'D: received {len(k_list_list)} key items with a total size '
-              f'of {keys_total_size} bytes'
-              f' ({round(keys_total_size / M, 1)} MiB)')
+    key: bytes = ho.digest()
 
-    basic_key = basic_m.digest()
+    if DEBUG:
+        print(f'{ITA}D: key for catpig function:\n    {key.hex()}{END}')
 
-    if od['debug']:
-        print(f'{ITA}D: basic key: {basic_key.hex()}{END}')
-
-    total_block_num = od['num_rounds'] * 3
-
-    base_block_size = keys_total_size // total_block_num
-    ext_block_size = base_block_size + 1
-    ext_block_num = keys_total_size % total_block_num
-    base_block_num = total_block_num - ext_block_num
-
-    if od['debug']:
-        print(f'{ITA}D: keys_total_size: {keys_total_size}, '
-              f'total_block_num: {total_block_num}{END}')
-        print(f'{ITA}D: ext_block_size: {ext_block_size}, '
-              f'ext_block_num: {ext_block_num}{END}')
-        print(f'{ITA}D: base_block_size: {base_block_size}, '
-              f'base_block_num: {base_block_num}{END}')
-
-    m = blake2b(digest_size=BLAKE_DIGEST_SIZE, person=BLAKE_PERSON_EQUAL_BLOCK)
-
-    digest_tuple_list = []
-
-    r_sum = 0
-    block_r_sum = 0
-    cur_block_num = 0
-    cur_block_size = base_block_size
-
-    if ext_block_num > 0:
-        cur_block_size = ext_block_size
-
-    cur_block_rem_size = cur_block_size
-
-    stop = False
-
-    if od['debug']:
-        print(f'{ITA}D: hashing equal blocks of all key item content, '
-              f'sorted by their digest...{END}')
-
-    for key_list in k_list_list:
-        if od['debug']:
-            print(f'{ITA}D: handling key item {key_list}{END}')
-
-        key_size = key_list[3]
-        if key_size == 0:
-            continue
-
-        key_rem_size = key_size
-        is_pp = key_list[0]
-
-        if not is_pp:
-            key_path = key_list[1]
-            f = open(key_path, 'rb')
-        else:
-            pp_data = key_list[2]
-            key_pos = 0
-
-        if key_rem_size >= cur_block_rem_size:
-            if cur_block_rem_size < cur_block_size:
-
-                if not is_pp:
-                    n = cur_block_rem_size // RW_CHUNK_SIZE
-                    r = cur_block_rem_size % RW_CHUNK_SIZE
-                    key_data_len = 0
-                    try:
-                        for _ in range(n):
-                            key_data_chunk = f.read(RW_CHUNK_SIZE)
-                            m.update(key_data_chunk)
-                            key_data_len += len(key_data_chunk)
-                        key_data_chunk = f.read(r)
-                        m.update(key_data_chunk)
-                        key_data_len += len(key_data_chunk)
-                    except OSError as e:
-                        print(f'{ERR}E: {e}{END}')
-                        f.close()
-                        return None
-                else:
-                    key_data = pp_data[:cur_block_rem_size]
-                    key_pos = cur_block_rem_size
-                    m.update(key_data)
-                    key_data_len = len(key_data)
-
-                block_r_sum += key_data_len
-                r_sum += key_data_len
-
-                part_digest = m.digest()
-                digest_tuple = (part_digest, block_r_sum, cur_block_num)
-                digest_tuple_list.append(digest_tuple)
-
-                if od['debug']:
-                    print(f'{ITA}D: got block digest #{cur_block_num}; block '
-                          f'size: {block_r_sum} bytes; digest'
-                          f': {part_digest.hex()}{END}')
-
-                cur_block_num += 1
-                block_r_sum = 0
-                m = blake2b(
-                    digest_size=BLAKE_DIGEST_SIZE,
-                    person=BLAKE_PERSON_EQUAL_BLOCK)
-
-                if cur_block_num < ext_block_num:
-                    cur_block_size = ext_block_size
-                else:
-                    cur_block_size = base_block_size
-
-                cur_block_rem_size = cur_block_size
-                key_rem_size = key_rem_size - key_data_len
-
-            while True:
-                if key_rem_size < cur_block_size:
-                    break
-
-                if not is_pp:
-                    n = cur_block_rem_size // RW_CHUNK_SIZE
-                    r = cur_block_rem_size % RW_CHUNK_SIZE
-                    key_data_len = 0
-                    try:
-                        for _ in range(n):
-                            key_data_chunk = f.read(RW_CHUNK_SIZE)
-                            m.update(key_data_chunk)
-                            key_data_len += len(key_data_chunk)
-                        key_data_chunk = f.read(r)
-                        m.update(key_data_chunk)
-                        key_data_len += len(key_data_chunk)
-                    except OSError as e:
-                        print(f'{ERR}E: {e}{END}')
-                        f.close()
-                        return None
-                else:
-                    new_pos = key_pos + cur_block_size
-                    key_data = pp_data[key_pos:new_pos]
-                    key_pos = new_pos
-                    m.update(key_data)
-                    key_data_len = len(key_data)
-
-                block_r_sum += key_data_len
-                r_sum += key_data_len
-
-                part_digest = m.digest()
-                digest_tuple = (part_digest, block_r_sum, cur_block_num)
-                digest_tuple_list.append(digest_tuple)
-
-                if od['debug']:
-                    print(f'{ITA}D: got block digest #{cur_block_num}; block '
-                          f'size: {block_r_sum} bytes; digest'
-                          f': {part_digest.hex()}{END}')
-
-                cur_block_num += 1
-                if cur_block_num < ext_block_num:
-                    cur_block_size = ext_block_size
-                else:
-                    cur_block_size = base_block_size
-
-                if cur_block_size == 0:
-                    stop = True
-                    break
-
-                cur_block_rem_size = cur_block_size
-                key_rem_size = key_rem_size - key_data_len
-
-                block_r_sum = 0
-                m = blake2b(
-                    digest_size=BLAKE_DIGEST_SIZE,
-                    person=BLAKE_PERSON_EQUAL_BLOCK)
-
-            if stop:
-                break
-
-            if not is_pp:
-                n = key_rem_size // RW_CHUNK_SIZE
-                r = key_rem_size % RW_CHUNK_SIZE
-                key_data_len = 0
-                try:
-                    for _ in range(n):
-                        key_data_chunk = f.read(RW_CHUNK_SIZE)
-                        m.update(key_data_chunk)
-                        key_data_len += len(key_data_chunk)
-                    key_data_chunk = f.read(r)
-                    m.update(key_data_chunk)
-                    key_data_len += len(key_data_chunk)
-                except OSError as e:
-                    print(f'{ERR}E: {e}{END}')
-                    f.close()
-                    return None
-            else:
-                new_pos = key_pos + key_rem_size
-                key_data = pp_data[key_pos:new_pos]
-                key_pos = new_pos
-                m.update(key_data)
-                key_data_len = len(key_data)
-
-            block_r_sum += key_data_len
-            r_sum += key_data_len
-
-            cur_block_rem_size = cur_block_rem_size - key_data_len
-            key_rem_size = key_rem_size - key_data_len
-        else:
-
-            if not is_pp:
-                n = key_rem_size // RW_CHUNK_SIZE
-                r = key_rem_size % RW_CHUNK_SIZE
-                key_data_len = 0
-                try:
-                    for _ in range(n):
-                        key_data_chunk = f.read(RW_CHUNK_SIZE)
-                        m.update(key_data_chunk)
-                        key_data_len += len(key_data_chunk)
-                    key_data_chunk = f.read(r)
-                    m.update(key_data_chunk)
-                    key_data_len += len(key_data_chunk)
-                except OSError as e:
-                    print(f'{ERR}E: {e}{END}')
-                    f.close()
-                    return None
-            else:
-                key_data = pp_data
-                m.update(key_data)
-                key_data_len = len(key_data)
-
-            block_r_sum += key_data_len
-            r_sum += key_data_len
-
-            cur_block_rem_size = cur_block_rem_size - key_data_len
-
-            key_rem_size = key_rem_size - key_data_len
-
-        if not is_pp:
-            f.close()
-
-    if od['debug']:
-        print(f'{ITA}D: hashing equal blocks of all key item content, '
-              f'sorted by their digest: done{END}')
-
-        print(f'{ITA}D: block sizes and digests:{END}')
-        for digest_tuple in digest_tuple_list:
-            c, b, a = digest_tuple
-            print(f'  block#{a}, size={b}, digest={c.hex()}')
-
-    for_kdf_key_list = []
-
-    for i in range(total_block_num):
-        try:
-            part_key = digest_tuple_list[i][0]
-        except IndexError:
-            part_key = blake2b_digest(b'', person=BLAKE_PERSON_EQUAL_BLOCK)
-
-        for_kdf_key_list.append(basic_key + part_key)
-
-    for_kdf_key_list_list = []
-    start, fin = 0, 3
-    for i in range(od['num_rounds']):
-        for_kdf_key_list_list.append(for_kdf_key_list[start:fin])
-        start, fin = start + 3, fin + 3
-
-    if od['debug']:
-        print(f'{ITA}D: keys for KDF:{END}')
-        eeprint(for_kdf_key_list_list)
-
-    return for_kdf_key_list_list
+    return key
 
 
-def get_salt_list_list(i_size, final_pos, mode):
+def get_salts(i_size: int, final_pos: int, mode: int) -> bool:
     """
     """
-    salt_list_list = []
-
     if mode in (2, 6):  # encryption
-        for _ in range(od['num_rounds']):
-            salt_list = []
-            for _ in range(3):
-                salt_list.append(urandom(ONE_SALT_SIZE))
-            salt_list_list.append(salt_list)
+        sd['keys'] = urandom(ONE_SALT_SIZE)
+        sd['catpig'] = urandom(ONE_SALT_SIZE)
+        sd['scrypt'] = urandom(ONE_SALT_SIZE)
 
-        if od['debug']:
+        if DEBUG:
             print(f'{ITA}D: the salts has been created{END}')
-
     else:
         # decryption, mode 3 and 7
-        # read salts from the beginning and end of the encrypted file
-        # (including positions with mode=7)
-        try:
-            salt_header = od['i'].read(od['salt_header_size'])
-        except OSError as e:
-            print(f'{ERR}E: {e}{END}')
-            od['i'].close()
-            od['o'].close()
-            return None
+        # read the salts from the beginning and the end of the cryptoblob
 
-        if od['debug']:
-            print(f'{ITA}D: the start salt has been read{END}')
+        salt_header: Optional[bytes] = read_data(SALTS_HALF_SIZE, fod['i'])
+
+        if salt_header is None:
+            return False
+
+        if DEBUG:
+            print(f'{ITA}D: salt_header has been read{END}')
             print_positions()
 
-        cur_pos = od['i'].tell()
+        cur_pos: int = fod['i'].tell()
 
         if mode == 3:
-            new_pos = i_size - od['salt_footer_size']
+            new_pos: int = i_size - SALTS_HALF_SIZE
         else:
-            new_pos = final_pos - od['salt_footer_size']
+            new_pos = final_pos - SALTS_HALF_SIZE
 
-        try:
-            # move to the position of the beginning of the final salt
-            od['i'].seek(new_pos)
-        except OSError as e:
-            print(f'{ERR}E: {e}{END}')
-            od['i'].close()
-            od['o'].close()
-            return None
+        # jump to the beginning of salt_footer
+        if not seek_pos(fod['i'], new_pos):
+            return False
 
-        if od['debug']:
-            print(f'{ITA}D: we are in position before the final salt{END}')
+        if DEBUG:
+            print(f'{ITA}D: we are in position before salt_footer{END}')
             print_positions()
 
-        try:
-            salt_footer = od['i'].read(od['salt_footer_size'])
-        except OSError as e:
-            print(f'{ERR}E: {e}{END}')
-            od['i'].close()
-            od['o'].close()
-            return None
+        salt_footer: Optional[bytes] = read_data(SALTS_HALF_SIZE, fod['i'])
 
-        if od['debug']:
-            print(f'{ITA}D: the final salt has been read{END}')
+        if salt_footer is None:
+            return False
+
+        if DEBUG:
+            print(f'{ITA}D: salt_footer has been read{END}')
             print_positions()
 
         # return to the previously saved position
-        od['i'].seek(cur_pos)
+        if not seek_pos(fod['i'], cur_pos):
+            return False
 
-        if od['debug']:
-            print(f'{ITA}D: we returned to the position after the '
-                  f'starting salt{END}')
+        if DEBUG:
+            print(f'{ITA}D: we returned to the position after '
+                  f'salt_footer{END}')
             print_positions()
 
-        # then we need to get lists with salts ready for submission to KDF
+        sd['keys'] = b''.join([
+            salt_header[:ONE_SALT_HALF_SIZE],
+            salt_footer[:ONE_SALT_HALF_SIZE]
+        ])
 
-        y_list = []
+        sd['catpig'] = b''.join([
+            salt_header[ONE_SALT_HALF_SIZE:ONE_SALT_HALF_SIZE * 2],
+            salt_footer[ONE_SALT_HALF_SIZE:ONE_SALT_HALF_SIZE * 2]
+        ])
 
-        c = 0
-        for i in range(od['salts_size']):
-            if i % 2 == 0:
-                y_list.append(salt_header[c:c + 1])
+        sd['scrypt'] = b''.join([
+            salt_header[-ONE_SALT_HALF_SIZE:],
+            salt_footer[-ONE_SALT_HALF_SIZE:]
+        ])
+
+        if DEBUG:
+            print(f'{ITA}D: getting salts completed{END}')
+
+    return True
+
+
+def get_salts_header_footer() -> None:
+    """
+    """
+    sd['salt_header'] = b''.join([
+        sd['keys'][:ONE_SALT_HALF_SIZE],
+        sd['catpig'][:ONE_SALT_HALF_SIZE],
+        sd['scrypt'][:ONE_SALT_HALF_SIZE]
+    ])
+
+    sd['salt_footer'] = b''.join([
+        sd['keys'][-ONE_SALT_HALF_SIZE:],
+        sd['catpig'][-ONE_SALT_HALF_SIZE:],
+        sd['scrypt'][-ONE_SALT_HALF_SIZE:]
+    ])
+
+
+def catpig(
+    password: bytes,
+    salt: bytes,
+    space_mib: int,
+    passes: int
+) -> bytes:
+    """Memory-hard password-hashing function.
+    """
+    if space_mib < 1 or space_mib > MAX_SPACE_MIB:
+        raise ValueError('Invalid space_mib value')
+
+    if passes < 1:
+        raise ValueError('Invalid passes value')
+
+    space_size: int = space_mib * M
+    num_read_blocks: int = NUM_READ_BLOCKS_IN_MIB * space_mib * passes
+    half_num_read_blocks: int = num_read_blocks // 2 - 1
+
+    ho_blake = blake2b()
+    ho_blake.update(password)
+    key64: bytes = ho_blake.digest()
+
+    ho_blake = blake2b()
+    ho_blake.update(salt)
+    salt64: bytes = ho_blake.digest()
+
+    ho_passes = blake2b()
+    ho_passes.update(key64)
+    ho_passes.update(salt64)
+
+    ho_space = shake_256()
+    ho_space.update(key64)
+    ho_space.update(salt64)
+
+    ho_mem_access_pattern = shake_256()
+    ho_mem_access_pattern.update(salt64)
+
+    num_space_blocks: int = space_size // MAX_SPACE_BLOCK_SIZE
+    rem_space_size: int = space_size % MAX_SPACE_BLOCK_SIZE
+
+    space_block_list: list = []
+
+    for _ in range(num_space_blocks):
+        space_block: bytes = ho_space.digest(MAX_SPACE_BLOCK_SIZE)
+        space_block_list.append(space_block)
+        ho_space.update(space_block[-SHAKE_SIZE:])
+
+    if rem_space_size > 0:
+        space_block = ho_space.digest(rem_space_size)
+        space_block_list.append(space_block)
+
+    for i in range(num_read_blocks):
+        rnd_block: bytes = ho_mem_access_pattern.digest(RND_BLOCK_SIZE)
+        rnd_block_read_pos: int = 0
+
+        for _ in range(NUM_CHUNKS_IN_READ_BLOCK):
+            rnd_chunk: bytes = rnd_block[rnd_block_read_pos:
+                                         rnd_block_read_pos + RND_CHUNK_SIZE]
+            int_rnd_chunk: int = int.from_bytes(rnd_chunk, byteorder=BYTEORDER)
+            rnd_offset: int = int_rnd_chunk % space_size
+
+            cur_block_num: int = rnd_offset // MAX_SPACE_BLOCK_SIZE
+            cur_block_rnd_offset: int = rnd_offset % MAX_SPACE_BLOCK_SIZE
+            cur_block_size: int = len(space_block_list[cur_block_num])
+
+            if cur_block_size - cur_block_rnd_offset >= READ_CHUNK_SIZE:
+                read_chunk: bytes = space_block_list[cur_block_num][
+                    cur_block_rnd_offset:
+                    cur_block_rnd_offset + READ_CHUNK_SIZE]
             else:
-                y_list.append(salt_footer[c:c + 1])
-                c += 1
+                if space_size - rnd_offset < READ_CHUNK_SIZE:
+                    cur_block_num2: int = 0
+                else:
+                    cur_block_num2 = cur_block_num + 1
 
-        salts = b''.join(y_list)
+                read_size1: int = cur_block_size - cur_block_rnd_offset
+                read_size2: int = READ_CHUNK_SIZE - read_size1
 
-        z_list = []
+                read_chunk = b''.join([
+                    space_block_list[cur_block_num][-read_size1:],
+                    space_block_list[cur_block_num2][:read_size2]
+                ])
 
-        start, fin = 0, ONE_SALT_SIZE
+            ho_passes.update(read_chunk)
+            rnd_block_read_pos += RND_CHUNK_SIZE
 
-        for _ in range(od['num_rounds'] * 3):
-            z_list.append(salts[start:fin])
-            start, fin = start + ONE_SALT_SIZE, fin + ONE_SALT_SIZE
+        ho_mem_access_pattern.update(rnd_block[-SHAKE_SIZE:])
 
-        salt_list_list = []
+        if i >= half_num_read_blocks:
+            passes_intermediate_digest = ho_passes.digest()
+            ho_mem_access_pattern.update(passes_intermediate_digest)
 
-        start, fin = 0, 3
-        for i in range(od['num_rounds']):
-            salt_list_list.append(z_list[start:fin])
-            start, fin = start + 3, fin + 3
+    derived_key: bytes = ho_passes.digest()
 
-    return salt_list_list
+    return derived_key
 
 
-def get_two_salts(salt_list_list):
+def kdfs(key: bytes) -> bytes:
     """
     """
-    s_list = []
-
-    for salt_list in salt_list_list:
-        s_list.extend(salt_list)
-
-    salts = b''.join(s_list)
-    salts_len = len(salts)
-
-    salt_header_list = []
-    salt_footer_list = []
-
-    for i in range(salts_len):
-        b = salts[i:i + 1]
-
-        if i % 2 == 0:
-            salt_header_list.append(b)
-        else:
-            salt_footer_list.append(b)
-
-    salt_header = b''.join(salt_header_list)
-    salt_footer = b''.join(salt_footer_list)
-
-    return salt_header, salt_footer
-
-
-def get_first_rk_list_list(for_kdf_key_list_list, salt_list_list):
-    """
-    """
-    rk_list_list = []
-
     print(f'{ITA}I: deriving keys...{END}')
-    tx1 = monotonic()
 
-    num_rounds = od['num_rounds']
+    t0 = monotonic()
 
-    for i in range(od['num_rounds']):
+    salt_catpig: bytes = sd['catpig']
+    space_mib: int = cd['catpig_space_mib']
+    passes: int = cd['catpig_passes']
 
-        if od['debug']:
-            print(
-                f'{ITA}D: deriving keys, round'
-                f' {i + 1}/{num_rounds}...{END}')
+    catpig_digest: bytes = catpig(key, salt=salt_catpig, space_mib=space_mib,
+                                  passes=passes)
 
-        salt_list = salt_list_list[i]
-        key_list = for_kdf_key_list_list[i]
+    if DEBUG:
+        print(f'{ITA}D: catpig key: {key.hex()}{END}')
+        print(f'{ITA}D: catpig salt: {salt_catpig.hex()}{END}')
+        print(f'{ITA}D: catpig space, MiB: {space_mib}{END}')
+        print(f'{ITA}D: catpig passes: {passes}{END}')
+        print(f'{ITA}D: catpig digest: {catpig_digest.hex()}{END}')
 
-        if od['debug']:
-            print(f'{ITA}D: salt list:{END}')
-            eprint(salt_list)
-            print(f'{ITA}D: key list:{END}')
-            eprint(key_list)
+    del key
+    collect()
 
-        dk_digest_list = []
+    t1 = monotonic()
 
-        for i2 in range(3):
-            if od['debug']:
-                print(f'{ITA}D: get new dk...{END}')
+    salt_scrypt: bytes = sd['scrypt']
 
-            salt = salt_list[i2]
-            if od['debug']:
-                print(f'  salt: {salt.hex()}')
+    scrypt_dk: bytes = scrypt(catpig_digest, salt=salt_scrypt, n=SCRYPT_N,
+                              r=SCRYPT_R, p=SCRYPT_P, maxmem=SCRYPT_MAXMEM,
+                              dklen=SCRYPT_DKLEN)
 
-            key = key_list[i2]
-            if od['debug']:
-                print(f'  key: {key.hex()}')
+    if DEBUG:
+        print(f'{ITA}D: scrypt key: {catpig_digest.hex()}{END}')
+        print(f'{ITA}D: scrypt salt: {salt_scrypt.hex()}{END}')
+        print(f'{ITA}D: scrypt dk: {scrypt_dk.hex()}{END}')
 
-            if od['debug']:
-                t01 = monotonic()
+    del catpig_digest
+    collect()
 
-            dk = scrypt(key, salt=salt, n=SCRYPT_N, r=SCRYPT_R,
-                        p=SCRYPT_P, dklen=od['dk_len'])
+    t2 = monotonic()
 
-            dk_digest = blake2b_digest(dk, person=BLAKE_PERSON_ROUND_KEY)
+    t_catpig, t_scrypt = t1 - t0, t2 - t1
+    t = t_catpig + t_scrypt
 
-            if od['debug']:
-                t02 = monotonic()
-                print(f'  dk digest: {dk_digest.hex()}')
-                print(f'D: one key derived in {round(t02 - t01, 3)}s')
+    print(f'{ITA}I: keys derived in {round(t, 1)}s (catpig: '
+          f'{round(t_catpig, 1)}s, scrypt: {round(t_scrypt, 1)}s){END}')
 
-            dk_digest_list.append(dk_digest)
-
-        rk_list_list.append(dk_digest_list)
-
-    tx2 = monotonic()
-    print(f'{ITA}I: keys derived in {round(tx2 - tx1, 1)}s{END}')
-
-    return rk_list_list
+    return scrypt_dk
 
 
-def get_updated_rk_list_list(rk_list_list, keystream_chunk):
+def get_ks_block(data: bytes) -> bytes:
+    """
+    Update SHAKE256 hash object with data and get a digest (keystream block).
+    """
+    cd['shake_ho'].update(data)
+
+    ks_block: bytes = cd['shake_ho'].digest(KS_BLOCK_SIZE)
+
+    return ks_block
+
+
+def use_custom_settings(mode: int) -> None:
     """
     """
-    if od['debug']:
-        print(f'{ITA}D: getting new `round keys`...{END}')
+    custom: bool = is_custom()
 
-    new_rk_list_list = []
-
-    for rk_list in rk_list_list:
-        new_rk_list = []
-        for rk in rk_list:
-            new_rk = blake2b_digest(
-                rk + keystream_chunk,
-                person=BLAKE_PERSON_ROUND_KEY)
-            new_rk_list.append(new_rk)
-        new_rk_list_list.append(new_rk_list)
-
-    if od['debug']:
-        print(f'{ITA}D: old keys:{END}')
-        eeprint(rk_list_list)
-        print(f'{ITA}D: new keys:{END}')
-        eeprint(new_rk_list_list)
-
-    return new_rk_list_list
-
-
-def get_mixed_block(rk_list):
-    """
-    """
-    if od['debug']:
-        T0 = monotonic()
-        print(f'{ITA}D: starting get_mixed_block(){END}')
-        print(f'{ITA}D: getting block_src, block_rip, block_mix...{END}')
-        t0 = monotonic()
-
-    block_src = shake_256_digest(rk_list[0], od['block_src_size'])
-    block_rip = shake_256_digest(rk_list[1], od['block_rip_size'])
-    block_mix = shake_256_digest(rk_list[2], od['block_mix_size'])
-
-    if od['debug']:
-        t1 = monotonic()
-        print(f'{ITA}D: got block_src, block_rip, block_mix '
-              f'in {round(t1 - t0, 3)}s{END}')
-
-    chunks_dict = {}  # {'4 bytes': 'chunk 128 + 0-255 bytes', ...}
-    block_mix_position = 0
-    byte_num = 0
-    read_pos = 0
-
-    if od['debug']:
-        print(f'{ITA}D: getting chunks_dict...{END}')
-        t0 = monotonic()
-
-    while True:
-        rnd_chunk_size = MIN_KEYSTREAM_CHUNK_SIZE + block_rip[byte_num]
-        rnd_chunk = block_src[read_pos:read_pos + rnd_chunk_size]
-
-        if not rnd_chunk:
-            break
-
-        read_pos += rnd_chunk_size
-        byte_num += 1
-
-        while True:
-            new_pos = block_mix_position + MIX_BYTES_SIZE
-            mix_bytes = block_mix[block_mix_position:new_pos]
-
-            block_mix_position = new_pos
-
-            if mix_bytes not in chunks_dict:
-                chunks_dict[mix_bytes] = rnd_chunk
-                break
-
-    if od['debug']:
-        t1 = monotonic()
-        print(f'{ITA}D: got chunks_dict {round(t1 - t0, 3)}s{END}')
-
-        print(f'{ITA}D: sorting {len(chunks_dict)} chunks...{END}')
-        t0 = monotonic()
-
-    mixed_tuple_list = sorted(chunks_dict.items(), key=itemgetter(0))
-
-    if od['debug']:
-        t1 = monotonic()
-        print(f'{ITA}D: chunks sorted in {round(t1 - t0, 3)}s{END}')
-        print(f'{ITA}D: getting mixed_block...{END}')
-        t0 = monotonic()
-
-    mixed_list = []
-
-    for rnd_tuple in mixed_tuple_list:
-        mixed_list.append(rnd_tuple[1])
-
-    mixed_block = b''.join(mixed_list)
-
-    if od['debug']:
-        t1 = monotonic()
-        print(f'{ITA}D: got mixed_block in {round(t1 - t0, 3)}s{END}')
-        print(f'{ITA}D: get_mixed_block() finished '
-              f'in {round(t1 - T0, 3)}s{END}')
-
-    return mixed_block
-
-
-def get_keystream_block(rk_list_list):
-    """
-    """
-    if od['debug']:
-        print(f'{ITA}D: starting to get keystream block...{END}')
-        t0 = monotonic()
-
-    rk_list = rk_list_list[0]
-    mixed_block = get_mixed_block(rk_list)
-
-    if od['num_rounds'] == 1:
-        if od['debug']:
-            t1 = monotonic()
-            print(f'{ITA}D: keystream block has been received '
-                  f'in {round(t1 - t0, 3)}s{END}')
-        return mixed_block
-
-    mixed_block_int = int.from_bytes(mixed_block, byteorder)
-
-    for rk_list in rk_list_list[1:]:
-        mixed_block_x = get_mixed_block(rk_list)
-        mixed_block_x_int = int.from_bytes(mixed_block_x, byteorder)
-
-        mixed_block_int = mixed_block_int ^ mixed_block_x_int
-
-    keystream_block = mixed_block_int.to_bytes(od['block_src_size'], byteorder)
-
-    if od['debug']:
-        t1 = monotonic()
-        print(f'{ITA}D: keystream block has been received '
-              f'in {round(t1 - t0, 3)}s{END}')
-
-    return keystream_block
-
-
-def set_custom_options():
-    """
-    """
-    custom = is_custom()
-    print(f'{ITA}I: custom options: {custom}{END}')
+    print(f'{ITA}I: use custom settings: {custom}{END}')
 
     if custom:
-        od['debug'] = is_debug()
-        od['num_rounds'] = get_num_rounds()
-        od['block_src_size'] = get_keystream_block_size()
-        od['padding_order'] = get_padding_order()
+        if mode in (2, 6):
+            print(f'{WAR}W: decryption will require the same custom '
+                  f'values!{END}')
 
-        od['padding_max_percent'] = get_padding_max_percent()
-
-        od['dk_len'] = get_dk_len()
-        od['metadata_size'] = get_metadata_size()
+        cd['pad_max_percent'] = get_pad_max_percent()
+        cd['catpig_space_mib'] = get_catpig_space_mib()
+        cd['catpig_passes'] = get_catpig_passes()
     else:
-        od['debug'] = False
-        od['num_rounds'] = DEFAULT_NUM_ROUNDS
-        od['block_src_size'] = DEFAULT_KEYSTREAM_BLOCK_SIZE
-        od['padding_order'] = DEFAULT_PADDING_ORDER
-
-        od['padding_max_percent'] = DEFAULT_PADDING_MAX_PERCENT
-
-        od['dk_len'] = DEFAULT_DK_LEN
-        od['metadata_size'] = DEFAULT_METADATA_SIZE
-
-    od['salts_size'] = ONE_SALT_SIZE * 3 * od['num_rounds']
-    od['salt_footer_size'] = od['salts_size'] // 2
-    od['salt_header_size'] = od['salts_size'] - od['salt_footer_size']
-    od['block_rip_size'] = int(
-        (od['block_src_size'] / (MIN_KEYSTREAM_CHUNK_SIZE + (255 / 2))) * 1.05)
-    od['block_mix_size'] = od['block_rip_size'] * MIX_BYTES_SIZE
-    od['contents_block_size'] = od[
-        'block_src_size'] - OUT_OF_CONTENTS_BLOCK_SIZE
-    od['rk_keysream_size'] = (OUT_OF_CONTENTS_BLOCK_SIZE -
-                              PADDING_KEYSTREAM_SIZE - MAC_KEYSTREAM_SIZE -
-                              od['metadata_size'])
-    od['padding_start_pos'] = od['contents_block_size']
-    od['padding_fin_pos'] = od['padding_start_pos'] + PADDING_KEYSTREAM_SIZE
-    od['mac_start_pos'] = od['padding_fin_pos']
-    od['mac_fin_pos'] = od['mac_start_pos'] + MAC_KEYSTREAM_SIZE
-    od['meta_start_pos'] = od['mac_fin_pos']
-    od['meta_fin_pos'] = od['meta_start_pos'] + od['metadata_size']
-    od['rk_start_pos'] = od['meta_fin_pos']
-    od['rk_fin_pos'] = od['rk_start_pos'] + od['rk_keysream_size']
+        cd['pad_max_percent'] = DEFAULT_PAD_MAX_PERCENT
+        cd['catpig_space_mib'] = DEFAULT_CATPIG_SPACE_MIB
+        cd['catpig_passes'] = DEFAULT_CATPIG_PASSES
 
 
-def get_file_size(f_path):
+def get_file_size(f_path: str) -> Optional[int]:
     """
     """
     try:
         with open(f_path, 'rb') as f:
-            try:
-                f.seek(0, 2)
-            except Exception as e:
-                print(f'{ERR}E: {e}{END}')
-                return None
-            try:
-                position = f.tell()
-            except Exception as e:
-                print(f'{ERR}E: {e}{END}')
-                return None
-            return position
+            return f.seek(0, 2)
     except Exception as e:
         print(f'{ERR}E: {e}{END}')
         return None
 
 
-def metadata_to_utf(md_bytes):
+def decode_comments(comments_bytes: bytes) -> Optional[str]:
     """
     """
-    md = md_bytes.partition(METADATA_DIV_BYTE)[0]
+    comments_bytes_part: bytes = comments_bytes.partition(INVALID_UTF8_BYTE)[0]
 
     try:
-        return md.decode('utf-8')
+        return comments_bytes_part.decode('utf-8')
     except UnicodeDecodeError:
         return None
 
 
-def rand_bytes_to_rand_padding(rand_bytes, padding_order):
+def get_pad_from_msg(
+    msg_size: int,
+    rnd_bytes: bytes,
+    max_pad_percent: int
+) -> int:
     """
     """
-    int_rand_bytes = int.from_bytes(rand_bytes, byteorder='big')
-    rand_max_variability = 256 ** len(rand_bytes)
-    padding_variability = 2 ** padding_order
-    divider = rand_max_variability // padding_variability
-    rand_padding = int_rand_bytes // divider
+    int_rnd_bytes: int = int.from_bytes(rnd_bytes, byteorder=BYTEORDER)
 
-    return rand_padding
+    rnd_max_variability: int = int(256 ** len(rnd_bytes))
+
+    pad_size: int = int_rnd_bytes * msg_size * \
+        max_pad_percent // (rnd_max_variability * 100)
+
+    return pad_size
 
 
-def get_padding_size_from_msg(msg_size, rand_bytes, max_pad_percent):
+def get_pad_from_pmsg(
+    pmsg_size: int,
+    rnd_bytes: bytes,
+    max_pad_percent: int
+) -> int:
     """
     """
-    int_rand_bytes = int.from_bytes(rand_bytes, byteorder='big')
-    rand_max_variability = 256 ** len(rand_bytes)
+    int_rnd_bytes: int = int.from_bytes(rnd_bytes, byteorder=BYTEORDER)
 
-    padding_size = int_rand_bytes * msg_size * max_pad_percent // (
-        rand_max_variability * 100)
+    rnd_max_variability: int = int(256 ** len(rnd_bytes))
 
-    return padding_size
+    pad_size: int = pmsg_size * int_rnd_bytes * max_pad_percent // (
+        int_rnd_bytes * max_pad_percent + rnd_max_variability * 100)
+
+    return pad_size
 
 
-def get_padding_size_from_ppm(ppm_size, rand_bytes, max_pad_percent):
+def get_header_footer_pad(pad_size: int, rnd_bytes: bytes) -> tuple:
     """
     """
-    int_rand_bytes = int.from_bytes(rand_bytes, byteorder='big')
-    rand_max_variability = 256 ** len(rand_bytes)
+    int_rnd_bytes: int = int.from_bytes(rnd_bytes, byteorder=BYTEORDER)
 
-    padding_size = (ppm_size * int_rand_bytes * max_pad_percent // (
-        int_rand_bytes * max_pad_percent + rand_max_variability * 100))
+    header_pad: int = int_rnd_bytes % (pad_size + 1)
+    footer_pad: int = pad_size - header_pad
 
-    return padding_size
+    return header_pad, footer_pad
 
 
-def hider_data_handler(mode, i_object, o_object, init_pos, data_size):
+def hider_processor(mode: int, init_pos: int, data_size: int) -> bool:
     """
     """
     if mode == 4:
-        o_object.seek(init_pos)
-        not_fsync_sum = 0
+        if not seek_pos(fod['o'], init_pos):
+            return False
+
+        not_fsync_sum: int = 0
     else:
-        i_object.seek(init_pos)
+        if not seek_pos(fod['i'], init_pos):
+            return False
 
-    m = blake2b(digest_size=HIDER_DIGEST_SIZE, person=BLAKE_PERSON_HIDER)
+    ho: Any = blake2b(digest_size=HIDER_DIGEST_SIZE)
 
-    T0 = monotonic()
-    t0 = T0
+    t_start = monotonic()
+    t_last_print = t_start
 
-    w_sum = 0
+    w_sum: int = 0
 
-    num_chunks = data_size // RW_CHUNK_SIZE
-    rem_size = data_size % RW_CHUNK_SIZE
+    num_chunks: int = data_size // RW_CHUNK_SIZE
+    rem_size: int = data_size % RW_CHUNK_SIZE
 
     for _ in range(num_chunks):
-        try:
-            i_data = i_object.read(RW_CHUNK_SIZE)
-            o_object.write(i_data)
-        except OSError as e:
-            print(f'{ERR}E: {e}{END}')
-            return None
+        i_data: Optional[bytes] = read_data(RW_CHUNK_SIZE, fod['i'])
+        if i_data is None:
+            return False
 
-        m.update(i_data)
+        if not write_data(i_data):
+            return False
 
-        w_len = len(i_data)
+        ho.update(i_data)
+
+        w_len: int = len(i_data)
         w_sum += w_len
 
         if mode == 4:
             not_fsync_sum += w_len
             if not_fsync_sum >= MIN_FSYNC_SIZE:
-
-                try:
-                    o_object.flush()
-                    fsync(o_object.fileno())
-                except OSError as e:
-                    print(f'{ERR}E: {e}{END}')
-                    return None
+                if not fsync_data():
+                    return False
 
                 not_fsync_sum = 0
-                if monotonic() - t0 >= MIN_PRINT_INTERVAL:
-                    print_progress(w_sum, data_size, T0, fix='/fsynced')
-                    t0 = monotonic()
+                if monotonic() - t_last_print >= MIN_PRINT_INTERVAL:
+                    print_progress(w_sum, data_size, t_start, fix='/fsynced')
+                    t_last_print = monotonic()
         else:
-            if monotonic() - t0 >= MIN_PRINT_INTERVAL:
-                print_progress(w_sum, data_size, T0, fix='')
-                t0 = monotonic()
+            if monotonic() - t_last_print >= MIN_PRINT_INTERVAL:
+                print_progress(w_sum, data_size, t_start, fix='')
+                t_last_print = monotonic()
 
-    try:
-        i_data = i_object.read(rem_size)
-        o_object.write(i_data)
-    except OSError as e:
-        print(f'{ERR}E: {e}{END}')
-        return None
+    i_data = read_data(rem_size, fod['i'])
 
-    m.update(i_data)
+    if i_data is None:
+        return False
+
+    if not write_data(i_data):
+        return False
+
+    ho.update(i_data)
 
     w_len = len(i_data)
     w_sum += w_len
 
     if mode == 4:
-        try:
-            o_object.flush()
-            fsync(o_object.fileno())
-        except OSError as e:
-            print(f'{ERR}E: {e}{END}')
-            return None
+        if not fsync_data():
+            return False
 
-        print_progress(w_sum, data_size, T0, fix='/fsynced')
+        print_progress(w_sum, data_size, t_start, fix='/fsynced')
     else:
-        print_progress(w_sum, data_size, T0, fix='')
+        print_progress(w_sum, data_size, t_start, fix='')
 
-    message_checksum = m.hexdigest()
+    message_checksum = ho.hexdigest()
 
-    final_pos = o_object.tell()
+    final_pos = fod['o'].tell()
 
     if mode == 4:
         print(f'{ITA}Remember the following values to retrieve '
@@ -1578,131 +1250,117 @@ def hider_data_handler(mode, i_object, o_object, init_pos, data_size):
     return True
 
 
-def wiper_data_handler(o_object, init_pos, data_size):
+def wiper_processor(init_pos: int, data_size: int) -> bool:
     """
     """
-    o_object.seek(init_pos)
+    if not seek_pos(fod['o'], init_pos):
+        return False
 
-    num_chunks = data_size // RW_CHUNK_SIZE
-    rem_size = data_size % RW_CHUNK_SIZE
+    num_chunks: int = data_size // RW_CHUNK_SIZE
+    rem_size: int = data_size % RW_CHUNK_SIZE
 
     print(f'{ITA}I: writing/fsyncing...{END}')
 
-    fix = '/fsynced'
+    fix: str = '/fsynced'
 
-    w_sum = 0
-    not_fsync_sum = 0
+    w_sum: int = 0
+    not_fsync_sum: int = 0
 
-    T0 = monotonic()
-    t0 = T0
+    t_start = monotonic()
+    t_last_print = t_start
 
     for _ in range(num_chunks):
-        chunk = urandom(RW_CHUNK_SIZE)
+        chunk: bytes = urandom(RW_CHUNK_SIZE)
 
-        try:
-            o_object.write(chunk)
-        except OSError as e:
-            print(f'{ERR}E: {e}{END}')
-            return None
+        if not write_data(chunk):
+            return False
 
-        w_len = len(chunk)
+        w_len: int = len(chunk)
         w_sum += w_len
         not_fsync_sum += w_len
 
         if not_fsync_sum >= MIN_FSYNC_SIZE:
 
-            try:
-                o_object.flush()
-                fsync(o_object.fileno())
-            except OSError as e:
-                print(f'{ERR}E: {e}{END}')
-                return None
+            if not fsync_data():
+                return False
 
             not_fsync_sum = 0
 
-            if monotonic() - t0 >= MIN_PRINT_INTERVAL:
-                print_progress(w_sum, data_size, T0, fix=fix)
-                t0 = monotonic()
+            if monotonic() - t_last_print >= MIN_PRINT_INTERVAL:
+                print_progress(w_sum, data_size, t_start, fix=fix)
+                t_last_print = monotonic()
 
     chunk = urandom(rem_size)
 
-    try:
-        o_object.write(chunk)
-    except OSError as e:
-        print(f'{ERR}E: {e}{END}')
-        return None
+    if not write_data(chunk):
+        return False
 
     w_len = len(chunk)
     w_sum += w_len
 
-    try:
-        o_object.flush()
-        fsync(o_object.fileno())
-    except OSError as e:
-        print(f'{ERR}E: {e}{END}')
-        return None
+    if not fsync_data():
+        return False
 
-    print_progress(w_sum, data_size, T0, fix=fix)
+    print_progress(w_sum, data_size, t_start, fix=fix)
+
     return True
 
 
-def cryptohider(mode):
+def cryptohider(mode: int) -> bool:
     """
     """
-    set_custom_options()
+    comments_bytes: Optional[bytes] = None
+    message_size: Optional[int] = None
+    init_pos: Optional[int] = None
+    final_pos: Optional[int] = None
 
-    final_pos = None  # for mode=6
+    use_custom_settings(mode)
 
-    for_kdf_key_list_list = get_keys_for_kdf()
-
-    if for_kdf_key_list_list is None:
-        return None
-
-    i_file, i_size, od['i'] = get_input_file(mode)
+    i_file, i_size, fod['i'] = get_input_file(mode)
     print(f'{ITA}I: input file real path (in quotes):\n    "{i_file}"{END}')
 
     print(f'{ITA}I: input file size: {i_size} '
           f'bytes, {round(i_size / M, 1)} MiB{END}')
 
     if mode in (2, 6):
-        message_size = i_size + od['metadata_size']
-        min_cryptoblob_size = od['salts_size'] + message_size + MAC_SIZE
-        max_header_padding_size = 2 ** od['padding_order'] - 1
-        max_footer_padding_size = message_size * \
-            od['padding_max_percent'] // 100
+        message_size = i_size + KS_COMMENTS_SITE_SIZE
+        min_cryptoblob_size: int = SALTS_SIZE + message_size + MAC_TAG_SIZE
+        max_pad: int = message_size * cd['pad_max_percent'] // 100 - 1
+        max_pad = max(0, max_pad)
+        max_cryptoblob_size: int = max_pad + min_cryptoblob_size
 
-        max_cryptoblob_size = max_header_padding_size + \
-            min_cryptoblob_size + max_footer_padding_size
-
-        if od['debug']:
+        if DEBUG:
             print(f'{ITA}D: message_size: {message_size}')
             print(f'D: min_cryptoblob_size: {min_cryptoblob_size}')
-            print(f'D: max_header_padding_size: {max_header_padding_size}')
-            print(f'D: max_footer_padding_size: {max_footer_padding_size}')
+            print(f'D: max_pad: {max_pad}')
             print(f'D: max_cryptoblob_size: {max_cryptoblob_size}{END}')
 
-    min_possible_cryptoblob_size = od['salts_size'] + od[
-        'metadata_size'] + MAC_SIZE
-
     if mode in (3, 7):
-        if i_size < min_possible_cryptoblob_size:
-            print(f'{ERR}E: invalid input values combination (is input '
-                  f'file too small?){END}')
-            od['i'].close()
-            return None
+        if i_size < MIN_VALID_CRYPTOBLOB_SIZE:
+            if mode == 3:
+                print(f'{ERR}E: input file is too small (min valid '
+                      f'cryptoblob size is {MIN_VALID_CRYPTOBLOB_SIZE} '
+                      f'bytes){END}')
+            else:  # 7
+                print(f'{ERR}E: inporrect initial/final positions (min '
+                      f'valid cryptoblob size is '
+                      f'{MIN_VALID_CRYPTOBLOB_SIZE} '
+                      f'bytes){END}')
+            return False
 
     if mode in (2, 3):
-        o_file, od['o'] = get_output_file_c(mode)
+        o_file, fod['o'] = get_output_file_c(mode)
 
     elif mode == 6:
-        o_file, o_size, od['o'] = get_output_file_w(
+        o_file, o_size, fod['o'] = get_output_file_w(
             i_file, max_cryptoblob_size, mode)
 
-        max_init_pos = o_size - max_cryptoblob_size
+        max_init_pos: int = o_size - max_cryptoblob_size
 
     else:  # 7
-        o_file, od['o'] = get_output_file_c(mode)
-        max_init_pos = i_size - min_possible_cryptoblob_size
+        o_file, fod['o'] = get_output_file_c(mode)
+
+        max_init_pos = i_size - MIN_VALID_CRYPTOBLOB_SIZE
 
     print(f'{ITA}I: output file real path (in quotes):\n    "{o_file}"{END}')
 
@@ -1712,180 +1370,93 @@ def cryptohider(mode):
 
     if mode in (6, 7):
         init_pos = get_init_pos(max_init_pos, fix=False)
+
         print(f'{ITA}I: initial position: {init_pos}{END}')
 
     if mode == 7:
         final_pos = get_final_pos(
-            min_pos=init_pos + min_possible_cryptoblob_size,
+            min_pos=init_pos + MIN_VALID_CRYPTOBLOB_SIZE,
             max_pos=i_size,
-            fix=False)
+            fix=False
+        )
+
         print(f'{ITA}I: final position: {final_pos}{END}')
 
     if mode in (2, 6):
-        meta = get_metadata_bytes()
+        comments_bytes = get_comments_bytes()
 
     if mode in (2, 6):
-        MAC = get_mac()
-        print(f'{ITA}I: add MAC: {MAC}{END}')
+        add_real_mac: bool = is_real_mac()
+        print(f'{ITA}I: add an authentication tag: {add_real_mac}{END}')
     else:  # 3, 5
-        MAC = True
+        add_real_mac = True
+
+    if mode == 6:
+        if not seek_pos(fod['o'], init_pos):
+            return False
+    if mode == 7:
+        if not seek_pos(fod['i'], init_pos):
+            return False
+    if mode in (6, 7):
+        if DEBUG:
+            print(f'{ITA}D: pointers set to initial positions{END}')
+            print_positions()
+
+    if DEBUG:
+        print(f'{ITA}D: salts processing...{END}')
+
+    if not get_salts(i_size, final_pos, mode):
+        return False
+
+    if DEBUG:
+        salt_keys_s: str = sd['keys'].hex()
+        salt_catpig_s: str = sd['catpig'].hex()
+        salt_scrypt_s: str = sd['scrypt'].hex()
+        print(f'{ITA}D: salt for hashing input keys:\n    {salt_keys_s}{END}')
+        print(f'{ITA}D: salt for catpig KDF:\n    {salt_catpig_s}{END}')
+        print(f'{ITA}D: salt for scrypt KDF:\n    {salt_scrypt_s}{END}')
+
+    get_salts_header_footer()
+
+    key_for_kdf: bytes = get_key_for_kdf()
+
+    collect()
 
     if mode == 6:
         if not do_continue(fix=' with cryptoblob'):
             print(f'{ITA}I: stopped by user request{END}')
-            od['i'].close()
-            od['o'].close()
-            return None
+            return False
 
-    if od['debug']:
-        print(f'{ITA}D: user input received!{END}')
-        print_positions()
+    return cryptohider_processor(
+        mode,
+        i_size,
+        init_pos,
+        final_pos,
+        message_size,
+        comments_bytes,
+        add_real_mac,
+        key_for_kdf
+    )
 
-    if mode == 6:
-        od['o'].seek(init_pos)
-    if mode == 7:
-        od['i'].seek(init_pos)
-    if mode in (6, 7):
-        if od['debug']:
-            print(f'{ITA}D: pointers set to initial positions{END}')
-            print_positions()
 
-    T0 = monotonic()
-    t0 = T0
-
-    w_sum = 0
-
-    if mode == 6:
-        not_fsync_sum = 0
-
-    if od['debug']:
-        print(f'{ITA}D: salts processing...{END}')
-
-    salt_list_list = get_salt_list_list(i_size, final_pos, mode)
-
-    if salt_list_list is None:
-        return None  # OSError
-
-    if od['debug']:
-        print(f'{ITA}D: salts for KDF:{END}')
-        eeprint(salt_list_list)
-
-    salt_header, salt_footer = get_two_salts(salt_list_list)
-
+def write_pad(
+    pad_size: int,
+    mode: int,
+    w_sum: int,
+    not_fsync_sum: int,
+    t_start: float,
+    t_last_print: float,
+    output_data_size: int
+) -> Optional[tuple]:
+    """
+    """
     if mode in (2, 6):
-        try:
-            od['o'].write(salt_header)
-        except OSError as e:
-            print(f'{ERR}E: {e}{END}')
-            od['i'].close()
-            od['o'].close()
-            return None
+        pad_num_chunks: int = pad_size // RW_CHUNK_SIZE
+        pad_rem_size: int = pad_size % RW_CHUNK_SIZE
 
-        w_len = len(salt_header)
-        w_sum += w_len
-
-        if mode == 6:
-            not_fsync_sum += w_len
-
-        if od['debug']:
-            print(f'{ITA}D: salt_header is written{END}')
-            print_positions()
-
-    if od['debug']:
-        print(f'{ITA}D: salts processing done{END}')
-
-    if od['debug']:
-        print(f'{ITA}D: getting first `round keys` with KDF{END}')
-
-    rk_list_list = get_first_rk_list_list(
-        for_kdf_key_list_list, salt_list_list)
-
-    if od['debug']:
-        print(f'{ITA}D: first `round keys`:{END}')
-        eeprint(rk_list_list)
-
-    if od['debug']:
-        print(f'{ITA}D: getting first keystream block{END}')
-
-    keystream_block_counter = 0
-    keystream_block = get_keystream_block(rk_list_list)
-
-    padding_keystream = keystream_block[
-        od['padding_start_pos']:od['padding_fin_pos']]
-
-    padding_keystream_start = padding_keystream[:PADDING_KEYSTREAM_SIZE // 2]
-
-    rand_padding_start = rand_bytes_to_rand_padding(
-        padding_keystream_start, od['padding_order'])
-
-    if od['debug']:
-        print(f'{ITA}D: rand_padding_start: {rand_padding_start}{END}')
-
-    padding_keystream_fin = padding_keystream[-PADDING_KEYSTREAM_SIZE // 2:]
-
-    if mode in (2, 6):
-        rand_padding_fin = get_padding_size_from_msg(
-            message_size,
-            padding_keystream_fin,
-            od['padding_max_percent'])
-
-    else:  # 3, 7
-        if mode == 3:
-            ppm_size = i_size - od['salts_size'] - \
-                rand_padding_start - MAC_SIZE
-        else:  # 7
-            ppm_size = (final_pos - init_pos - od['salts_size'] -
-                        rand_padding_start - MAC_SIZE)
-
-        rand_padding_fin = get_padding_size_from_ppm(
-            ppm_size,
-            padding_keystream_fin,
-            od['padding_max_percent'])
-
-    if od['debug']:
-        print(f'{ITA}D: rand_padding_fin: {rand_padding_fin}{END}')
-
-    if mode in (2, 6):
-        contents_size = i_size
-    elif mode == 3:
-        contents_size = (i_size - od['salts_size'] - rand_padding_start -
-                         rand_padding_fin - od['metadata_size'] - MAC_SIZE)
-    else:  # 5
-        contents_size = (final_pos - init_pos - od['salts_size'] -
-                         rand_padding_start - rand_padding_fin -
-                         od['metadata_size'] - MAC_SIZE)
-
-    if od['debug']:
-        print(f'{ITA}D: contents size: {contents_size}{END}')
-
-    if mode in (2, 6):
-        output_data_size = (od['salts_size'] + rand_padding_start + i_size +
-                            od['metadata_size'] + MAC_SIZE + rand_padding_fin)
-    else:  # 3, 5
-        output_data_size = contents_size
-
-    if od['debug']:
-        print(f'{ITA}D: output data size: {output_data_size}{END}')
-
-    if output_data_size < 0:
-        print(f'{ITA}E: output data size: {output_data_size}{END}')
-        od['i'].close()
-        od['o'].close()
-        return None
-
-    if mode in (2, 6):
-        p_num_blocks = rand_padding_start // RW_CHUNK_SIZE
-        p_rem_size = rand_padding_start % RW_CHUNK_SIZE
-
-        for _ in range(p_num_blocks):
-            chunk = urandom(RW_CHUNK_SIZE)
-
-            try:
-                od['o'].write(chunk)
-            except OSError as e:
-                print(f'{ERR}E: {e}{END}')
-                od['i'].close()
-                od['o'].close()
+        for _ in range(pad_num_chunks):
+            chunk: bytes = urandom(RW_CHUNK_SIZE)
+            if not write_data(chunk):
                 return None
 
             w_len = len(chunk)
@@ -1894,34 +1465,23 @@ def cryptohider(mode):
             if mode == 6:
                 not_fsync_sum += w_len
                 if not_fsync_sum >= MIN_FSYNC_SIZE:
-
-                    try:
-                        od['o'].flush()
-                        fsync(od['o'].fileno())
-                    except OSError as e:
-                        print(f'{ERR}E: {e}{END}')
-                        od['i'].close()
-                        od['o'].close()
+                    if not fsync_data():
                         return None
 
                     not_fsync_sum = 0
-                    if monotonic() - t0 >= MIN_PRINT_INTERVAL:
+                    if monotonic() - t_last_print >= MIN_PRINT_INTERVAL:
                         print_progress(
-                            w_sum, output_data_size, T0, fix='/fsynced')
-                        t0 = monotonic()
+                            w_sum, output_data_size, t_start, fix='/fsynced')
+                        t_last_print = monotonic()
             else:
-                if monotonic() - t0 >= MIN_PRINT_INTERVAL:
-                    print_progress(w_sum, output_data_size, T0, fix='')
-                    t0 = monotonic()
+                if monotonic() - t_last_print >= MIN_PRINT_INTERVAL:
+                    print_progress(
+                        w_sum, output_data_size, t_start, fix='')
+                    t_last_print = monotonic()
 
-        chunk = urandom(p_rem_size)
+        chunk = urandom(pad_rem_size)
 
-        try:
-            od['o'].write(chunk)
-        except OSError as e:
-            print(f'{ERR}E: {e}{END}')
-            od['i'].close()
-            od['o'].close()
+        if not write_data(chunk):
             return None
 
         w_len = len(chunk)
@@ -1930,80 +1490,198 @@ def cryptohider(mode):
         if mode == 6:
             not_fsync_sum += w_len
             if not_fsync_sum >= MIN_FSYNC_SIZE:
-
-                try:
-                    od['o'].flush()
-                    fsync(od['o'].fileno())
-                except OSError as e:
-                    print(f'{ERR}E: {e}{END}')
-                    od['i'].close()
-                    od['o'].close()
+                if not fsync_data():
                     return None
 
                 not_fsync_sum = 0
-                if monotonic() - t0 >= MIN_PRINT_INTERVAL:
+                if monotonic() - t_last_print >= MIN_PRINT_INTERVAL:
                     print_progress(
-                        w_sum, output_data_size, T0, fix='/fsynced')
-                    t0 = monotonic()
+                        w_sum, output_data_size, t_start, fix='/fsynced')
+                    t_last_print = monotonic()
         else:
-            if monotonic() - t0 >= MIN_PRINT_INTERVAL:
-                print_progress(w_sum, output_data_size, T0, fix='')
-                t0 = monotonic()
+            if monotonic() - t_last_print >= MIN_PRINT_INTERVAL:
+                print_progress(w_sum, output_data_size, t_start, fix='')
+                t_last_print = monotonic()
 
     else:  # 3, 5
-        od['i'].seek(rand_padding_start, 1)
+        if not seek_pos(fod['i'], pad_size, 1):
+            return None
 
-    if od['debug']:
-        print(f'{ITA}D: random padding header has been handled{END}')
+    return w_sum, not_fsync_sum, t_last_print
+
+
+def cryptohider_processor(
+    mode: int,
+    i_size: int,
+    init_pos: Optional[int],
+    final_pos: Optional[int],
+    message_size: Optional[int],
+    comments_bytes: Optional[bytes],
+    add_real_mac: bool,
+    key_for_kdf: bytes
+) -> bool:
+    """
+    """
+    dk: bytes = kdfs(key_for_kdf)
+
+    del key_for_kdf
+    collect()
+
+    dek: bytes = dk[:DEK_SIZE]
+    mac_key: bytes = dk[DEK_SIZE:DEK_SIZE + MAC_KEY_SIZE]
+    pad_key: bytes = dk[-PAD_KEY_SIZE:]
+
+    if DEBUG:
+        print(f'{ITA}D: dk:\n    {dk.hex()}{END}')
+        print(f'{ITA}D: dek:\n    {dek.hex()}{END}')
+        print(f'{ITA}D: mac_key:\n    {mac_key.hex()}{END}')
+        print(f'{ITA}D: pad_key:\n    {pad_key.hex()}{END}')
+
+    cd['shake_ho'] = shake_256()
+
+    mac_ho: Any = blake2b(
+        digest_size=MAC_TAG_SIZE,
+        key=mac_key,
+    )
+
+    pad_key1: bytes = pad_key[:PAD_KEY_SIZE // 2]
+    pad_key2: bytes = pad_key[-PAD_KEY_SIZE // 2:]
+
+    if mode in (2, 6):
+        pad: int = get_pad_from_msg(
+            message_size,
+            pad_key1,
+            cd['pad_max_percent']
+        )
+    else:  # 3, 7
+        if mode == 3:
+            pmsg_size: int = i_size - SALTS_SIZE - MAC_TAG_SIZE
+        else:  # 7
+            pmsg_size = final_pos - init_pos - SALTS_SIZE - MAC_TAG_SIZE
+
+        pad = get_pad_from_pmsg(
+            pmsg_size,
+            pad_key1,
+            cd['pad_max_percent']
+        )
+
+    pad_header_size, pad_footer_size = get_header_footer_pad(pad, pad_key2)
+
+    if DEBUG:
+        print(f'{ITA}D: pad_header_size: {pad_header_size}{END}')
+        print(f'{ITA}D: pad_footer_size: {pad_footer_size}{END}')
+
+    if mode in (2, 6):
+        contents_size: int = i_size
+    elif mode == 3:
+        contents_size = (i_size - SALTS_SIZE - pad -
+                         KS_COMMENTS_SITE_SIZE - MAC_TAG_SIZE)
+    else:  # 7
+        contents_size = (final_pos - init_pos - SALTS_SIZE - pad -
+                         KS_COMMENTS_SITE_SIZE - MAC_TAG_SIZE)
+
+    if DEBUG:
+        print(f'{ITA}D: contents size: {contents_size}{END}')
+
+    if contents_size < 0:
+        print(f'{ERR}E: invalid input values combination '
+              f'(incorrect input file size, max padding, keys){END}')
+        return False
+
+    if mode in (2, 6):
+        output_data_size: int = (SALTS_SIZE + pad + contents_size +
+                                 KS_COMMENTS_SITE_SIZE + MAC_TAG_SIZE)
+    else:  # 3, 7
+        output_data_size = contents_size
+
+    if DEBUG:
+        print(f'{ITA}D: output data size: {output_data_size}{END}')
+
+    t_start: float = monotonic()
+
+    t_last_print: float = t_start
+
+    w_sum: int = 0
+
+    not_fsync_sum: Optional[int] = None
+
+    if mode == 6:
+        not_fsync_sum = 0
+
+    salt_header: bytes = sd['salt_header']
+    salt_footer: bytes = sd['salt_footer']
+
+    if DEBUG:
+        print(f'{ITA}D: salt header:\n    {salt_header.hex()}{END}')
+        print(f'{ITA}D: salt footer:\n    {salt_footer.hex()}{END}')
+
+    mac_ho.update(salt_header)
+    mac_ho.update(salt_footer)
+
+    if mode in (2, 6):
+        if DEBUG:
+            print(f'{ITA}D: writing salt_header...{END}')
+
+        if not write_data(salt_header):
+            return False
+
+        w_len: int = len(salt_header)
+        w_sum += w_len
+
+        if mode == 6:
+            not_fsync_sum += w_len
+
+        if DEBUG:
+            print(f'{ITA}D: salt_header is written{END}')
+            print_positions()
+
+    rnd_pad_pos0: int = fod['o'].tell()
+
+    wp_res: Optional[tuple] = write_pad(
+        pad_header_size, mode, w_sum, not_fsync_sum,
+        t_start, t_last_print, output_data_size)
+
+    if wp_res is None:
+        return False
+
+    w_sum, not_fsync_sum, t_last_print = wp_res
+
+    rnd_pad_pos1: int = fod['o'].tell()
+
+    if DEBUG:
+        print(f'{ITA}D: randomized padding header has been handled{END}')
         print_positions()
 
-    if MAC:
-        mac_key1 = keystream_block[
-            od['mac_start_pos']:od['mac_fin_pos']
-        ][:MAC_SIZE]
-
-        if od['debug']:
-            print(f'{ITA}D: mac_key1 (key for keyed hashing)'
-                  f': {mac_key1.hex()}{END}')
-
-        mac_m = blake2b(
-            digest_size=MAC_SIZE,
-            key=mac_key1,
-            person=BLAKE_PERSON_MAC)
-
-        mac_m.update(salt_header)
-        mac_m.update(salt_footer)
-
-    if od['debug']:
+    if DEBUG:
         print(f'{ITA}D: handling input file contents...{END}')
 
-    num_blocks = contents_size // od['contents_block_size']
-    rem_size = contents_size % od['contents_block_size']
+    num_blocks = contents_size // KS_CONTENTS_SITE_SIZE
+    rem_size = contents_size % KS_CONTENTS_SITE_SIZE
+
+    ks_footer_site = dek
+
+    ks_block_counter: int = 0
 
     for _ in range(num_blocks):
-        if keystream_block_counter > 0:
-            keystream_block = get_keystream_block(rk_list_list)
 
-        keystream_block_counter += 1
-        rk_keystream = keystream_block[od['rk_start_pos']:od['rk_fin_pos']]
-        rk_list_list = get_updated_rk_list_list(rk_list_list, rk_keystream)
+        input_block: Optional[bytes] = read_data(
+            KS_CONTENTS_SITE_SIZE, fod['i'])
 
-        try:
-            input_block = od['i'].read(od['contents_block_size'])
-        except OSError as e:
-            print(f'{ERR}E: {e}{END}')
-            od['i'].close()
-            od['o'].close()
-            return None
+        if input_block is None:
+            return False
 
-        output_block = xor(input_block, keystream_block)
-        try:
-            od['o'].write(output_block)
-        except OSError as e:
-            print(f'{ERR}E: {e}{END}')
-            od['i'].close()
-            od['o'].close()
-            return None
+        ks_block = get_ks_block(ks_footer_site)
+        ks_block_counter += 1
+
+        ks_footer_site = ks_block[-KS_FOOTER_SITE_SIZE:]
+
+        output_block: bytes = xor(
+            input_block,
+            ks_block[:KS_CONTENTS_SITE_SIZE]
+        )
+
+        if not write_data(output_block):
+            return False
 
         w_len = len(output_block)
         w_sum += w_len
@@ -2011,422 +1689,297 @@ def cryptohider(mode):
         if mode == 6:
             not_fsync_sum += w_len
             if not_fsync_sum >= MIN_FSYNC_SIZE:
-
-                try:
-                    od['o'].flush()
-                    fsync(od['o'].fileno())
-                except OSError as e:
-                    print(f'{ERR}E: {e}{END}')
-                    od['i'].close()
-                    od['o'].close()
-                    return None
+                if not fsync_data():
+                    return False
 
                 not_fsync_sum = 0
-                if monotonic() - t0 >= MIN_PRINT_INTERVAL:
+                if monotonic() - t_last_print >= MIN_PRINT_INTERVAL:
                     print_progress(
-                        w_sum, output_data_size, T0, fix='/fsynced')
-                    t0 = monotonic()
+                        w_sum, output_data_size, t_start, fix='/fsynced')
+                    t_last_print = monotonic()
         else:
-            if monotonic() - t0 >= MIN_PRINT_INTERVAL:
-                print_progress(w_sum, output_data_size, T0, fix='')
-                t0 = monotonic()
+            if monotonic() - t_last_print >= MIN_PRINT_INTERVAL:
+                print_progress(w_sum, output_data_size, t_start, fix='')
+                t_last_print = monotonic()
 
-        if od['debug']:
+        if DEBUG:
             print(f'{ITA}D: contents block has been written; its '
                   f'size: { len(output_block)}{END}')
             print_positions()
 
-        if MAC:
-            if mode in (2, 6):
-                mac_m.update(output_block)
-            else:
-                mac_m.update(input_block)
-
-    if keystream_block_counter > 0:
-        keystream_block = get_keystream_block(rk_list_list)
-
-    keystream_block_counter += 1
-
-    try:
-        input_block = od['i'].read(rem_size)
-    except OSError as e:
-        print(f'{ERR}E: {e}{END}')
-        od['i'].close()
-        od['o'].close()
-        return None
-
-    output_block = xor(input_block, keystream_block)
-
-    try:
-        od['o'].write(output_block)
-    except OSError as e:
-        print(f'{ERR}E: {e}{END}')
-        od['i'].close()
-        od['o'].close()
-        return None
-
-    w_len = len(output_block)
-    w_sum += w_len
-
-    if mode == 6:
-        not_fsync_sum += w_len
-        if not_fsync_sum >= MIN_FSYNC_SIZE:
-
-            try:
-                od['o'].flush()
-                fsync(od['o'].fileno())
-            except OSError as e:
-                print(f'{ERR}E: {e}{END}')
-                od['i'].close()
-                od['o'].close()
-                return None
-
-            not_fsync_sum = 0
-            if monotonic() - t0 >= MIN_PRINT_INTERVAL:
-                print_progress(
-                    w_sum, output_data_size, T0, fix='/fsynced')
-                t0 = monotonic()
-    else:
-        if monotonic() - t0 >= MIN_PRINT_INTERVAL:
-            print_progress(w_sum, output_data_size, T0, fix='')
-            t0 = monotonic()
-
-    if od['debug']:
-        print(
-            f'{ITA}D: last contents block has been written; its '
-            f'size: {len(output_block)}{END}')
-        print_positions()
-
-    if MAC:
         if mode in (2, 6):
-            mac_m.update(output_block)
-        else:
-            mac_m.update(input_block)
-
-        if od['debug']:
-            print(f'{ITA}D: file contents hashed{END}')
-
-    if od['debug']:
-        print(f'{ITA}D: handling metadata...{END}')
-
-    if mode in (3, 7):
-        try:
-            # encrypted metadata
-            meta = od['i'].read(od['metadata_size'])
-        except OSError as e:
-            print(f'{ERR}E: {e}{END}')
-            od['i'].close()
-            od['o'].close()
-            return None
-
-    meta_keystream = keystream_block[od['meta_start_pos']:od['meta_fin_pos']]
-    meta_out = xor(meta, meta_keystream)
-
-    if od['debug']:
-        print(f'{ITA}D: metadata (binary) found in plain and encrypted '
-              f'forms{END}')
-
-    if mode in (2, 6):
-        try:
-            od['o'].write(meta_out)
-        except OSError as e:
-            print(f'{ERR}E: {e}{END}')
-            od['i'].close()
-            od['o'].close()
-            return None
-
-        w_len = len(meta_out)
-        w_sum += w_len
-
-        if mode == 6:
-            not_fsync_sum += w_len
-
-        if od['debug']:
-            print(f'{ITA}D: encrypted metadata written; its '
-                  f'size: {len(meta_out)}{END}')
-    else:  # 3, 5
-        meta_utf = metadata_to_utf(meta_out)
-        print(f'{ITA}I: metadata (could be faked): {[meta_utf]}{END}')
-
-    if MAC:
-        if mode in (2, 6):
-            mac_m.update(meta_out)
+            mac_ho.update(output_block)
         else:  # 3, 7
-            mac_m.update(meta)
+            mac_ho.update(input_block)
 
-    if od['debug']:
-        print(f'{ITA}D: metadata has been handled{END}')
-        print_positions()
+    if rem_size:
+        input_block = read_data(rem_size, fod['i'])
 
-    if od['debug']:
-        print(f'{ITA}D: handling MAC...{END}')
+        if input_block is None:
+            return False
 
-    if MAC:
-        found_mac = mac_m.digest()
-        if od['debug']:
-            print(f'{ITA}D: MAC found (keyed digest of salts and encrypted '
-                  f'message): {found_mac.hex()}{END}')
+        ks_block = get_ks_block(ks_footer_site)
+        ks_block_counter += 1
 
-        mac_key2 = keystream_block[
-            od['mac_start_pos']:od['mac_fin_pos']
-        ][-MAC_SIZE:]
+        output_block = xor(input_block, ks_block[:rem_size])
 
-        if od['debug']:
-            print(f'{ITA}D: mac_key2 (keystream for encrypting MAC)'
-                  f': {mac_key2.hex()}{END}')
+        if not write_data(output_block):
+            return False
 
-        encrypted_mac = xor(found_mac, mac_key2)
-        if od['debug']:
-            print(f'{ITA}D: encrypted MAC found: {encrypted_mac.hex()}{END}')
-
-    if mode in (2, 6):
-        if MAC:
-            try:
-                od['o'].write(encrypted_mac)
-            except OSError as e:
-                print(f'{ERR}E: {e}{END}')
-                od['i'].close()
-                od['o'].close()
-                return None
-
-            w_len = len(encrypted_mac)
-            w_sum += w_len
-
-            if mode == 6:
-                not_fsync_sum += w_len
-
-            if od['debug']:
-                print(f'{ITA}D: encrypted MAC has been written; its size'
-                      f': {len(encrypted_mac)}{END}')
-        else:
-            fake_mac = urandom(MAC_SIZE)
-            try:
-                od['o'].write(fake_mac)
-            except OSError as e:
-                print(f'{ERR}E: {e}{END}')
-                od['i'].close()
-                od['o'].close()
-                return None
-
-            w_len = len(fake_mac)
-            w_sum += w_len
-
-            if mode == 6:
-                not_fsync_sum += w_len
-
-            if od['debug']:
-                print(f'{ITA}D: fake MAC has been written'
-                      f': {fake_mac.hex()}{END}')
-    else:  # 3, 5
-        try:
-            read_mac = od['i'].read(MAC_SIZE)
-        except OSError as e:
-            print(f'{ERR}E: {e}{END}')
-            od['i'].close()
-            od['o'].close()
-            return None
-
-        if od['debug']:
-            print(f'D: read MAC: {read_mac.hex()}')
-
-        if encrypted_mac == read_mac:
-            print(f'{ITA}I: MAC is valid: True{END}')
-        else:
-            print(f'{ITA}I: MAC is valid: False{END}')
-
-    if od['debug']:
-        print(f'{ITA}D: MAC has been handled{END}')
-        print_positions()
-
-    if od['debug']:
-        print(f'{ITA}D: total keystream_block_counter'
-              f': {keystream_block_counter}{END}')
-
-        print(f'{ITA}D: handling padding footer{END}')
-
-    if mode in (2, 6):
-        p_num_blocks = rand_padding_fin // M
-        p_rem_size = rand_padding_fin % M
-        for _ in range(p_num_blocks):
-
-            chunk = urandom(RW_CHUNK_SIZE)
-
-            try:
-                od['o'].write(chunk)
-            except OSError as e:
-                print(f'{ERR}E: {e}{END}')
-                od['i'].close()
-                od['o'].close()
-                return None
-
-            w_len = len(chunk)
-            w_sum += w_len
-
-            if mode == 6:
-                not_fsync_sum += w_len
-                if not_fsync_sum >= MIN_FSYNC_SIZE:
-
-                    try:
-                        od['o'].flush()
-                        fsync(od['o'].fileno())
-                    except OSError as e:
-                        print(f'{ERR}E: {e}{END}')
-                        od['i'].close()
-                        od['o'].close()
-                        return None
-
-                    not_fsync_sum = 0
-                    if monotonic() - t0 >= MIN_PRINT_INTERVAL:
-                        print_progress(
-                            w_sum, output_data_size, T0, fix='/fsynced')
-                        t0 = monotonic()
-            else:
-                if monotonic() - t0 >= MIN_PRINT_INTERVAL:
-                    print_progress(w_sum, output_data_size, T0, fix='')
-                    t0 = monotonic()
-
-        chunk = urandom(p_rem_size)
-
-        try:
-            od['o'].write(chunk)
-        except OSError as e:
-            print(f'{ERR}E: {e}{END}')
-            od['i'].close()
-            od['o'].close()
-            return None
-
-        w_len = len(chunk)
+        w_len = len(output_block)
         w_sum += w_len
 
         if mode == 6:
             not_fsync_sum += w_len
             if not_fsync_sum >= MIN_FSYNC_SIZE:
-
-                try:
-                    od['o'].flush()
-                    fsync(od['o'].fileno())
-                except OSError as e:
-                    print(f'{ERR}E: {e}{END}')
-                    od['i'].close()
-                    od['o'].close()
-                    return None
+                if not fsync_data():
+                    return False
 
                 not_fsync_sum = 0
-                if monotonic() - t0 >= MIN_PRINT_INTERVAL:
+                if monotonic() - t_last_print >= MIN_PRINT_INTERVAL:
                     print_progress(
-                        w_sum, output_data_size, T0, fix='/fsynced')
-                    t0 = monotonic()
+                        w_sum, output_data_size, t_start, fix='/fsynced')
+                    t_last_print = monotonic()
         else:
-            if monotonic() - t0 >= MIN_PRINT_INTERVAL:
-                print_progress(w_sum, output_data_size, T0, fix='')
-                t0 = monotonic()
+            if monotonic() - t_last_print >= MIN_PRINT_INTERVAL:
+                print_progress(w_sum, output_data_size, t_start, fix='')
+                t_last_print = monotonic()
 
+        if DEBUG:
+            print(f'{ITA}D: contents block has been written; its '
+                  f'size: {len(output_block)}{END}')
+            print_positions()
+
+        if mode in (2, 6):
+            mac_ho.update(output_block)
+        else:  # 3, 7
+            mac_ho.update(input_block)
+
+    if DEBUG:
+        print(f'{ITA}D: total ks_block_counter'
+              f': {ks_block_counter}{END}')
+        print(f'{ITA}D: file contents has been handled{END}')
+
+    if DEBUG:
+        print(f'{ITA}D: handling comments...{END}')
+
+    if mode in (3, 7):
+        comments_bytes = read_data(KS_COMMENTS_SITE_SIZE, fod['i'])
+
+        if comments_bytes is None:
+            return False
+
+    ks_comments_site: bytes = ks_block[
+        KS_COMMENTS_SITE_START_POS:KS_COMMENTS_SITE_FIN_POS
+    ]
+
+    comments_bytes_out: bytes = xor(comments_bytes, ks_comments_site)
+
+    if DEBUG:
+        print(f'{ITA}D: comments (binary) found in plain and '
+              f'encrypted forms{END}')
+
+    if mode in (2, 6):
+        if not write_data(comments_bytes_out):
+            return False
+
+        w_len = len(comments_bytes_out)
+        w_sum += w_len
+
+        if mode == 6:
+            not_fsync_sum += w_len
+
+        if DEBUG:
+            print(f'{ITA}D: encrypted comments written; '
+                  f'its size: {len(comments_bytes_out)}{END}')
     else:  # 3, 5
-        od['i'].seek(rand_padding_fin, 1)
+        comments: Optional[str] = decode_comments(comments_bytes_out)
 
-    if od['debug']:
-        print(f'{ITA}D: random padding footer has been handled{END}')
+        print(f'{ITA}I: comments (may be not genuine): {[comments]}{END}')
+
+    if mode in (2, 6):
+        mac_ho.update(comments_bytes_out)
+    else:  # 3, 7
+        mac_ho.update(comments_bytes)
+
+    if DEBUG:
+        print(f'{ITA}D: comments have been handled{END}')
+        print_positions()
+
+    if DEBUG:
+        print(f'{ITA}D: handling MAC...{END}')
+
+    found_mac: bytes = mac_ho.digest()
+
+    if DEBUG:
+        print(f'{ITA}D: found MAC (keyed digest of salts and encrypted '
+              f'message): {found_mac.hex()}{END}')
+
+    if mode in (2, 6):
+        fake_mac: bytes = urandom(MAC_TAG_SIZE)
+        if DEBUG:
+            print(f'{ITA}D: fake MAC: {fake_mac.hex()}{END}')
+
+    ks_mac_site: bytes = ks_block[KS_MAC_SITE_START_POS:KS_MAC_SITE_FIN_POS]
+
+    if DEBUG:
+        print(f'{ITA}D: ks_mac_site (ks for encrypting/decrypting '
+              f'MAC): {ks_mac_site.hex()}{END}')
+
+    if mode in (2, 6) and not add_real_mac:
+        encrypted_mac: bytes = xor(fake_mac, ks_mac_site)
+    else:
+        encrypted_mac = xor(found_mac, ks_mac_site)
+
+    if DEBUG:
+        print(f'{ITA}D: encrypted MAC: {encrypted_mac.hex()}{END}')
+
+    if mode in (2, 6):
+        if not write_data(encrypted_mac):
+            return False
+
+        w_len = len(encrypted_mac)
+        w_sum += w_len
+
+        if mode == 6:
+            not_fsync_sum += w_len
+
+        if DEBUG:
+            print(f'{ITA}D: encrypted MAC has been written; '
+                  f'its size: {len(encrypted_mac)}{END}')
+
+    else:  # 3, 7
+        read_mac: Optional[bytes] = read_data(MAC_TAG_SIZE, fod['i'])
+
+        if read_mac is None:
+            return False
+
+        if DEBUG:
+            print(f'D: read MAC: {read_mac.hex()}')
+
+        if encrypted_mac == read_mac:
+            print(f'{ITA}I: data/keys authentication: OK{END}')
+        else:
+            print(f'{WAR}W: data/keys authentication failed!{END}')
+
+    if DEBUG:
+        print(f'{ITA}D: MAC has been handled{END}')
+        print_positions()
+
+    if DEBUG:
+        print(f'{ITA}D: handling randomized padding footer{END}')
+
+    rnd_pad_pos2: int = fod['o'].tell()
+
+    wp_res = write_pad(pad_footer_size, mode, w_sum, not_fsync_sum,
+                       t_start, t_last_print, output_data_size)
+
+    if wp_res is None:
+        return False
+
+    w_sum, not_fsync_sum, t_last_print = wp_res
+
+    rnd_pad_pos3: int = fod['o'].tell()
+
+    if DEBUG:
+        print(f'{ITA}D: randomized padding footer has been handled{END}')
         print_positions()
 
     if mode in (2, 6):
-        if od['debug']:
-            print(f'{ITA}D: handling salt_footer...{END}')
+        if DEBUG:
+            print(f'{ITA}D: writing salt_footer...{END}')
 
-        try:
-            od['o'].write(salt_footer)
-        except OSError as e:
-            print(f'{ERR}E: {e}{END}')
-            od['i'].close()
-            od['o'].close()
-            return None
+        if not write_data(salt_footer):
+            return False
 
         w_len = len(salt_footer)
         w_sum += w_len
 
         if mode == 6:
+            if not fsync_data():
+                return False
 
-            try:
-                od['o'].flush()
-                fsync(od['o'].fileno())
-            except OSError as e:
-                print(f'{ERR}E: {e}{END}')
-                od['i'].close()
-                od['o'].close()
-                return None
-
-            print_progress(w_sum, output_data_size, T0, fix='/fsynced')
+            print_progress(w_sum, output_data_size, t_start, fix='/fsynced')
         else:
-            print_progress(w_sum, output_data_size, T0, fix='')
+            print_progress(w_sum, output_data_size, t_start, fix='')
 
-        if od['debug']:
+        if DEBUG:
             print(f'{ITA}D: salt_footer is written{END}')
             print_positions()
 
-        if mode == 6:
-            final_pos = od['o'].tell()
-            print(
-                f'{ITA}Remember the positions of the cryptoblob in the '
-                f'container:{END}')
-            print(f'    {ITA}Initial/Final:  {init_pos}/{final_pos}{END}')
+    if mode == 6:
+        final_pos = fod['o'].tell()
+        print(f'{ITA}Remember the positions of the cryptoblob in the '
+              f'container:{END}')
+        print(f'    {ITA}Initial/Final:  {init_pos}/{final_pos}{END}')
 
     if mode in (3, 7):
-        print_progress(w_sum, output_data_size, T0, fix='')
+        print_progress(w_sum, output_data_size, t_start, fix='')
 
-    if od['debug']:
+    if DEBUG:
+        print(f'{ITA}D: expected output data size: {output_data_size}{END}')
         print(f'{ITA}D: written {w_sum} bytes{END}')
-        print(f'{ITA}D: output data size: {output_data_size}{END}')
 
     if w_sum != output_data_size:
         print(f'{ITA}E: the size of the written data does not match '
               f'the expected size{END}')
-        od['i'].close()
-        od['o'].close()
-        return None
+        return False
 
-    od['i'].close()
-    od['o'].close()
+    if mode in (2, 6):
+        pad0_b: int = rnd_pad_pos1 - rnd_pad_pos0
+        pad1_b: int = rnd_pad_pos3 - rnd_pad_pos2
+        pad0_m: float = round((pad0_b) / M, 1)
+        pad1_m: float = round((pad1_b) / M, 1)
+
+        print(f'{ITA}I: randomized padding positions in the cryptoblob:\n'
+              f'    {rnd_pad_pos0}-{rnd_pad_pos1} ({pad0_b} bytes, {pad0_m}'
+              f' MiB),\n'
+              f'    {rnd_pad_pos2}-{rnd_pad_pos3} ({pad1_b} bytes, {pad1_m}'
+              f' MiB){END}')
+
     return True
 
 
-def hider(mode):
+def hider(mode: int) -> bool:
     """
     """
-    i_file, i_size, i_object = get_input_file(mode)
+    i_file, i_size, fod['i'] = get_input_file(mode)
     print(f'{ITA}I: input file real path (in quotes):\n    "{i_file}"{END}')
     print(f'{ITA}I: input file size: {i_size} '
           f'bytes, {round(i_size / M, 1)} MiB{END}')
 
-    if mode == 4:
-        o_file, o_size, o_object = get_output_file_w(i_file, i_size, mode)
+    if mode == 4:  # hide
+        o_file, o_size, fod['o'] = get_output_file_w(i_file, i_size, mode)
         max_init_pos = o_size - i_size
-    else:
-        o_file, o_object = get_output_file_c(mode)
+    else:  # unhide
+        o_file, fod['o'] = get_output_file_c(mode)
         max_init_pos = i_size - 1
 
     print(f'{ITA}I: output file real path (in quotes):\n    "{o_file}"{END}')
 
     if mode == 4:
-        print(
-            f'{ITA}I: output file size: {o_size} bytes'
-            f', {round(o_size / M, 1)} MiB{END}')
+        print(f'{ITA}I: output file size: {o_size} bytes, '
+              f'{round(o_size / M, 1)} MiB{END}')
 
-    init_pos = get_init_pos(max_init_pos, fix=False)
+    init_pos: int = get_init_pos(max_init_pos, fix=False)
     print(f'{ITA}I: initial position: {init_pos}{END}')
 
     if mode == 4:
-        data_size = i_size
-        final_pos = init_pos + data_size
+        data_size: int = i_size
+        final_pos: int = init_pos + data_size
         print(f'{ITA}I: final position: {final_pos}{END}')
 
         if not do_continue(fix=' with input file'):
             print(f'{ITA}I: stopped by user request{END}\n')
-            i_object.close()
-            o_object.close()
-            return None
+            return False
     else:
-        final_pos = get_final_pos(min_pos=init_pos, max_pos=i_size, fix=False)
+        final_pos = get_final_pos(
+            min_pos=init_pos, max_pos=i_size, fix=False)
+
         print(f'{ITA}I: final position: {final_pos}{END}')
+
         data_size = final_pos - init_pos
+
         print(f'{ITA}I: data size to retrieve: {data_size}{END}')
 
     if mode == 4:
@@ -2434,77 +1987,66 @@ def hider(mode):
     else:
         print(f'{ITA}I: reading, writing...{END}')
 
-    ok = hider_data_handler(mode, i_object, o_object, init_pos, data_size)
-
-    i_object.close()
-    o_object.close()
-
-    if ok:
-        return True
-
-    return None
+    return hider_processor(mode, init_pos, data_size)
 
 
-def randgen(mode):
+def randgen_processor(o_size: int) -> bool:
     """
     """
-    o_file, o_object = get_output_file_c(mode)
+    num_chunks: int = o_size // RW_CHUNK_SIZE
+    rem_size: int = o_size % RW_CHUNK_SIZE
+
+    print(f'{ITA}I: writing data...{END}')
+
+    fix = ''
+    w_sum = 0
+
+    t_start = monotonic()
+    t_last_print = t_start
+
+    for _ in range(num_chunks):
+        chunk = urandom(RW_CHUNK_SIZE)
+
+        if not write_data(chunk):
+            return False
+
+        w_len = len(chunk)
+        w_sum += w_len
+
+        if monotonic() - t_last_print >= MIN_PRINT_INTERVAL:
+            print_progress(w_sum, o_size, t_start, fix)
+            t_last_print = monotonic()
+
+    chunk = urandom(rem_size)
+
+    if not write_data(chunk):
+        return False
+
+    w_len = len(chunk)
+    w_sum += w_len
+
+    print_progress(w_sum, o_size, t_start, fix)
+
+    return True
+
+
+def randgen(mode: int) -> bool:
+    """
+    """
+    o_file, fod['o'] = get_output_file_c(mode)
     print(f'{ITA}I: output file real path (in quotes):\n    "{o_file}"{END}')
 
     o_size = get_output_file_size()
     print(f'{ITA}I: output file size: {o_size} bytes'
           f', {round(o_size / M, 1)} MiB{END}')
 
-    num_chunks = o_size // RW_CHUNK_SIZE
-    rem_size = o_size % RW_CHUNK_SIZE
-
-    print(f'{ITA}I: writing data...{END}')
-
-    fix = ''
-
-    T0 = monotonic()
-    t0 = T0
-
-    w_sum = 0
-
-    for _ in range(num_chunks):
-        chunk = urandom(RW_CHUNK_SIZE)
-
-        try:
-            o_object.write(chunk)
-        except OSError as e:
-            print(f'{ERR}E: {e}{END}')
-            o_object.close()
-            return None
-
-        w_len = len(chunk)
-        w_sum += w_len
-
-        if monotonic() - t0 >= MIN_PRINT_INTERVAL:
-            print_progress(w_sum, o_size, T0, fix)
-            t0 = monotonic()
-
-    chunk = urandom(rem_size)
-
-    try:
-        o_object.write(chunk)
-    except OSError as e:
-        print(f'{ERR}E: {e}{END}')
-        o_object.close()
-        return None
-
-    w_len = len(chunk)
-    w_sum += w_len
-
-    print_progress(w_sum, o_size, T0, fix)
-    o_object.close()
-    return True
+    return randgen_processor(o_size)
 
 
-def wiper(mode):
+def wiper(mode: int) -> bool:
     """
     """
-    o_file, o_size, o_object = get_output_file_w(
+    o_file, o_size, fod['o'] = get_output_file_w(
         i_file='', i_size=0, mode=mode)
     print(f'{ITA}I: output file real path (in quotes):\n    "{o_file}"{END}')
     print(f'{ITA}I: output file size: {o_size} bytes'
@@ -2512,14 +2054,14 @@ def wiper(mode):
 
     if o_size == 0:
         print(f'{ITA}I: nothing to overwrite{END}')
-        return None
+        return False
 
     init_pos = get_init_pos(max_init_pos=o_size, fix=True)
     print(f'{ITA}I: initial position: {init_pos}{END}')
 
     if init_pos == o_size:
         print(f'{ITA}I: nothing to overwrite{END}')
-        return None
+        return False
 
     final_pos = get_final_pos(min_pos=init_pos, max_pos=o_size, fix=True)
     print(f'{ITA}I: final position: {final_pos}{END}')
@@ -2530,131 +2072,81 @@ def wiper(mode):
 
     if data_size == 0:
         print(f'{ITA}I: nothing to overwrite{END}')
-        return None
+        return False
 
     if not do_continue(fix=' with random bytes'):
         print(f'{ITA}I: stopped by user request{END}')
-        o_object.close()
-        return None
+        return False
 
-    ok = wiper_data_handler(o_object, init_pos, data_size)
-    o_object.close()
-
-    if ok:
-        return True
-
-    return None
+    return wiper_processor(init_pos, data_size)
 
 
-def signal_handler(signum, frame):
+def signal_handler(signum: Any, frame: Any) -> NoReturn:
     """
     """
     print(f'\n{ERR}E: got signal {signum}{END}')
     exit(1)
 
 
-def main():
+def main() -> NoReturn:
     """
     """
     signal(SIGINT, signal_handler)
 
-    while True:
-        mode = get_mode()
+    if DEBUG:
+        print(f'{WAR}W: debug messages enabled!{END}')
 
-        ok = None
+    while True:
+        mode: int = get_mode()  # returns 0-9
+
+        ok: Union[bool, None] = None
 
         if mode == 0:
             exit()
-
         elif mode == 1:
             print(INFO)
-
         elif mode in (2, 3, 6, 7):
             ok = cryptohider(mode)
-
         elif mode in (4, 5):
             ok = hider(mode)
-
         elif mode == 8:
             ok = randgen(mode)
-
-        else:  # mode == 9
+        else:
             ok = wiper(mode)
 
         if ok:
-            print(f'{OK}OK{END}')
+            print(f'{ITA}I: completed successfully{END}')
 
-        od.clear()
+        if 'i' in fod:
+            fod['i'].close()
+        if 'o' in fod:
+            fod['o'].close()
+
+        dicts = (fod, sd, cd)
+        for i in dicts:
+            i.clear()
+
+        collect()
 
 
-od = {}
+DEBUG: bool = bool('-d' in argv[1:] or '--debug' in argv[1:])
 
-K = 2**10
-M = 2**20
+WIN32: bool = bool(platform == 'win32')
 
-BLAKE_DIGEST_SIZE = 64
-
-BLAKE_PERSON_KEYFILE = b'KEYFILE'
-BLAKE_PERSON_PASSPHRASE = b'PASSPHRASE'
-BLAKE_PERSON_BASIC_KEY = b'BASIC_KEY'
-BLAKE_PERSON_EQUAL_BLOCK = b'EQUAL_BLOCK'
-BLAKE_PERSON_ROUND_KEY = b'ROUND_KEY'
-BLAKE_PERSON_MAC = b'MAC'
-BLAKE_PERSON_HIDER = b'HIDER'
-
-SCRYPT_N = 2**14
-SCRYPT_R = 8
-SCRYPT_P = 1
-
-RW_CHUNK_SIZE = M
-MIN_PRINT_INTERVAL = 5
-MIN_FSYNC_SIZE = M * 256
-HIDER_DIGEST_SIZE = 20
-
-ONE_SALT_SIZE = 32
-
-MIN_KEYSTREAM_CHUNK_SIZE = 128
-
-MIX_BYTES_SIZE = 4
-
-OUT_OF_CONTENTS_BLOCK_SIZE = 32 * K
-
-PADDING_KEYSTREAM_SIZE = 20
-
-MAX_PADDING_ORDER = PADDING_KEYSTREAM_SIZE << 2
-
-DEFAULT_PADDING_ORDER = 8
-
-DEFAULT_PADDING_MAX_PERCENT = 20
-
-MAC_SIZE = 64
-MAC_KEYSTREAM_SIZE = MAC_SIZE * 2
-
-DEFAULT_NUM_ROUNDS = 1
-
-DEFAULT_KEYSTREAM_BLOCK_SIZE_M = 32
-DEFAULT_KEYSTREAM_BLOCK_SIZE = DEFAULT_KEYSTREAM_BLOCK_SIZE_M * M
-
-DEFAULT_DK_LEN_M = 4
-DEFAULT_DK_LEN = DEFAULT_DK_LEN_M * M
-
-DEFAULT_METADATA_SIZE = 512
-MAX_METADATA_SIZE = 16 * K
-
-METADATA_DIV_BYTE = b'\xff'
-
-WIN32 = bool(platform == 'win32')
-
-END = BOL = ITA = ERR = OK = WAR = ''
-
-if not WIN32:
-    END = '\033[0m'
-    BOL = '\033[1m'  # bold
-    ITA = '\033[3m'  # italic
+if WIN32:
+    BOL: str = ''
+    ITA: str = ''
+    ERR: str = ''
+    WAR: str = ''
+    END: str = ''
+else:
+    BOL = '\033[1m'  # bold text
+    ITA = '\033[3m'  # italic text
     ERR = '\033[1;3;97;101m'  # bold italic white text, red bg
-    OK = '\033[1;32m'  # bold green
+    WAR = '\033[1;3;93;40m'
+    END = '\033[0m'
 
-MENU = f"""
+MENU: str = f"""
                         {BOL}MENU{END}
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     0. Exit               1. Get info
@@ -2665,8 +2157,92 @@ MENU = f"""
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 {BOL}Please enter [0-9]:{END} """
 
-INFO = f'{ITA}I: tird is a tool for encrypting and hiding file contents ' \
-    f'among random data\nI: more info: https://github.com/hakavlad/tird{END}'
+INFO: str = f'{ITA}I: tird is a tool for encrypting file contents' \
+    f' and\n   hiding random data among other random data\n' \
+    f'I: more info: https://github.com/hakavlad/tird{END}'
+
+INVALID_UTF8_BYTE: bytes = b'\xff'
+
+fod: dict = {}  # file objects dict
+sd: dict = {}  # salts dict
+cd: dict = {}  # custom dict
+
+
+K: int = 2 ** 10
+M: int = 2 ** 20
+
+BLAKE_DIGEST_SIZE: int = 64
+
+BLAKE_PERSON_KEYFILE: bytes = b'KEYFILE'
+BLAKE_PERSON_PASSPHRASE: bytes = b'PASSPHRASE'
+
+DEFAULT_PAD_MAX_PERCENT: int = 20
+
+DEFAULT_CATPIG_SPACE_MIB: int = 16
+DEFAULT_CATPIG_PASSES: int = 4
+
+BYTEORDER = 'little'
+
+# catpig constants
+RND_CHUNK_SIZE: int = 8
+SHAKE_SIZE: int = 64
+READ_CHUNK_SIZE: int = K * 4
+READ_BLOCK_SIZE: int = K * 64
+NUM_CHUNKS_IN_READ_BLOCK: int = READ_BLOCK_SIZE // READ_CHUNK_SIZE
+NUM_READ_BLOCKS_IN_MIB: int = M // READ_BLOCK_SIZE
+RND_BLOCK_SIZE: int = RND_CHUNK_SIZE * \
+    NUM_CHUNKS_IN_READ_BLOCK + SHAKE_SIZE
+MAX_SPACE_BLOCK_SIZE: int = (2 ** 31 - 1) // M
+MAX_SPACE_MIB: int = (256 ** RND_CHUNK_SIZE - 1) // M
+
+ONE_SALT_HALF_SIZE: int = 8
+ONE_SALT_SIZE: int = ONE_SALT_HALF_SIZE * 2
+SALTS_HALF_SIZE: int = ONE_SALT_HALF_SIZE * 3
+SALTS_SIZE: int = ONE_SALT_SIZE * 3
+
+MAC_KEY_SIZE: int = 64
+MAC_TAG_SIZE: int = MAC_KEY_SIZE
+
+PAD_KEY_SIZE = 32
+
+KS_CONTENTS_SITE_SIZE: int = 64 * K
+KS_COMMENTS_SITE_SIZE: int = 512
+KS_MAC_SITE_SIZE: int = MAC_TAG_SIZE
+KS_FOOTER_SITE_SIZE: int = 64
+
+KS_BLOCK_SIZE: int = (
+    KS_CONTENTS_SITE_SIZE +
+    KS_COMMENTS_SITE_SIZE +
+    KS_MAC_SITE_SIZE +
+    KS_FOOTER_SITE_SIZE
+)
+
+KS_COMMENTS_SITE_START_POS: int = KS_CONTENTS_SITE_SIZE
+KS_COMMENTS_SITE_FIN_POS: int = KS_COMMENTS_SITE_START_POS + \
+    KS_COMMENTS_SITE_SIZE
+
+KS_MAC_SITE_START_POS: int = KS_COMMENTS_SITE_FIN_POS
+KS_MAC_SITE_FIN_POS: int = KS_MAC_SITE_START_POS + KS_MAC_SITE_SIZE
+
+
+MIN_VALID_CRYPTOBLOB_SIZE: int = (
+    SALTS_SIZE +
+    KS_COMMENTS_SITE_SIZE +
+    MAC_TAG_SIZE
+)
+
+DEK_SIZE = 64
+
+SCRYPT_N: int = 2 ** 20
+SCRYPT_R: int = 8
+SCRYPT_P: int = 1
+SCRYPT_MAXMEM: int = 2 ** 31 - 1
+SCRYPT_DKLEN: int = DEK_SIZE + MAC_KEY_SIZE + PAD_KEY_SIZE
+
+RW_CHUNK_SIZE: int = KS_CONTENTS_SITE_SIZE
+MIN_PRINT_INTERVAL: int = 5
+MIN_FSYNC_SIZE: int = M * 256
+HIDER_DIGEST_SIZE: int = 20
 
 if __name__ == '__main__':
     main()
