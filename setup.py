@@ -7,7 +7,7 @@ def readme():
 
 
 NAME = 'tird'
-VERSION = '0.2.1'
+VERSION = '0.3.0'
 
 setup(
     name=NAME,
@@ -15,7 +15,8 @@ setup(
     license='CC0',
     author='Alexey Avramov',
     author_email='hakavlad@gmail.com',
-    description='A tool for encrypting file contents and hiding random data among other random data',
+    description='A tool for encrypting file contents and hiding random data '
+                'among other random data',
     long_description=readme(),
     long_description_content_type='text/markdown',
     url='https://github.com/hakavlad/tird',
