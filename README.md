@@ -32,6 +32,20 @@
 - Keyed `BLAKE2b` is used for creating message authentication code (MAC is added by default and can be optionally faked). Adding a MAC will help you check the integrity of the data when decrypting.
 - `tird` does not provide reliable data on whether the entered dectyption keys are correct. This is based on the fact that adding an authentication tag is optional. If a MAC was added during encryption, then when using the correct key, it can be reported "authentication failed!" and "completed successfully". If the MAC was not added during encryption (this is the default behavior), then the only way to find out to pick up the correct key is to statistically analyze the output files.
 
+## Cryptoblob structure
+```
+                     512B          0+B
+                 +----------+---------------+
+                 | comments | file contents |
+                 +----------+---------------+
+  16B     0+B    |        plaintext         | 64B     0+B     16B
++------+---------+--------------------------+-----+---------+------+
+| salt | padding |        ciphertext        | MAC | padding | salt |
++------+---------+--------------------------+-----+---------+------+
+|  urandom data  |      random-looking data       |  urandom data  |
++----------------+--------------------------------+----------------+
+```
+
 ## Tradeoffs and limitations
 
 - `tird` does not support asymmetric encryption and signatures.
@@ -45,30 +59,18 @@
 - `tird` does not wipe sensitive data from the heap.
 - `tird` can only encrypt one file per iteration. Encryption of directories and multiple files is not supported.
 - `tird` does not fake file timestamps (atime, mtime, ctime).
-- `tird` encryption/decryption speed is not very fast: 105-115 MiB/s.
+- `tird` encryption/decryption speed is not very fast: up to 186 MiB/s.
 
 ## Warnings
 
-- The author is not an expert in cryptography.
-- `tird` has not been independently audited.
-- Development is ongoing, there may be backward compatibility issues in the future.
-- `tird` probably won't help much when used in a compromised environment.
-- Parts of the keys may leak into the swap space.
-- Use long and unpredictable key sets!
-
-## Cryptoblob structure
-```
-                         0+B         512B
-                 +---------------+----------+
-                 | file contents | comments |
-                 +---------------+----------+
-  24B     0+B    |      message/payload     | 64B     0+B     24B
-+------+---------+--------------------------+-----+---------+------+
-| salt | padding |         ciphertext       | MAC | padding | salt |
-+------+---------+--------------------------+-----+---------+------+
-|  urandom data  | encrypted random-looking data  |  urandom data  |
-+----------------+--------------------------------+----------------+
-```
+- 🚩 The author is not a cryptographer.
+- 🚩 `tird` has not been independently audited.
+- 🚩 `tird` probably won't help much when used in a compromised environment.
+- 🚩 `tird` probably won't help much when used with short and predictable keys.
+- 🚩 Parts of the keys may leak into the swap space.
+- 🚩 `tird` violates [The Cryptographic Doom Principle](https://moxie.org/2011/12/13/the-cryptographic-doom-principle.html).
+- 🚩 `tird` does not sort digests of passphrases and keyfiles in constant time.
+- 🚩 Development is ongoing, there may be backward compatibility issues in the future.
 
 ## Usage
 
@@ -78,28 +80,25 @@ $ tird
 
                         MENU
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    0. Exit               1. Get info
+    0. Exit               1. Show info
     2. Encrypt            3. Decrypt
-    4. Hide               5. Unhide
-    6. Encrypt and hide   7. Unhide and decrypt
+    4. Embed              5. Extract
+    6. Encrypt and embed  7. Extract and decrypt
     8. Create w/ urandom  9. Overwrite w/ urandom
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Please enter [0-9]:
+[01] Select the action to perform [0-9]:
 ```
 
 ## Requirements
 
 - Python >= 3.6
+- PyNaCl >= 1.2.0 (provides `Argon2` KDF)
+- PyCryptodomex >= 3.6.2 (provides `ChaCha20` cipher)
 
 ## Install
 
 ```bash
 $ pip install tird
-```
-or
-```bash
-$ git clone -b v0.3.0 https://github.com/hakavlad/tird.git && cd tird
-$ sudo make install
 ```
 
 ## Feedback
