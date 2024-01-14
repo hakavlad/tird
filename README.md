@@ -1,4 +1,4 @@
-![Logo: random data visualization](https://i.imgur.com/kZc0el8.png)
+![Logo: random data visualization](https://i.imgur.com/SB44MiB.png)
 
 # tird
 
@@ -8,11 +8,11 @@
 
 `tird` *(an acronym for "this is random data")* is a tool for encrypting file contents and hiding random data among other random data.
 
-![screenshot: menu](https://i.imgur.com/HmwR7vV.png)
+![screenshot: menu](https://i.imgur.com/T5gXTko.png)
 
 ## Features
 
-- `tird` is a single Python module with no external dependencies (uses `hashlib` module from the standard library for keyfile hashing, keys derivation and for encryption). 
+- `tird` is a single Python module with no external dependencies (uses `hashlib` module from the standard library for keyfile hashing, keys derivation and for encryption).
 - `tird` has no config file and no command line options (except `-d/--debug`). Looking at the shell history will not provide information on how `tird` was used.
 - The result of encryption (mode 2) is [PURB](https://en.wikipedia.org/wiki/PURB_(cryptography))-like objects (call this "cryptoblob").
 - Cryptoblobs are indistinguishable from random data.
