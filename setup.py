@@ -7,7 +7,7 @@ def readme():
 
 
 NAME = 'tird'
-VERSION = '0.3.0'
+VERSION = '0.4.0'
 
 setup(
     name=NAME,
@@ -41,5 +41,9 @@ setup(
     entry_points={'console_scripts': [
         '{n} = {n}.{n}:main'.format(n=NAME),
     ]},
-    python_requires='>=3.6'
+    python_requires='>=3.6',
+    install_requires=[
+        'pycryptodomex>=3.6.2',
+        'pynacl>=1.2.0',
+    ],
 )
