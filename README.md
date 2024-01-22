@@ -12,7 +12,11 @@
 
 ## Goals
 
-- Long-term protection (symmetric encryption,  minimizing metadata leakage, hiding) for data at rest.
+- Long-term protection for individual files:
+    - symmetric encryption;
+    - deniable encryption;
+    - minimizing metadata leakage;
+    - data hiding.
 
 ## Cryptoblob structure
 ```
