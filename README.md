@@ -8,7 +8,11 @@
 
 `tird` *(an acronym for "this is random data")* is a tool for encrypting file contents and hiding random data among other random data.
 
-![screenshot: menu](https://i.imgur.com/T5gXTko.png)
+![screenshot: MENU](https://i.imgur.com/37GEudr.png)
+
+## Goals
+
+- Long-term protection (symmetric encryption,  minimizing metadata leakage, hiding) for data at rest.
 
 ## Cryptoblob structure
 ```
@@ -45,7 +49,7 @@
 - 🚩 `tird` has not been independently audited.
 - 🚩 `tird` probably won't help much when used in a compromised environment.
 - 🚩 `tird` probably won't help much when used with short and predictable keys.
-- 🚩 Parts of the keys may leak into the swap space.
+- 🚩 Keys may leak into the swap space.
 - 🚩 `tird` violates [The Cryptographic Doom Principle](https://moxie.org/2011/12/13/the-cryptographic-doom-principle.html).
 - 🚩 `tird` does not sort digests of passphrases and keyfiles in constant time.
 - 🚩 Development is ongoing, there may be backward compatibility issues in the future.
@@ -53,19 +57,6 @@
 ## Usage
 
 Just run the script, select the option you want and then answer the questions.
-```
-$ tird
-
-                        MENU
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    0. Exit               1. Show info
-    2. Encrypt            3. Decrypt
-    4. Embed              5. Extract
-    6. Encrypt and embed  7. Extract and decrypt
-    8. Create w/ urandom  9. Overwrite w/ urandom
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-[01] Select the action to perform [0-9]:
-```
 
 ## Requirements
 
@@ -81,7 +72,7 @@ $ pip install tird
 
 ## TODO
 
-Write docs.
+- Write documentation.
 
 ## Feedback
 
