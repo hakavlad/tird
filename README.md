@@ -12,11 +12,19 @@
 
 ## Goals
 
-- Long-term protection for individual files:
-    - symmetric encryption;
-    - deniable encryption;
-    - minimizing metadata leakage;
-    - data hiding.
+- Ability to provide protection for individual files, including:
+  - symmetric encryption;
+  - minimizing metadata leakage;
+  - the possibility of plausible deniability;
+  - data hiding (prevention of detection).
+- Simplicity: refusal to implement functions that are not directly related to security goals.
+- Providing a stable encryption format with no cryptographic agility for long-term data storage.
+
+## Cryptographic primitives
+
+- Salted and personalized BLAKE2b as part of a key derivation scheme and keyed BLAKE2b for data authentication.
+- Argon2 for key stretching and key derivation.
+- ChaCha20 for data encryption.
 
 ## Cryptoblob structure
 ```
