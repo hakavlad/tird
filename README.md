@@ -12,19 +12,21 @@
 
 ## Goals
 
-- Ability to provide protection for individual files, including:
+- Providing protection for individual files, including:
   - symmetric encryption;
   - minimizing metadata leakage;
-  - the possibility of plausible deniability;
+  - plausible deniability;
   - data hiding (prevention of detection).
-- Simplicity: refusal to implement functions that are not directly related to security goals.
+- Keep it simple: refusal to implement functions that are not directly related to primary security goals.
 - Providing a stable encryption format with no cryptographic agility for long-term data storage.
 
 ## Cryptographic primitives
 
-- Salted and personalized BLAKE2b as part of a key derivation scheme and keyed BLAKE2b for data authentication.
-- Argon2 for key stretching and key derivation.
-- ChaCha20 for data encryption.
+- BLAKE2b:
+  - salted and personalized BLAKE2b as part of a key derivation scheme;
+  - keyed BLAKE2b for data authentication.
+- Argon2 memory-hard function for key stretching and key derivation.
+- ChaCha20-IETF cipher for data encryption.
 
 ## Cryptoblob structure
 ```
@@ -57,12 +59,14 @@
 
 ## Warnings
 
+![ACHTUNG MINEN](https://i.imgur.com/mESTDyh.jpeg)
+
 - 🚩 The author is not a cryptographer.
 - 🚩 `tird` has not been independently audited.
 - 🚩 `tird` probably won't help much when used in a compromised environment.
 - 🚩 `tird` probably won't help much when used with short and predictable keys.
 - 🚩 Keys may leak into the swap space.
-- 🚩 `tird` violates [The Cryptographic Doom Principle](https://moxie.org/2011/12/13/the-cryptographic-doom-principle.html).
+- 🚩 `tird` violates [The Cryptographic Doom Principle](https://moxie.org/2011/12/13/the-cryptographic-doom-principle.html) (releases unverified plaintext).
 - 🚩 `tird` does not sort digests of passphrases and keyfiles in constant time.
 - 🚩 Development is ongoing, there may be backward compatibility issues in the future.
 
@@ -78,13 +82,16 @@ Just run the script, select the option you want and then answer the questions.
 
 ## Install
 
+Install python3 and python3-pip (or python-pip), than run
 ```bash
 $ pip install tird
 ```
 
+Binary builds (made with [PyInstaller](https://pyinstaller.org/en/stable/)) are also available (see [Releases](https://github.com/hakavlad/tird/releases)).
+
 ## TODO
 
-- Write documentation.
+Write documentation.
 
 ## Feedback
 
