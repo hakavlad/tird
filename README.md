@@ -50,12 +50,12 @@
 - `tird` does not support Reed–Solomon error correction.
 - `tird` does not support splitting the output into chunks.
 - `tird` does not support low-level device reading and writing when used on MS Windows (devices cannot be used as keyfiles, cannot be overwritten, cannot be encrypted or hidden).
-- `tird` does not provide a graphical user interface (may be implemented later).
+- `tird` does not provide a graphical user interface.
 - `tird` does not provide a password generator.
 - `tird` does not wipe sensitive data from the heap.
 - `tird` can only encrypt one file per iteration. Encryption of directories and multiple files is not supported.
 - `tird` does not fake file timestamps (atime, mtime, ctime).
-- `tird` encryption speed is not very fast: up to 186 MiB/s (in my tests).
+- `tird` encryption speed is not very fast: up to 180 MiB/s (in my tests).
 
 ## Warnings
 
@@ -66,7 +66,7 @@
 - 🚩 `tird` probably won't help much when used in a compromised environment.
 - 🚩 `tird` probably won't help much when used with short and predictable keys.
 - 🚩 Keys may leak into the swap space.
-- 🚩 `tird` violates [The Cryptographic Doom Principle](https://moxie.org/2011/12/13/the-cryptographic-doom-principle.html) (releases unverified plaintext).
+- 🚩 `tird` violates [The Cryptographic Doom Principle](https://moxie.org/2011/12/13/the-cryptographic-doom-principle.html).
 - 🚩 `tird` does not sort digests of passphrases and keyfiles in constant time.
 - 🚩 Development is ongoing, there may be backward compatibility issues in the future.
 
