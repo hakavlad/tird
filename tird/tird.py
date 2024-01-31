@@ -2058,7 +2058,7 @@ K: int = 2 ** 10
 M: int = 2 ** 20
 G: int = 2 ** 30
 
-MIN_PRINT_INTERVAL: int = 5
+MIN_PRINT_INTERVAL: float = 5.0
 
 BYTEORDER: str = 'little'
 
