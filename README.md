@@ -34,11 +34,11 @@
                  +----------+---------------+
                  | comments | file contents |
                  +----------+---------------+
-  16B     0+B    |        plaintext         | 64B     0+B     16B
+  16B     0+B    |     plaintext/payload    | 64B     0+B     16B
 +------+---------+--------------------------+-----+---------+------+
 | salt | padding |        ciphertext        | MAC | padding | salt |
 +------+---------+--------------------------+-----+---------+------+
-|  urandom data  |      random-looking data       |  urandom data  |
+|  random bytes  |      random-looking data       |  random bytes  |
 +----------------+--------------------------------+----------------+
 ```
 
@@ -82,7 +82,7 @@ Just run the script, select the option you want and then answer the questions.
 
 ## Install
 
-Install python3 and python3-pip (or python-pip), than run
+Install python3 and python3-pip (or python-pip), then run
 ```bash
 $ pip install tird
 ```
