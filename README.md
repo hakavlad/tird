@@ -99,4 +99,4 @@ Test reports are welcome. Feel free to post any questions, feedback or criticism
 
 ## License
 
-[Creative Commons Zero v1.0 Universal](https://github.com/hakavlad/tird/blob/main/LICENSE) (Public Domain Dedication).
+This project is licensed under the terms of the [Creative Commons Zero v1.0 Universal License](https://github.com/hakavlad/tird/blob/main/LICENSE) (Public Domain Dedication).
