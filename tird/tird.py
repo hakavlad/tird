@@ -446,6 +446,9 @@ def get_comments_bytes() -> bytes:
         f'{BOL}[10] Comments (optional, up to {COMMENTS_SIZE} B):{RES} ')
 
     if comments != '':
+        # Sanitize comments: prevent UnicodeDecodeError in some cases
+        comments = comments.encode()[:COMMENTS_SIZE].decode('utf-8', 'ignore')
+
         comments_bytes: bytes = comments.encode()
         comments_bytes = b''.join([
             comments_bytes,
