@@ -2,7 +2,6 @@
 
 # tird
 
-[![CodeQL](https://github.com/hakavlad/tird/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/hakavlad/tird/actions/workflows/github-code-scanning/codeql)
 [![Releases](https://img.shields.io/github/v/release/hakavlad/tird)](https://github.com/hakavlad/tird/releases)
 [![PyPI](https://img.shields.io/pypi/v/tird?color=blue&label=PyPI)](https://pypi.org/project/tird/)
 
@@ -13,11 +12,10 @@
 ## Goals
 
 - Providing protection for individual files, including:
-  - symmetric encryption;
+  - deniable encryption;
   - minimizing metadata leakage;
-  - plausible deniability;
-  - data hiding (prevention of detection).
-- Keep it simple: refusal to implement functions that are not directly related to primary security goals.
+  - data hiding.
+- Simplicity: refusal to implement features that are not directly related to primary security goals.
 - Providing a stable encryption format with no cryptographic agility for long-term data storage.
 
 ## Cryptographic primitives
@@ -95,7 +93,7 @@ Write documentation.
 
 ## Feedback
 
-Test reports are welcome. Feel free to post any questions, feedback or criticisms to the [Discussions](https://github.com/hakavlad/tird/discussions).
+Feel free to post any questions, feedback or criticisms to the [Discussions](https://github.com/hakavlad/tird/discussions).
 
 ## License
 
