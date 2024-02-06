@@ -1,13 +1,13 @@
 % tird(1) | General Commands Manual
 
 # NAME
-tird - A tool for encrypting file contents and hiding random data among other random data.
+tird - encrypt file contents and hide encrypted data among random data
 
 # SYNOPSIS
 **tird** [**OPTION**]...
 
 # DESCRIPTION
-tird (an acronym for "this is random data") is a tool for encrypting file contents and hiding random data among other random data.
+tird (an acronym for "this is random data") is a tool for encrypting file contents and hiding encrypted data among random data.
 
 # REQUIREMENTS
 - Python >= 3.6

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""A tool for encrypting file contents and hiding random data
-among other random data.
+"""A tool for encrypting file contents
+and hiding encrypted data among random data.
 """
 
 from gc import collect
@@ -2035,7 +2035,7 @@ VERSION: str = '0.5.0'
 INFO: str = f"""{ITA}I: tird v{VERSION}
 
     A tool for encrypting file contents and
-    hiding random data among other random data.
+    hiding encrypted data among random data.
 
     Homepage: https://github.com/hakavlad/tird{RES}"""
 
