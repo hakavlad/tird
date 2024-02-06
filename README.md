@@ -26,7 +26,7 @@
 - Argon2 memory-hard function for key stretching and key derivation.
 - ChaCha20-IETF cipher for data encryption.
 
-## Cryptoblob structure
+## Encryption format (cryptoblob) structure
 ```
                      512B          0+B
                  +----------+---------------+
@@ -75,8 +75,8 @@ Just run the script, select the option you want and then answer the questions.
 ## Requirements
 
 - Python >= 3.6
-- PyNaCl >= 1.2.0 (provides `Argon2` KDF)
-- PyCryptodomex >= 3.6.2 (provides `ChaCha20` cipher)
+- [PyNaCl](https://pypi.org/project/PyNaCl/) >= 1.2.0 (provides `Argon2` KDF)
+- [PyCryptodomex](https://pypi.org/project/pycryptodomex/) >= 3.6.2 (provides `ChaCha20` cipher)
 
 ## Install
 
@@ -86,6 +86,8 @@ $ pip install tird
 ```
 
 Binary builds (made with [PyInstaller](https://pyinstaller.org/en/stable/)) are also available (see [Releases](https://github.com/hakavlad/tird/releases)).
+
+![tird.exe](https://i.imgur.com/84SzDDy.png)
 
 ## TODO
 
