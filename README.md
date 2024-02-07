@@ -26,7 +26,7 @@
 - Argon2 memory-hard function for key stretching and key derivation.
 - ChaCha20-IETF cipher for data encryption.
 
-## Encryption format (cryptoblob) structure
+## Encryption format (cryptoblob structure)
 ```
                      512B          0+B
                  +----------+---------------+
@@ -42,7 +42,7 @@
 
 ## Tradeoffs and limitations
 
-- `tird` does not support asymmetric encryption and signatures.
+- `tird` does not support public-key cryptography.
 - `tird` does not support file compression.
 - `tird` does not support ASCII armored output.
 - `tird` does not support Reed–Solomon error correction.
@@ -57,16 +57,14 @@
 
 ## Warnings
 
-![ACHTUNG MINEN](https://i.imgur.com/mESTDyh.jpeg)
-
-- 🚩 The author is not a cryptographer.
-- 🚩 `tird` has not been independently audited.
-- 🚩 `tird` probably won't help much when used in a compromised environment.
-- 🚩 `tird` probably won't help much when used with short and predictable keys.
-- 🚩 Keys may leak into the swap space.
-- 🚩 `tird` violates [The Cryptographic Doom Principle](https://moxie.org/2011/12/13/the-cryptographic-doom-principle.html).
-- 🚩 `tird` does not sort digests of passphrases and keyfiles in constant time.
-- 🚩 Development is ongoing, there may be backward compatibility issues in the future.
+- ⚠️ The author is not a cryptographer.
+- ⚠️ `tird` has not been independently audited.
+- ⚠️ `tird` probably won't help much when used in a compromised environment.
+- ⚠️ `tird` probably won't help much when used with short and predictable keys.
+- ⚠️ Keys may leak into the swap space.
+- ⚠️ `tird` always releases unverified plaintext (violates [The Cryptographic Doom Principle](https://moxie.org/2011/12/13/the-cryptographic-doom-principle.html)).
+- ⚠️ `tird` does not sort digests of keyfiles and passphrases in constant time.
+- ⚠️ Development is ongoing, there may be backward compatibility issues in the future.
 
 ## Usage
 
