@@ -1,4 +1,4 @@
-![Logo: random data visualization](https://i.imgur.com/SB44MiB.png)
+![Logo: random data visualization](https://i.imgur.com/DK7Nm6j.png)
 
 # tird
 
