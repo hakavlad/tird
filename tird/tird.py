@@ -227,7 +227,7 @@ def get_pad_max_percent() -> int:
     """
     while True:
         pad_max_percent_s: str = input(
-            f'    {BOL}[04] Randomized padding max % (default'
+            f'    {BOL}[04] Max padding size, % (default'
             f'={DEFAULT_PAD_MAX_PERCENT}):{RES} ')
 
         if pad_max_percent_s in ('', str(DEFAULT_PAD_MAX_PERCENT)):
@@ -251,7 +251,7 @@ def is_fake_mac() -> bool:
     """
     while True:
         use_fake_mac: str = input(
-            f'    {BOL}[05] Fake a MAC tag? (Y/N, default=N):{RES} ')
+            f'    {BOL}[05] Set a fake MAC tag? (Y/N, default=N):{RES} ')
 
         if use_fake_mac in ('', 'N', 'n', '0'):
             return False
@@ -629,7 +629,7 @@ def set_custom_settings(action: int) -> None:
 
     if DEBUG:
         print(f'{ITA}D: Argon2 time cost: {argon2_time_cost}{RES}')
-        print(f'{ITA}D: randomized padding max %: {pad_max_percent}{RES}')
+        print(f'{ITA}D: max padding size, %: {pad_max_percent}{RES}')
 
         if action in (2, 6):
             print(f'{ITA}D: use fake MAC tag: {use_fake_mac}{RES}')
@@ -2055,7 +2055,7 @@ INVALID_UTF8_BYTE: bytes = b'\xff'
 
 iod: dict = {}  # I/O file objects
 sd: dict = {}  # salts
-md: dict = {}  # miscellaneous
+md: dict = {}  # miscellanea
 
 K: int = 2 ** 10
 M: int = 2 ** 20
