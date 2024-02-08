@@ -2030,7 +2030,7 @@ else:
     exit(1)
 
 
-VERSION: str = '0.5.0'
+VERSION: str = '0.6.0'
 
 INFO: str = f"""{ITA}I: tird v{VERSION}
 
