@@ -83,7 +83,7 @@ Install python3 and python3-pip (or python-pip), then run
 $ pip install tird
 ```
 
-Binary builds (made with [PyInstaller](https://pyinstaller.org/en/stable/)) are also available (see [Releases](https://github.com/hakavlad/tird/releases)).
+Standalone executables (made with [PyInstaller](https://pyinstaller.org/en/stable/)) are also available (see [Releases](https://github.com/hakavlad/tird/releases)).
 
 ![tird.exe](https://i.imgur.com/84SzDDy.png)
 
