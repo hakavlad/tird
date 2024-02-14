@@ -8,10 +8,10 @@
 `tird` *(an acronym for "this is random data")* is a tool for encrypting file contents and hiding encrypted data.
 
 `tird` can provide protection for individual files, including:
-  - symmetric encryption;
-  - reducing metadata leakage;
-  - hiding encrypted data;
-  - plausible deniability.
+- symmetric encryption;
+- reducing metadata leakage;
+- hiding encrypted data;
+- plausible deniability.
 
 ![screenshot: MENU](https://i.imgur.com/37GEudr.png)
 
@@ -28,11 +28,11 @@
 ## Cryptographic primitives
 
 `tird` uses the following cryptographic primitives:
-- BLAKE2 ([RFC 7693](https://datatracker.ietf.org/doc/html/rfc7693.html)):
-  - salted and personalized BLAKE2b for hashing keyfiles and passphrases;
-  - keyed BLAKE2b for message authentication.
-- Argon2 memory-hard function ([RFC 9106](https://datatracker.ietf.org/doc/html/rfc9106/)) for key stretching and key derivation.
-- ChaCha20 stream cipher ([RFC 7539](https://datatracker.ietf.org/doc/html/rfc7539)) for data encryption.
+- `BLAKE2` ([RFC 7693](https://datatracker.ietf.org/doc/html/rfc7693.html)):
+  - salted and personalized `BLAKE2b` for hashing keyfiles and passphrases;
+  - keyed `BLAKE2b` for message authentication.
+- `Argon2` memory-hard function ([RFC 9106](https://datatracker.ietf.org/doc/html/rfc9106/)) for key stretching and key derivation.
+- `ChaCha20` cipher ([RFC 7539](https://datatracker.ietf.org/doc/html/rfc7539)) for data encryption.
 
 ## Encryption format (cryptoblob structure)
 ```
@@ -81,8 +81,8 @@ Just run the script, select the option you want and then answer the questions.
 ## Requirements
 
 - Python >= 3.6
-- [PyNaCl](https://pypi.org/project/PyNaCl/) >= 1.2.0 (provides `Argon2` KDF)
-- [PyCryptodomex](https://pypi.org/project/pycryptodomex/) >= 3.6.2 (provides `ChaCha20` cipher)
+- [PyNaCl](https://pypi.org/project/PyNaCl/) >= 1.2.0 (provides `Argon2`)
+- [PyCryptodomex](https://pypi.org/project/pycryptodomex/) >= 3.6.2 (provides `ChaCha20`)
 
 ## Install
 
