@@ -5,26 +5,34 @@
 [![Releases](https://img.shields.io/github/v/release/hakavlad/tird)](https://github.com/hakavlad/tird/releases)
 [![PyPI](https://img.shields.io/pypi/v/tird?color=blue&label=PyPI)](https://pypi.org/project/tird/)
 
-`tird` *(an acronym for "this is random data")* is a tool for encrypting file contents and hiding encrypted data among random data.
+`tird` *(an acronym for "this is random data")* is a tool for encrypting file contents and hiding encrypted data.
+
+`tird` can provide protection for individual files, including:
+  - symmetric encryption;
+  - reducing metadata leakage;
+  - hiding encrypted data;
+  - plausible deniability.
 
 ![screenshot: MENU](https://i.imgur.com/37GEudr.png)
 
 ## Goals
 
 - Providing protection for individual files, including:
-  - deniable encryption;
-  - minimizing metadata leakage;
-  - data hiding.
-- Simplicity: refusal to implement features that are not directly related to primary security goals.
-- Providing a stable encryption format with no cryptographic agility for long-term data storage.
+  - symmetric encryption;
+  - reducing metadata leakage;
+  - hiding encrypted data;
+  - plausible deniability.
+- Providing a stable encryption format with no [cryptographic agility](https://en.wikipedia.org/wiki/Cryptographic_agility) for long-term data storage.
+- No [feature creep](https://en.wikipedia.org/wiki/Feature_creep): refusal to implement features that are not directly related to primary security goals.
 
 ## Cryptographic primitives
 
-- BLAKE2b:
-  - salted and personalized BLAKE2b as part of a key derivation scheme;
-  - keyed BLAKE2b for data authentication.
-- Argon2 memory-hard function for key stretching and key derivation.
-- ChaCha20-IETF cipher for data encryption.
+`tird` uses the following cryptographic primitives:
+- BLAKE2 ([RFC 7693](https://datatracker.ietf.org/doc/html/rfc7693.html)):
+  - salted and personalized BLAKE2b for hashing keyfiles and passphrases;
+  - keyed BLAKE2b for message authentication.
+- Argon2 memory-hard function ([RFC 9106](https://datatracker.ietf.org/doc/html/rfc9106/)) for key stretching and key derivation.
+- ChaCha20 stream cipher ([RFC 7539](https://datatracker.ietf.org/doc/html/rfc7539)) for data encryption.
 
 ## Encryption format (cryptoblob structure)
 ```
@@ -78,7 +86,7 @@ Just run the script, select the option you want and then answer the questions.
 
 ## Install
 
-Install python3 and python3-pip (or python-pip), then run
+Install `python3` and `python3-pip` (or `python-pip`), then run
 ```bash
 $ pip install tird
 ```
