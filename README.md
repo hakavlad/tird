@@ -44,7 +44,7 @@
 +------+---------+--------------------------+-----+---------+------+
 | salt | padding |        ciphertext        | MAC | padding | salt |
 +------+---------+--------------------------+-----+---------+------+
-|  random bytes  |      random-looking data       |  random bytes  |
+|  random bytes  |    random-looking bytes        |  random bytes  |
 +----------------+--------------------------------+----------------+
 ```
 
