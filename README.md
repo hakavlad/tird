@@ -4,7 +4,7 @@
 
 [![CodeQL](https://github.com/hakavlad/tird/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/hakavlad/tird/actions/workflows/github-code-scanning/codeql)
 [![Releases](https://img.shields.io/github/v/release/hakavlad/tird?label=Release)](https://github.com/hakavlad/tird/releases)
-[![PyPI](https://img.shields.io/pypi/v/tird?label=PyPI)](https://pypi.org/project/tird/)
+[![PyPI](https://img.shields.io/pypi/v/tird?color=008080&label=PyPI)](https://pypi.org/project/tird/)
 
 `tird` *(an acronym for "this is random data")* is a tool for encrypting file contents and hiding encrypted data.
 
