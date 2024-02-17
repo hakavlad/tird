@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""A tool for encrypting file contents
-and hiding encrypted data among random data.
+"""A tool for encrypting file contents and hiding encrypted data.
 """
 
 from gc import collect
@@ -904,7 +903,7 @@ def get_argon2_password() -> None:
     print(f'{ITA}I: receiving keying material is completed{RES}')
 
     if not digest_list:
-        print(f'{WAR}W: no passphrase or keyfile specified!{RES}')
+        print(f'{WAR}W: no keyfile or passphrase specified!{RES}')
 
     if DEBUG:
         print(f'{ITA}D: receiving user input is completed{RES}')
@@ -934,7 +933,7 @@ def get_argon2_password() -> None:
 
 def derive_keys() -> bool:
     """
-    Derive secret keys using Argon2 KDF.
+    Derive keys using Argon2 MHF.
     """
     print(f'{ITA}I: deriving keys...{RES}')
 
@@ -954,7 +953,7 @@ def derive_keys() -> bool:
 
     t1: float = monotonic()
 
-    # [ argon2_tag:128 ] -> [ enc_key:32 || pad_key:32 ||  mac_key:64 ]
+    # enc_key:32 || pad_key:32 ||  mac_key:64 = argon2_tag:128
 
     enc_key: bytes = argon2_tag[:ENC_KEY_SIZE]
     pad_key: bytes = argon2_tag[ENC_KEY_SIZE:ENC_KEY_SIZE + PAD_KEY_SIZE]
@@ -1563,7 +1562,7 @@ def cryptoembed_processor(
         read_mac_tag: Optional[bytes] = read_data(iod['i'], MAC_TAG_SIZE)
 
         if read_mac_tag is None:
-            print(f'{WAR}W: data/keys authentication failed!{RES}')
+            print(f'{WAR}W: integrity/authenticity verification failed!{RES}')
             return False
 
         if DEBUG:
@@ -1573,13 +1572,13 @@ def cryptoembed_processor(
             if DEBUG:
                 print(f'{ITA}D: found_mac_tag is equal to read_mac_tag{RES}')
 
-            print(f'{ITA}I: data/keys authentication: OK{RES}')
+            print(f'{ITA}I: integrity/authenticity verification: OK{RES}')
         else:
             if DEBUG:
                 print(f'{ITA}D: found_mac_tag is not equal to '
                       f'read_mac_tag{RES}')
 
-            print(f'{WAR}W: data/keys authentication failed!{RES}')
+            print(f'{WAR}W: integrity/authenticity verification failed!{RES}')
 
     if DEBUG:
         print(f'{ITA}D: handling MAC tag is completed{RES}')
@@ -2030,13 +2029,10 @@ else:
     exit(1)
 
 
-VERSION: str = '0.6.0'
+VERSION: str = '0.7.0'
 
 INFO: str = f"""{ITA}I: tird v{VERSION}
-
-    A tool for encrypting file contents and
-    hiding encrypted data among random data.
-
+    A tool for encrypting file contents and hiding encrypted data.
     Homepage: https://github.com/hakavlad/tird{RES}"""
 
 MENU: str = f"""
