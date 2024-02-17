@@ -2,7 +2,7 @@
 
 # NAME
 
-tird - encrypt file contents and hide encrypted data among random data
+tird - encrypt file contents and hide encrypted data
 
 # SYNOPSIS
 
@@ -10,7 +10,14 @@ tird - encrypt file contents and hide encrypted data among random data
 
 # DESCRIPTION
 
-**tird** _(an acronym for "this is random data")_ is a tool for encrypting file contents and hiding encrypted data among random data.
+**tird** *(an acronym for "this is random data")* is a tool for encrypting file contents and hiding encrypted data.
+
+**tird** can provide protection for individual files, including:
+
+- symmetric encryption;
+- reducing metadata leakage;
+- hiding encrypted data;
+- plausible deniability.
 
 # COMMAND-LINE OPTIONS
 
@@ -18,15 +25,25 @@ tird - encrypt file contents and hide encrypted data among random data
 
 print debug messages
 
+# GOALS
+
+- Providing protection for individual files, including:
+  - symmetric encryption;
+  - reducing metadata leakage;
+  - hiding encrypted data;
+  - plausible deniability.
+- Providing a stable encryption format with no cryptographic agility for long-term data storage.
+- No feature creep: refusal to implement features that are not directly related to primary security goals.
+
 # USAGE
 
 Just run the script, select the option you want and then answer the questions.
 
 # REQUIREMENTS
 
-* Python >= 3.6
-* PyNaCl >= 1.2.0
-* PyCryptodomex >= 3.6.2
+- Python >= 3.6
+- PyNaCl >= 1.2.0
+- PyCryptodomex >= 3.6.2
 
 # REPORTING BUGS
 
