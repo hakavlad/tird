@@ -6,7 +6,7 @@ tird - encrypt file contents and hide encrypted data
 
 # SYNOPSIS
 
-**tird** [**-d** | **--debug**]
+**tird** \[**-d** | **--debug**\]
 
 # DESCRIPTION
 
