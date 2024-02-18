@@ -2020,8 +2020,11 @@ else:
     WAR = '\033[1;3;93;40m'  # bold italic yellow text, black background
     RES = '\033[0m'  # reset
 
+
+DEBUG: bool = False
+
 if not argv[1:]:
-    DEBUG: bool = False
+    pass
 elif argv[1:] == ['-d'] or argv[1:] == ['--debug']:
     DEBUG = True
 else:
