@@ -8,6 +8,8 @@
 
 `tird` *(an acronym for "this is random data")* is a tool for writing random bytes, encrypting file contents, and hiding encrypted data.
 
+![screenshot: MENU](https://i.imgur.com/cZX73zg.png)
+
 ## Goals
 
 - Providing protection for individual files, including:
@@ -28,6 +30,7 @@
 - `ChaCha20` cipher ([RFC 7539](https://datatracker.ietf.org/doc/html/rfc7539)) for data encryption.
 
 ## Encryption format (cryptoblob structure)
+
 ```
                      512B          0+B
                  +----------+---------------+
@@ -69,11 +72,15 @@
 
 ## Usage
 
-Start `tird`, select a menu option, and then answer the questions that `tird` will ask.
+Start `tird`, select a menu option, and then answer the questions that `tird` will ask:
+
+```bash
+$ tird
+```
 
 ## Debug
 
-Start `tird` with the option `--debug` or `-d` to look under the hood while the program is running.
+Start `tird` with the option `--debug` or `-d` to look under the hood while the program is running:
 
 ```bash
 $ tird -d
@@ -88,6 +95,7 @@ $ tird -d
 ## Install
 
 Install `python3` and `python3-pip` (or `python-pip`), then run
+
 ```bash
 $ pip install tird
 ```
