@@ -2035,7 +2035,8 @@ else:
 VERSION: str = '0.8.0'
 
 INFO: str = f"""{ITA}I: tird v{VERSION}
-    A tool for writing random bytes, encrypting file contents,
+    A tool for writing random bytes,
+    encrypting file contents,
     and hiding encrypted data.
     Homepage: https://github.com/hakavlad/tird{RES}"""
 
