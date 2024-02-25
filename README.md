@@ -6,15 +6,7 @@
 [![Releases](https://img.shields.io/github/v/release/hakavlad/tird?label=Release)](https://github.com/hakavlad/tird/releases)
 [![PyPI](https://img.shields.io/pypi/v/tird?color=008080&label=PyPI)](https://pypi.org/project/tird/)
 
-`tird` *(an acronym for "this is random data")* is a tool for encrypting file contents and hiding encrypted data.
-
-`tird` can provide protection for individual files, including:
-- symmetric encryption;
-- reducing metadata leakage;
-- hiding encrypted data;
-- plausible deniability.
-
-![screenshot: MENU](https://i.imgur.com/37GEudr.png)
+`tird` *(an acronym for "this is random data")* is a tool for writing random bytes, encrypting file contents, and hiding encrypted data.
 
 ## Goals
 
@@ -24,7 +16,7 @@
   - hiding encrypted data;
   - plausible deniability.
 - Providing a stable encryption format with no [cryptographic agility](https://en.wikipedia.org/wiki/Cryptographic_agility) for long-term data storage.
-- No [feature creep](https://en.wikipedia.org/wiki/Feature_creep): refusal to implement features that are not directly related to primary security goals.
+- Simplicity and no [feature creep](https://en.wikipedia.org/wiki/Feature_creep): refusal to implement features that are not directly related to primary security goals.
 
 ## Cryptographic primitives
 
@@ -77,7 +69,15 @@
 
 ## Usage
 
-Just run the script, select the option you want and then answer the questions.
+Start `tird`, select a menu option, and then answer the questions that `tird` will ask.
+
+## Debug
+
+Start `tird` with the option `--debug` or `-d` to look under the hood while the program is running.
+
+```bash
+$ tird -d
+```
 
 ## Requirements
 
