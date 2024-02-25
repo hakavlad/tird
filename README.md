@@ -108,7 +108,11 @@ Standalone executables (made with [PyInstaller](https://pyinstaller.org/en/stabl
 
 ## TODO
 
-Write documentation.
+Write documentation:
+- Features;
+- Specification;
+- Design rationale;
+- User guide.
 
 ## Feedback
 
