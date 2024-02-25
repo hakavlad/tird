@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""A tool for encrypting file contents and hiding encrypted data.
+"""A tool for writing random bytes, encrypting file contents,
+and hiding encrypted data.
 """
 
 from gc import collect
@@ -165,13 +166,12 @@ def select_action() -> int:
             return 7
 
         if action == '8':
-            print(f'{ITA}I: action #8: create a file with uniform random '
-                  f'data{RES}')
+            print(f'{ITA}I: action #8: create a file with random bytes{RES}')
             return 8
 
         if action == '9':
-            print(f'{ITA}I: action #9: overwrite file contents with uniform '
-                  f'random data{RES}')
+            print(f'{ITA}I: action #9: overwrite file contents with random '
+                  f'bytes{RES}')
             return 9
 
         print(f'{ERR}E: invalid value{RES}')
@@ -1882,7 +1882,7 @@ def wiper(action: int) -> bool:
         print(f'{ITA}I: nothing to overwrite{RES}')
         return False
 
-    if not do_continue(fix=' with random data'):
+    if not do_continue(fix=' with random bytes'):
         print(f'{ITA}I: stopped by user request{RES}')
         return False
 
@@ -2032,22 +2032,23 @@ else:
     exit(1)
 
 
-VERSION: str = '0.7.0'
+VERSION: str = '0.8.0'
 
 INFO: str = f"""{ITA}I: tird v{VERSION}
-    A tool for encrypting file contents and hiding encrypted data.
+    A tool for writing random bytes, encrypting file contents,
+    and hiding encrypted data.
     Homepage: https://github.com/hakavlad/tird{RES}"""
 
 MENU: str = f"""
-                        {BOL}MENU{RES}
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    0. Exit               1. Show info
-    2. Encrypt            3. Decrypt
-    4. Embed              5. Extract
-    6. Encrypt and embed  7. Extract and decrypt
-    8. Create w/ urandom  9. Overwrite w/ urandom
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-{BOL}[01] Select the action to perform [0-9]:{RES} """
+                       {BOL}MENU{RES}
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    0. Exit              1. Show info
+    2. Encrypt           3. Decrypt
+    4. Embed             5. Extract
+    6. Encrypt & embed   7. Extract & decrypt
+    8. Create w/ random  9. Overwrite w/ random
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+{BOL}[01] Select an option [0-9]:{RES} """
 
 
 INVALID_UTF8_BYTE: bytes = b'\xff'
