@@ -8,7 +8,9 @@
 
 `tird` *(an acronym for "this is random data")* is a tool for writing random bytes, encrypting file contents, and hiding encrypted data.
 
-`tird` can encrypt file contents, hide encrypted data among random data, minimize metadata leakage, and provides some forms of [plausible deniability](https://en.wikipedia.org/wiki/Plausible_deniability#Use_in_cryptography).
+`tird` can create files with random data, overwrite file contents with random data, encrypt file contents and comments, hide encrypted data among random data, minimize metadata leakage, and can provide some forms of [plausible deniability](https://en.wikipedia.org/wiki/Plausible_deniability#Use_in_cryptography).
+
+`tird` aims to provide a stable encryption format for long-term data storage using modern and standardized cryptographic primitives.
 
 ![screenshot: MENU](https://i.imgur.com/cZX73zg.png)
 
