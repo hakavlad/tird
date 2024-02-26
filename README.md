@@ -76,7 +76,7 @@
 
 ## Usage
 
-Start `tird`, select a menu option, and then answer the questions that `tird` will ask:
+You don't need to remember command line options to use `tird`. Just start `tird`, select a menu option, and then answer the questions that `tird` will ask:
 
 ```bash
 $ tird
@@ -106,7 +106,7 @@ $ pip install tird
 
 Standalone executables (made with [PyInstaller](https://pyinstaller.org/en/stable/)) are also available (see [Releases](https://github.com/hakavlad/tird/releases)).
 
-![tird.exe](https://i.imgur.com/84SzDDy.png)
+![tird.exe](https://i.imgur.com/4Usuzwa.png)
 
 ## TODO
 
