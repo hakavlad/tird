@@ -2,7 +2,7 @@
 
 # NAME
 
-tird - encrypt file contents and hide encrypted data
+tird - write random bytes, encrypt file contents, and hide encrypted data
 
 # SYNOPSIS
 
@@ -10,14 +10,11 @@ tird - encrypt file contents and hide encrypted data
 
 # DESCRIPTION
 
-**tird** *(an acronym for "this is random data")* is a tool for encrypting file contents and hiding encrypted data.
+**tird** *(an acronym for "this is random data")* is a tool for writing random bytes, encrypting file contents, and hiding encrypted data.
 
-**tird** can provide protection for individual files, including:
+**tird** can create files with random data, overwrite file contents with random data, encrypt file contents and comments, hide encrypted data among random data, minimize metadata leakage, and can provide some forms of plausible deniability.
 
-- symmetric encryption;
-- reducing metadata leakage;
-- hiding encrypted data;
-- plausible deniability.
+**tird** aims to provide a stable encryption format for long-term data storage using modern and standardized cryptographic primitives.
 
 # COMMAND-LINE OPTIONS
 
@@ -33,11 +30,51 @@ print debug messages
   - hiding encrypted data;
   - plausible deniability.
 - Providing a stable encryption format with no cryptographic agility for long-term data storage.
-- No feature creep: refusal to implement features that are not directly related to primary security goals.
+- Simplicity and no feature creep: refusal to implement features that are not directly related to primary security goals.
 
 # USAGE
 
-Just run the script, select the option you want and then answer the questions.
+You don't need to remember command line options to use **tird**.
+
+Just start **tird**, select a menu option, and then answer the questions that **tird** will ask:
+
+```
+$ tird
+```
+
+# DEBUG
+
+Start **tird** with the option **--debug** or **-d** to look under the hood while the program is running:
+
+```
+$ tird -d
+```
+
+# TRADEOFFS AND LIMITATIONS
+
+- **tird** does not support public-key cryptography.
+- **tird** does not support file compression.
+- **tird** does not support ASCII armored output.
+- **tird** does not support Reed–Solomon error correction.
+- **tird** does not support splitting the output into chunks.
+- **tird** does not support low-level device reading and writing when used on MS Windows (devices cannot be used as keyfiles, cannot be overwritten, cannot be encrypted or hidden).
+- **tird** does not provide a graphical user interface.
+- **tird** does not provide a password generator.
+- **tird** does not wipe sensitive data from the heap.
+- **tird** can only encrypt one file per iteration. Encryption of directories and multiple files is not supported.
+- **tird** does not fake file timestamps (atime, mtime, ctime).
+- **tird** encryption speed is not very fast: up to 180 MiB/s (in my tests).
+
+# WARNINGS
+
+- The author is not a cryptographer.
+- **tird** has not been independently audited.
+- **tird** probably won't help much when used in a compromised environment.
+- **tird** probably won't help much when used with short and predictable keys.
+- Keys may leak into the swap space.
+- **tird** always releases unverified plaintext (violates The Cryptographic Doom Principle).
+- **tird** does not sort digests of keyfiles and passphrases in constant time.
+- Development is ongoing, there may be backward compatibility issues in the future.
 
 # REQUIREMENTS
 
