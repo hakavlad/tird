@@ -76,7 +76,9 @@
 
 ## Usage
 
-You don't need to remember command line options to use `tird`. Just start `tird`, select a menu option, and then answer the questions that `tird` will ask:
+You don't need to remember command line options to use `tird`.
+
+Just start `tird`, select a menu option, and then answer the questions that `tird` will ask:
 
 ```bash
 $ tird
