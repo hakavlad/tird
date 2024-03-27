@@ -14,8 +14,6 @@ tird - write random bytes, encrypt file contents, and hide encrypted data
 
 **tird** can create files with random data, overwrite file contents with random data, encrypt file contents and comments, hide encrypted data among random data, minimize metadata leakage, and can provide some forms of plausible deniability.
 
-**tird** aims to provide a stable encryption format for long-term data storage using modern and standardized cryptographic primitives.
-
 # COMMAND-LINE OPTIONS
 
 #### -d, --debug
