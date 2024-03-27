@@ -73,6 +73,9 @@ def get_file_size(f_path: str) -> Optional[int]:
 def seek_pos(f: Any, offset: int, whence: int = 0) -> bool:
     """
     """
+    if DEBUG:
+        print(f'{ITA}D: move to position {offset} in {f}{RES}')
+
     try:
         f.seek(offset, whence)
         return True
@@ -680,7 +683,7 @@ def get_salts(i_size: int, final_pos: int, action: int) -> bool:
         else:  # 7
             new_pos = final_pos - SALTS_HALF_SIZE
 
-        # jump to the beginning of footer_salt
+        # move to the beginning of footer_salt
         if not seek_pos(iod['i'], new_pos):
             return False
 
@@ -1152,9 +1155,13 @@ def progress(written_sum: int, data_size: int, t_start: float) -> None:
 def print_positions() -> None:
     """
     """
-    i: int = iod['i'].tell()
     o: int = iod['o'].tell()
-    print(f'{ITA}D: current pointer positions: if={i}, of={o}{RES}')
+
+    if 'i' in iod:
+        i: int = iod['i'].tell()
+        print(f'{ITA}D: current positions: if={i}, of={o}{RES}')
+    else:
+        print(f'{ITA}D: current position: of={o}{RES}')
 
 
 # #############################################################################
@@ -1717,10 +1724,21 @@ def embed(action: int) -> bool:
 def embed_processor(action: int, init_pos: int, message_size: int) -> bool:
     """
     """
-    print(f'{ITA}I: reading, writing...{RES}')
+    if DEBUG:
+        print_positions()
 
-    if not seek_pos(iod['o'], init_pos):
-        return False
+    # seek init_pos in the container
+    if action == 4:
+        if not seek_pos(iod['o'], init_pos):
+            return False
+    else:  # 5
+        if not seek_pos(iod['i'], init_pos):
+            return False
+
+    if DEBUG:
+        print_positions()
+
+    print(f'{ITA}I: reading, writing...{RES}')
 
     ho: Any = blake2b(digest_size=EMBED_DIGEST_SIZE)
 
@@ -1761,6 +1779,9 @@ def embed_processor(action: int, init_pos: int, message_size: int) -> bool:
         ho.update(i_data)
 
         w_sum += len(i_data)
+
+    if DEBUG:
+        print_positions()
 
     progress(w_sum, message_size, t_start)
 
@@ -1894,8 +1915,14 @@ def wiper(action: int) -> bool:
 def wiper_processor(init_pos: int, data_size: int) -> bool:
     """
     """
+    if DEBUG:
+        print_positions()
+
     if not seek_pos(iod['o'], init_pos):
         return False
+
+    if DEBUG:
+        print_positions()
 
     print(f'{ITA}I: writing...{RES}')
 
@@ -1926,6 +1953,9 @@ def wiper_processor(init_pos: int, data_size: int) -> bool:
             return False
 
         w_sum += len(chunk)
+
+    if DEBUG:
+        print_positions()
 
     progress(w_sum, data_size, t_start)
 
