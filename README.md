@@ -31,37 +31,11 @@
 - `Argon2` memory-hard function ([RFC 9106](https://datatracker.ietf.org/doc/html/rfc9106/)) for key stretching and key derivation.
 - `ChaCha20` cipher ([RFC 7539](https://datatracker.ietf.org/doc/html/rfc7539)) for data encryption.
 
-## Encryption format and cryptoblob structure
+## Encrypted file format
 
 `tird` encrypted files (cryptoblobs) are indistinguishable from uniform random data. `tird` produces cryptoblobs contain bilateral randomized padding with uniform random data ([PURBs](https://en.wikipedia.org/wiki/PURB_(cryptography))). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data.
 
-```
-                     512 B        0+ B
-                 ┌──────────┬───────────────┐
-                 │ Comments │ File contents │
-                 ├──────────┴───────────────┤
-  16 B    0+ B   │     Plaintext/Payload    │  64 B      0+ B     16 B
-┌──────┬─────────┼──────────────────────────┼─────────┬─────────┬──────┐
-│ Salt │ Padding │        Ciphertext        │ MAC tag │ Padding │ Salt │
-├──────┴─────────┼──────────────────────────┴─────────┼─────────┴──────┤
-│  Random bytes  │     Random-looking bytes           │  Random bytes  │
-└────────────────┴────────────────────────────────────┴────────────────┘
-```
-
-
-```
-                     512 B        0+ B
-                 ┌----------┬---------------┐
-                 | Comments | File contents |
-                 ├----------┴---------------┤
-  16 B    0+ B   |     Plaintext/Payload    |  64 B      0+ B     16 B
-┌------┬---------┼--------------------------┼---------┬---------┬------┐
-| Salt | Padding |        Ciphertext        | MAC tag | Padding | Salt |
-├------┴---------┼--------------------------┴---------┼---------┴------┤
-|  Random bytes  |     Random-looking bytes           |  Random bytes  |
-└----------------┴------------------------------------┴----------------┘
-```
-
+Cryptoblob structure:
 
 ```
                      512 B        0+ B
@@ -78,6 +52,18 @@
 
 
 
+```
+                     512 B        0+ B
+                 +~~~~~~~~~~+~~~~~~~~~~~~~~~+
+                 | Comments | File contents |
+                 +~~~~~~~~~~+~~~~~~~~~~~~~~~+
+  16 B    0+ B   |     Plaintext/Payload    |  64 B      0+ B     16 B
++~~~~~~+~~~~~~~~~+~~~~~~~~~~~~~~~~~~~~~~~~~~+~~~~~~~~~+~~~~~~~~~+~~~~~~+
+| Salt | Padding |        Ciphertext        | MAC tag | Padding | Salt |
++~~~~~~+~~~~~~~~~+~~~~~~~~~~~~~~~~~~~~~~~~~~+~~~~~~~~~+~~~~~~~~~+~~~~~~+
+|  Random bytes  |     Random-looking bytes           |  Random bytes  |
++~~~~~~~~~~~~~~~~+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~~~~~~~~~~~~~~~~+
+```
 
 
 
