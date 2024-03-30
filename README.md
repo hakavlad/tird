@@ -31,9 +31,9 @@
 - `Argon2` memory-hard function ([RFC 9106](https://datatracker.ietf.org/doc/html/rfc9106/)) for key stretching and key derivation.
 - `ChaCha20` cipher ([RFC 7539](https://datatracker.ietf.org/doc/html/rfc7539)) for data encryption.
 
-## Encryption format (cryptoblob structure)
+## Encryption format and cryptoblob structure
 
-`tird` encrypted files (cryptoblobs) are indistinguishable from random data. `tird` produces cryptoblobs contain bilateral randomized padding with uniform random data ([PURBs](https://en.wikipedia.org/wiki/PURB_(cryptography))). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data.
+`tird` encrypted files (cryptoblobs) are indistinguishable from uniform random data. `tird` produces cryptoblobs contain bilateral randomized padding with uniform random data ([PURBs](https://en.wikipedia.org/wiki/PURB_(cryptography))). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data.
 
 ```
                      512 B        0+ B
