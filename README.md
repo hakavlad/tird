@@ -34,16 +34,16 @@
 ## Encryption format (cryptoblob structure)
 
 ```
-                     512B          0+B
-                 +----------+---------------+
-                 | comments | file contents |
-                 +----------+---------------+
-  16B     0+B    |     plaintext/payload    | 64B     0+B     16B
-+------+---------+--------------------------+-----+---------+------+
-| salt | padding |        ciphertext        | MAC | padding | salt |
-+------+---------+--------------------------+-----+---------+------+
-|  random bytes  |    random-looking bytes        |  random bytes  |
-+----------------+--------------------------------+----------------+
+                     512 B        0+ B
+                 ┌──────────┬───────────────┐
+                 │ Comments │ File contents │
+                 ├──────────┴───────────────┤
+  16 B    0+ B   │     Plaintext/Payload    │  64 B      0+ B     16 B
+┌──────┬─────────┼──────────────────────────┼─────────┬─────────┬──────┐
+│ Salt │ Padding │        Ciphertext        │ MAC tag │ Padding │ Salt │
+├──────┴─────────┼──────────────────────────┴─────────┼─────────┴──────┤
+│  Random bytes  │     Random-looking bytes           │  Random bytes  │
+└────────────────┴────────────────────────────────────┴────────────────┘
 ```
 
 ## Tradeoffs and limitations
