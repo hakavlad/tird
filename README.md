@@ -82,6 +82,8 @@ Just start `tird`, select a menu option, and then answer the questions that `tir
 $ tird
 ```
 
+See below for examples of usage.
+
 ## Debug
 
 Start `tird` with the option `--debug` or `-d` to look under the hood while the program is running:
@@ -89,6 +91,18 @@ Start `tird` with the option `--debug` or `-d` to look under the hood while the 
 ```bash
 $ tird -d
 ```
+
+Enabling debug messages additionally shows:
+- opening and closing file descriptors;
+- real paths to opened files;
+- moving file pointers using the seek() method;
+- salts, passphrases, digests, keys, nonces, tags;
+- some other info.
+
+## Examples
+
+- [Creating files with uniform random data](https://github.com/hakavlad/tird/blob/main/docs/examples/8.md) (creating keyfiles and containers)
+- [Overwriting file contents with uniform random data](https://github.com/hakavlad/tird/blob/main/docs/examples/9.md) (wiping files and preparing containers)
 
 ## Requirements
 
