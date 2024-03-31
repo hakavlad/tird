@@ -33,24 +33,9 @@
 
 ## Encrypted file format
 
-`tird` encrypted files (cryptoblobs) are indistinguishable from uniform random data. `tird` produces cryptoblobs contain bilateral randomized padding with uniform random data ([PURBs](https://en.wikipedia.org/wiki/PURB_(cryptography))). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data.
+`tird` encrypted files (cryptoblobs) are indistinguishable from uniform random data and have no identifiable headers. `tird` produces cryptoblobs contain bilateral [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with uniform random data ([PURBs](https://en.wikipedia.org/wiki/PURB_(cryptography))). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data.
 
 Cryptoblob structure:
-
-```
-                     512 B        0+ B
-                 +----------+---------------+
-                 | Comments | File contents |
-                 +----------+---------------+
-  16 B    0+ B   |     Plaintext/Payload    |  64 B      0+ B     16 B
-+------+---------+--------------------------+---------+---------+------+
-| Salt | Padding |        Ciphertext        | MAC tag | Padding | Salt |
-+------+---------+--------------------------+---------+---------+------+
-|  Random bytes  |     Random-looking bytes           |  Random bytes  |
-+----------------+------------------------------------+----------------+
-```
-
-
 
 ```
                      512 B        0+ B
@@ -64,12 +49,6 @@ Cryptoblob structure:
 |  Random bytes  |     Random-looking bytes           |  Random bytes  |
 +~~~~~~~~~~~~~~~~+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~~~~~~~~~~~~~~~~+
 ```
-
-
-
-
-
-
 
 ## Tradeoffs and limitations
 
