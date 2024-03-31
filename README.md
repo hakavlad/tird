@@ -86,8 +86,6 @@ Just start `tird`, select a menu option, and then answer the questions that `tir
 $ tird
 ```
 
-See below for examples of usage.
-
 ## Debug
 
 Start `tird` with the option `--debug` or `-d` to look under the hood while the program is running:
@@ -106,7 +104,7 @@ Enabling debug messages additionally shows:
 ## Examples
 
 - [Creating files with uniform random data](https://github.com/hakavlad/tird/blob/main/docs/examples/8.md) (creating keyfiles and containers)
-- [Overwriting file contents with uniform random data](https://github.com/hakavlad/tird/blob/main/docs/examples/9.md) (wiping files and preparing containers)
+- [Overwriting file contents with uniform random data](https://github.com/hakavlad/tird/blob/main/docs/examples/9.md) (destroying residual data and preparing containers)
 
 ## Requirements
 
