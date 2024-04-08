@@ -137,7 +137,7 @@ def select_action() -> int:
             return 0
 
         if action == '1':
-            print(f'{ITA}I: action #1: show info{RES}')
+            print(f'{ITA}I: action #1: display info{RES}')
             return 1
 
         if action == '2':
@@ -2071,15 +2071,15 @@ INFO: str = f"""{ITA}I: tird v{VERSION}
     Homepage: https://github.com/hakavlad/tird{RES}"""
 
 MENU: str = f"""
-                       {BOL}MENU{RES}
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    0. Exit              1. Show info
+                       {BOL}MENU
+    ———————————————————————————————————————————
+    0. Exit              1. Info
     2. Encrypt           3. Decrypt
     4. Embed             5. Extract
     6. Encrypt & embed   7. Extract & decrypt
     8. Create w/ random  9. Overwrite w/ random
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-{BOL}[01] Select an option [0-9]:{RES} """
+    ———————————————————————————————————————————
+[01] Select an option [0-9]:{RES} """
 
 
 INVALID_UTF8_BYTE: bytes = b'\xff'
