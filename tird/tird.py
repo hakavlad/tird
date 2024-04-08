@@ -9,7 +9,7 @@ from hashlib import blake2b
 from hmac import compare_digest
 from os import fsync, path, urandom, walk
 from signal import SIGINT, signal
-from sys import argv, exit, platform
+from sys import argv, executable, exit, platform, version
 from time import monotonic
 from typing import Any, NoReturn, Optional
 
@@ -2004,6 +2004,9 @@ def main() -> NoReturn:
         elif action == 1:
             print(INFO)
 
+            if DEBUG:
+                print(DEBUG_INFO)
+
         elif action in (2, 3, 6, 7):
             ok = cryptoembed(action)
 
@@ -2069,6 +2072,9 @@ INFO: str = f"""{ITA}I: tird v{VERSION}
     encrypting file contents,
     and hiding encrypted data.
     Homepage: https://github.com/hakavlad/tird{RES}"""
+
+DEBUG_INFO: str = f"""{ITA}D: Python version {version} on {platform} platform
+D: executable: {executable}{RES}"""
 
 MENU: str = f"""
                        {BOL}MENU
