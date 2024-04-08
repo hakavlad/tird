@@ -10,8 +10,6 @@
 
 `tird` can create files with random data, overwrite file contents with random data, encrypt file contents and comments, hide encrypted data among random data, minimize metadata leakage, and can provide some forms of [plausible deniability](https://en.wikipedia.org/wiki/Plausible_deniability#Use_in_cryptography).
 
-![screenshot: MENU](https://i.imgur.com/cZX73zg.png)
-
 ## Goals
 
 - Providing protection for individual files, including:
@@ -85,6 +83,8 @@ Just start `tird`, select a menu option, and then answer the questions that `tir
 ```bash
 $ tird
 ```
+
+![screenshot: MENU](https://i.imgur.com/1ADqg6z.png)
 
 ## Debug
 
