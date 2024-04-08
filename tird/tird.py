@@ -2062,7 +2062,7 @@ else:
     exit(1)
 
 
-VERSION: str = '0.9.0'
+VERSION: str = '0.10.0'
 
 INFO: str = f"""{ITA}I: tird v{VERSION}
     A tool for writing random bytes,
