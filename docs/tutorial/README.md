@@ -13,6 +13,10 @@ Displaying info (version, descryption, homepage).
 
 The simplest case of encryption and decryption.
 
+### [23c.md](https://github.com/hakavlad/tird/blob/main/docs/tutorial/23c.md)
+
+Encrypting and decrypting files with comments.
+
 ### [8.md](https://github.com/hakavlad/tird/blob/main/docs/tutorial/8.md)
 
 Creating files with uniform random data (creating keyfiles and containers).
