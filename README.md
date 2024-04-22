@@ -1,4 +1,4 @@
-![Logo: random data visualization](https://i.imgur.com/I7vAash.png)
+![Logo: random data visualization](https://raw.githubusercontent.com/hakavlad/tird/main/images/logo.png)
 
 # tird
 
