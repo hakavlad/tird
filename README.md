@@ -85,7 +85,7 @@ Just start `tird`, select a menu option, and then answer the questions that `tir
 $ tird
 ```
 
-![screenshot: MENU](https://i.imgur.com/1ADqg6z.png)
+![screenshot: MENU](https://i.imgur.com/h2KG9iy.png)
 
 ## Debug
 
@@ -128,9 +128,9 @@ Standalone executables (made with [PyInstaller](https://pyinstaller.org/en/stabl
 
 Write documentation:
 - Features;
+- User guide;
 - Specification;
-- Design rationale;
-- User guide.
+- Design rationale.
 
 ## Feedback
 
