@@ -137,35 +137,40 @@ def select_action() -> int:
             return 0
 
         if action == '1':
-            print(f'{ITA}I: action #1: display info{RES}')
+            print(f'{ITA}I: action #1: displaying info and warnings{RES}')
             return 1
 
         if action == '2':
-            print(f'{ITA}I: action #2: encrypt file contents{RES}')
+            print(f'{ITA}I: action #2: encrypt file contents and comments; '
+                  f'write the cryptoblob to a new file{RES}')
             return 2
 
         if action == '3':
-            print(f'{ITA}I: action #3: decrypt file contents{RES}')
+            print(f'{ITA}I: action #3: decrypt cryptoblob; display the '
+                  f'decrypted comments and write the decrypted contents '
+                  f'to a new file{RES}')
             return 3
 
         if action == '4':
-            print(f'{ITA}I: action #4: embed file contents '
-                  f'(no encryption){RES}')
-            print(f'{WAR}W: part of the container will be overwritten '
-                  f'with input file contents{RES}')
+            print(f'{ITA}I: action #4: embed file contents (without '
+                  f'encryption): write input file contents over output file '
+                  f'contents{RES}')
             return 4
 
         if action == '5':
-            print(f'{ITA}I: action #5: extract file contents '
-                  f'(no decryprion){RES}')
+            print(f'{ITA}I: action #5: extract file contents (without '
+                  f'decryption) to a new file{RES}')
             return 5
 
         if action == '6':
-            print(f'{ITA}I: action #6: encrypt and embed file contents{RES}')
+            print(f'{ITA}I: action #6: encrypt file contents and comments; '
+                  f'write the cryptoblob over a container{RES}')
             return 6
 
         if action == '7':
-            print(f'{ITA}I: action #7: extract and decrypt file contents{RES}')
+            print(f'{ITA}I: action #7: extract and decrypt cryptoblob; '
+                  f'display the decrypted comments and write the decrypted '
+                  f'contents to a new file{RES}')
             return 7
 
         if action == '8':
@@ -490,7 +495,7 @@ def get_ikm_digest_list() -> list:
             break
 
         if not path.exists(k_file):
-            print(f'{ERR}E: {k_file} does not exist{RES}')
+            print(f'{ERR}E: file "{k_file}" does not exist{RES}')
             print(f'{ERR}E: keyfile NOT accepted{RES}')
             continue
 
@@ -509,7 +514,8 @@ def get_ikm_digest_list() -> list:
                       f'to accept!{RES}')
             else:
                 ikm_digest_list.extend(digest_list)
-                print(f'{ITA}I: keyfiles accepted{RES}')
+                print(f'{ITA}I: {len(digest_list)} keyfiles has been '
+                      f'accepted{RES}')
 
                 del k_file, digest_list
                 collect()
@@ -1214,16 +1220,17 @@ def cryptoembed(action: int) -> bool:
 
     if action in (2, 3):
         o_file, iod['o'] = get_output_file_new(action)
+        print(f'{ITA}I: new file "{o_file}" has been created{RES}')
     elif action == 6:
         o_file, o_size, iod['o'] = get_output_file_exist(
             i_file, max_cryptoblob_size, action
         )
         max_init_pos: int = o_size - max_cryptoblob_size
+        print(f'{ITA}I: path: "{o_file}"{RES}')
     else:  # 7
         o_file, iod['o'] = get_output_file_new(action)
         max_init_pos = i_size - MIN_VALID_CRYPTOBLOB_SIZE
-
-    print(f'{ITA}I: path: "{o_file}"{RES}')
+        print(f'{ITA}I: new file "{o_file}" has been created{RES}')
 
     if action == 6:
         print(f'{ITA}I: size: {string_size(o_size)}{RES}')
@@ -1661,7 +1668,7 @@ def cryptoembed_processor(
         return False
 
     if action in (2, 6):
-        print(f'{ITA}I: padding location in output file:\n'
+        print(f'{ITA}I: padding location in the output file:\n'
               f'    [{rnd_pad_pos0}; {rnd_pad_pos1}] -- '
               f'{string_size(rnd_pad_pos1 - rnd_pad_pos0)}\n'
               f'    [{rnd_pad_pos2}; {rnd_pad_pos3}] -- '
@@ -1684,11 +1691,11 @@ def embed(action: int) -> bool:
         o_file, o_size, iod['o'] = get_output_file_exist(
             i_file, i_size, action)
         max_init_pos = o_size - i_size
+        print(f'{ITA}I: path: "{o_file}"{RES}')
     else:  # 5
         o_file, iod['o'] = get_output_file_new(action)
         max_init_pos = i_size - 1
-
-    print(f'{ITA}I: path: "{o_file}"{RES}')
+        print(f'{ITA}I: new file "{o_file}" has been created{RES}')
 
     if action == 4:
         print(f'{ITA}I: size: {string_size(o_size)}{RES}')
@@ -1817,7 +1824,7 @@ def randgen(action: int) -> bool:
     md['act'] = True
 
     o_file, iod['o'] = get_output_file_new(action)
-    print(f'{ITA}I: path: "{o_file}"{RES}')
+    print(f'{ITA}I: new file "{o_file}" has been created{RES}')
 
     o_size: int = get_output_file_size()
     print(f'{ITA}I: size: {string_size(o_size)}{RES}')
@@ -2004,6 +2011,8 @@ def main() -> NoReturn:
         elif action == 1:
             print(INFO)
 
+            print(WARNINGS)
+
             if DEBUG:
                 print(DEBUG_INFO)
 
@@ -2076,10 +2085,25 @@ INFO: str = f"""{ITA}I: tird v{VERSION}
 DEBUG_INFO: str = f"""{ITA}D: Python version {version} on {platform} platform
 D: executable: {executable}{RES}"""
 
+WARNINGS: str = f"""{WAR}W: warnings:{RES}
+{WAR}    - The author is not a cryptographer.{RES}
+{WAR}    - tird has not been independently audited.{RES}
+{WAR}    - tird probably won't help much when used in a compromised \
+environment.{RES}
+{WAR}    - tird probably won't help much when used with short and \
+predictable keys.{RES}
+{WAR}    - Keys may leak into the swap space.{RES}
+{WAR}    - tird always releases unverified plaintext (violates The \
+Cryptographic Doom Principle).{RES}
+{WAR}    - tird does not sort digests of keyfiles and passphrases in \
+constant time.{RES}
+{WAR}    - Development is not complete, there may be backward compatibility \
+issues in the future.{RES}"""
+
 MENU: str = f"""
                        {BOL}MENU
     ———————————————————————————————————————————
-    0. Exit              1. Info
+    0. Exit              1. Info & warnings
     2. Encrypt           3. Decrypt
     4. Embed             5. Extract
     6. Encrypt & embed   7. Extract & decrypt
