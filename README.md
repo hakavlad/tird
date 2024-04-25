@@ -73,7 +73,7 @@ Cryptoblob structure:
 - ⚠️ Keys may leak into the swap space.
 - ⚠️ `tird` always releases unverified plaintext (violates [The Cryptographic Doom Principle](https://moxie.org/2011/12/13/the-cryptographic-doom-principle.html)).
 - ⚠️ `tird` does not sort digests of keyfiles and passphrases in constant time.
-- ⚠️ Development is ongoing, there may be backward compatibility issues in the future.
+- ⚠️ Development is not complete, there may be backward compatibility issues in the future.
 
 ## Usage
 
