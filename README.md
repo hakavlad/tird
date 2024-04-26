@@ -122,7 +122,7 @@ $ pip install tird
 
 Standalone executables (made with [PyInstaller](https://pyinstaller.org/en/stable/)) are also available (see [Releases](https://github.com/hakavlad/tird/releases)).
 
-![tird.exe](https://i.imgur.com/3ls7OOe.png)
+![tird.exe](https://i.imgur.com/7w1PZ3l.png)
 
 ## TODO
 
