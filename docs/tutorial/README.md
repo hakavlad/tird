@@ -7,7 +7,7 @@ Exiting `tird`.
 
 ### [1.md](https://github.com/hakavlad/tird/blob/main/docs/tutorial/1.md)
 
-Displaying info (version, descryption, homepage).
+Displaying info (version, description, homepage).
 
 ### [23.md](https://github.com/hakavlad/tird/blob/main/docs/tutorial/23.md)
 
