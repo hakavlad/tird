@@ -49,6 +49,43 @@ Cryptoblob structure:
 +————————————————+————————————————————————————————————+————————————————+
 ```
 
+## Hidden user-driven file system and container file format
+
+You can encrypt files and write cryptoblobs over containers starting with arbitary positions.
+After finishing writing the cryptoblob, you will be asked to remember the location of the cryptoblob in the container (positions of the beginning and end of the cryptoblob), which can be used in the future to extract the cryptoblob. In this way, you can create a **hidden user-driven file system** inside a container.
+
+It is **hidden** because it is impossible to distinguish between random container data and random cryptoblob data, and it is impossible to determine the location of written cryptoblobs without knowing the positions and keys.
+
+Containers do not contain any headers, all data about cryptoblob locations must be stored separately by the user.
+
+The location of the start of the cryptoblob in the container is user-defined, and the location of the start and end positions of the cryptoblob must be stored by the user separately from the container. This is why this "file system" is called a **user-driven file system**.
+
+Container structure (as an example):
+
+```
++—————————————+ Container initial position (0)
+|             |
+| Random data |
+|             |
++—————————————+ Cryptoblob1 initial position
+|             |
+| Cryptoblob1 |
+|             |
++—————————————+ Cryptoblob1 final position
+|             |
+| Random data |
+|             |
++—————————————+ Cryptoblob2 initial position
+|             |
+|             |
+| Cryptoblob2 |
+|             |
+|             |
++—————————————+ Cryptoblob2 final position
+| Random data |
++—————————————+ Container final position
+```
+
 ## Tradeoffs and limitations
 
 - `tird` does not support public-key cryptography.
