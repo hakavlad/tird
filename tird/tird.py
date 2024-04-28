@@ -133,53 +133,54 @@ def select_action() -> int:
         action: str = input(MENU)
 
         if action == '0':
-            print(f'{ITA}I: action #0: exit{RES}')
+            print(f'{ITA}I: action #0:\n    exit{RES}')
             return 0
 
         if action == '1':
-            print(f'{ITA}I: action #1: displaying info and warnings{RES}')
+            print(f'{ITA}I: action #1:\n    displaying info and warnings{RES}')
             return 1
 
         if action == '2':
-            print(f'{ITA}I: action #2: encrypt file contents and comments; '
-                  f'write the cryptoblob to a new file{RES}')
+            print(f'{ITA}I: action #2:\n    encrypt file contents and '
+                  f'comments;\n    write the cryptoblob to a new file{RES}')
             return 2
 
         if action == '3':
-            print(f'{ITA}I: action #3: decrypt cryptoblob; display the '
-                  f'decrypted comments and write the decrypted contents '
-                  f'to a new file{RES}')
+            print(f'{ITA}I: action #3:\n    decrypt cryptoblob;\n    display '
+                  f'the decrypted comments and\n    write the decrypted '
+                  f'contents to a new file{RES}')
             return 3
 
         if action == '4':
-            print(f'{ITA}I: action #4: embed file contents (without '
-                  f'encryption): write input file contents over output file '
-                  f'contents{RES}')
+            print(f'{ITA}I: action #4:\n    embed file contents '
+                  f'(no encryption):\n    write input file contents over '
+                  f'output file contents{RES}')
             return 4
 
         if action == '5':
-            print(f'{ITA}I: action #5: extract file contents (without '
-                  f'decryption) to a new file{RES}')
+            print(f'{ITA}I: action #5:\n    extract file contents '
+                  f'(no decryption) to a new file{RES}')
             return 5
 
         if action == '6':
-            print(f'{ITA}I: action #6: encrypt file contents and comments; '
-                  f'write the cryptoblob over a container{RES}')
+            print(f'{ITA}I: action #6:\n    encrypt file contents and '
+                  f'comments;\n    write the cryptoblob over a container{RES}')
             return 6
 
         if action == '7':
-            print(f'{ITA}I: action #7: extract and decrypt cryptoblob; '
-                  f'display the decrypted comments and write the decrypted '
-                  f'contents to a new file{RES}')
+            print(f'{ITA}I: action #7:\n    extract and decrypt '
+                  f'cryptoblob;\n    display the decrypted comments '
+                  f'and\n    write the decrypted contents to a new file{RES}')
             return 7
 
         if action == '8':
-            print(f'{ITA}I: action #8: create a file with random bytes{RES}')
+            print(f'{ITA}I: action #8:\n    create a file '
+                  f'with random bytes{RES}')
             return 8
 
         if action == '9':
-            print(f'{ITA}I: action #9: overwrite file contents with random '
-                  f'bytes{RES}')
+            print(f'{ITA}I: action #9:\n    overwrite file contents '
+                  f'with random bytes{RES}')
             return 9
 
         print(f'{ERR}E: invalid value{RES}')
@@ -328,7 +329,7 @@ def get_output_file_new(action: int) -> tuple:
             continue
 
         if path.exists(o_file):
-            print(f'{ERR}E: this file already exists{RES}')
+            print(f'{ERR}E: file "{o_file}" already exists{RES}')
             continue
 
         if DEBUG:
@@ -566,10 +567,10 @@ def get_ikm_digest_list() -> list:
     return ikm_digest_list
 
 
-def do_continue(fix: str) -> bool:
+def do_continue() -> bool:
     """
     """
-    print(f'{WAR}W: output file will be partially overwritten{fix}{RES}')
+    print(f'{WAR}W: output file contents will be partially overwritten!{RES}')
 
     while True:
         do_cont: str = input(f'{BOL}[13] Proceed? (Y/N):{RES} ')
@@ -1270,7 +1271,7 @@ def cryptoembed(action: int) -> bool:
     collect()
 
     if action == 6:
-        if not do_continue(fix=' with cryptoblob'):
+        if not do_continue():
             print(f'{ITA}I: stopped by user request{RES}')
             return False
 
@@ -1383,7 +1384,7 @@ def cryptoembed_processor(
 
     # #########################################################################
 
-    print(f'{ITA}I: processing, reading, writing...{RES}')
+    print(f'{ITA}I: reading, writing...{RES}')
 
     header_salt: bytes = sd['header_salt']
     footer_salt: bytes = sd['footer_salt']
@@ -1653,7 +1654,7 @@ def cryptoembed_processor(
         final_pos = iod['o'].tell()
         print(f'{ITA}I: remember the location of the cryptoblob in the '
               f'container:')
-        print(f'    [{init_pos}; {final_pos}]{RES}')
+        print(f'    [{init_pos}:{final_pos}]{RES}')
 
     if action in (3, 7):
         progress(w_sum, output_data_size, t_start)
@@ -1669,9 +1670,9 @@ def cryptoembed_processor(
 
     if action in (2, 6):
         print(f'{ITA}I: padding location in the output file:\n'
-              f'    [{rnd_pad_pos0}; {rnd_pad_pos1}] -- '
+              f'    [{rnd_pad_pos0}:{rnd_pad_pos1}] — '
               f'{string_size(rnd_pad_pos1 - rnd_pad_pos0)}\n'
-              f'    [{rnd_pad_pos2}; {rnd_pad_pos3}] -- '
+              f'    [{rnd_pad_pos2}:{rnd_pad_pos3}] — '
               f'{string_size(rnd_pad_pos3 - rnd_pad_pos2)}{RES}')
 
     return True
@@ -1708,7 +1709,7 @@ def embed(action: int) -> bool:
         final_pos: int = init_pos + message_size
         print(f'{ITA}I: final position: {final_pos}{RES}')
 
-        if not do_continue(fix=' with input file'):
+        if not do_continue():
             print(f'{ITA}I: stopped by user request{RES}\n')
             return False
     else:
@@ -1807,13 +1808,10 @@ def embed_processor(action: int, init_pos: int, message_size: int) -> bool:
     final_pos: int = iod['o'].tell()
 
     if action == 4:
-        print(f'{ITA}I: remember the following values to retrieve the message '
-              f'correctly:')
-        print('    location of the message in the container:')
-        print(f'        [{init_pos}; {final_pos}]')
-        print(f'    message checksum:\n        {message_checksum}{RES}')
-    else:
-        print(f'{ITA}I: message checksum:\n    {message_checksum}{RES}')
+        print(f'{ITA}I: remember the location of the message '
+              f'in the container:\n    [{init_pos}:{final_pos}]')
+
+    print(f'{ITA}I: message checksum:\n    {message_checksum}{RES}')
 
     return True
 
@@ -1837,7 +1835,7 @@ def randgen(action: int) -> bool:
 def randgen_processor(o_size: int) -> bool:
     """
     """
-    print(f'{ITA}I: writing data...{RES}')
+    print(f'{ITA}I: writing random data...{RES}')
 
     t_start: float = monotonic()
     t_last_print: float = t_start
@@ -1883,7 +1881,7 @@ def wiper(action: int) -> bool:
     print(f'{ITA}I: path: "{o_file}"; size: {string_size(o_size)}{RES}')
 
     if o_size == 0:
-        print(f'{ITA}I: nothing to overwrite{RES}')
+        print(f'{ITA}I: nothing to do{RES}')
         return False
 
     init_pos: int = get_init_pos(
@@ -1893,7 +1891,7 @@ def wiper(action: int) -> bool:
     print(f'{ITA}I: initial position: {init_pos}{RES}')
 
     if init_pos == o_size:
-        print(f'{ITA}I: nothing to overwrite{RES}')
+        print(f'{ITA}I: nothing to do{RES}')
         return False
 
     final_pos: int = get_final_pos(
@@ -1907,10 +1905,10 @@ def wiper(action: int) -> bool:
     print(f'{ITA}I: data size to write: {string_size(data_size)}{RES}')
 
     if data_size == 0:
-        print(f'{ITA}I: nothing to overwrite{RES}')
+        print(f'{ITA}I: nothing to do{RES}')
         return False
 
-    if not do_continue(fix=' with random bytes'):
+    if not do_continue():
         print(f'{ITA}I: stopped by user request{RES}')
         return False
 
@@ -1931,7 +1929,7 @@ def wiper_processor(init_pos: int, data_size: int) -> bool:
     if DEBUG:
         print_positions()
 
-    print(f'{ITA}I: writing...{RES}')
+    print(f'{ITA}I: writing random data...{RES}')
 
     t_start: float = monotonic()
     t_last_print: float = t_start
@@ -2092,7 +2090,8 @@ WARNINGS: str = f"""{WAR}W: warnings:{RES}
 environment.{RES}
 {WAR}    - tird probably won't help much when used with short and \
 predictable keys.{RES}
-{WAR}    - Keys may leak into the swap space.{RES}
+{WAR}    - Sensitive data may leak into the swap space.{RES}
+{WAR}    - tird does not erase sensitive data from memory after use.{RES}
 {WAR}    - tird always releases unverified plaintext (violates The \
 Cryptographic Doom Principle).{RES}
 {WAR}    - tird does not sort digests of keyfiles and passphrases in \
