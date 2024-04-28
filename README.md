@@ -24,9 +24,11 @@
 ## Cryptographic primitives
 
 `tird` uses the following cryptographic primitives:
+
 - `BLAKE2` ([RFC 7693](https://datatracker.ietf.org/doc/html/rfc7693.html)):
-  - salted and personalized `BLAKE2b` for hashing keyfiles and passphrases;
-  - keyed `BLAKE2b` for message authentication.
+  - salted and personalized `BLAKE2b-512` for hashing keyfiles and passphrases;
+  - keyed `BLAKE2b-512` for creating message authentication codes;
+  - `BLAKE2b-256` for creating message checksums.
 - `Argon2` memory-hard function ([RFC 9106](https://datatracker.ietf.org/doc/html/rfc9106/)) for key stretching and key derivation.
 - `ChaCha20` cipher ([RFC 7539](https://datatracker.ietf.org/doc/html/rfc7539)) for data encryption.
 
@@ -35,6 +37,7 @@
 `tird` encrypted files (cryptoblobs) are indistinguishable from uniform random data and have no identifiable headers. `tird` produces cryptoblobs contain bilateral [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with uniform random data ([PURBs](https://en.wikipedia.org/wiki/PURB_(cryptography))). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data.
 
 Cryptoblob structure:
+
 ```
                      512 B        0+ B
                  +——————————+———————————————+
@@ -49,6 +52,7 @@ Cryptoblob structure:
 ```
 
 Alternative scheme:
+
 ```
 +——————————————————————————————+—————————+
 | Salt header: 16 B, 2 parts:  |         |
@@ -88,6 +92,7 @@ Containers do not contain *any* headers, all data about cryptoblob locations mus
 The location of the start of the cryptoblob in the container is user-defined, and the location of the start and end positions of the cryptoblob must be stored by the user separately from the container. This is why this "file system" is called a **user-driven file system**.
 
 Container structure (as an example):
+
 ```
 +—————————————+ Position 0
 |             |
@@ -159,6 +164,7 @@ $ tird -d
 ```
 
 Enabling debug messages additionally shows:
+
 - opening and closing file descriptors;
 - real paths to opened files;
 - moving file pointers using the seek() method;
@@ -190,6 +196,7 @@ Standalone executables (made with [PyInstaller](https://pyinstaller.org/en/stabl
 ## TODO
 
 Write documentation:
+
 - Features;
 - User guide;
 - Specification;
