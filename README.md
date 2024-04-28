@@ -49,6 +49,34 @@ Cryptoblob structure:
 +————————————————+————————————————————————————————————+————————————————+
 ```
 
+Alternative scheme:
+```
++——————————————————————————————+—————————+
+| Salt header: 16 B, 2 parts:  |         |
+| BLAKE2b salt[:8] +           |         |
+| Argon2 salt[:8]              | Random  |
++——————————————————————————————+ data    |
+| Randomized padding: 0-20%    |         |
+| of the ciphertext size       |         |
+| by default                   |         |
++——————————————————————————————+—————————+
+| Ciphertext: 512+ B cosist    |         |
+| of encrypted comments        |         |
+| (always 512 B) and encryped  | Random- |
+| payload file contents (0+ B) | looking |
++——————————————————————————————+ data    |
+| MAC tag: 64 B                |         |
++——————————————————————————————+—————————+
+| Randomized padding: 0-20%    |         |
+| of the ciphertext size       |         |
+| by default                   | Random  |
++——————————————————————————————+ data    |
+| Salt footer: 16 B, 2 parts:  |         |
+| BLAKE2b salt[-8:] +          |         |
+| Argon2 salt[-8:]             |         |
++——————————————————————————————+—————————+
+```
+
 ## Hidden user-driven file system and container file format
 
 You can encrypt files and write cryptoblobs over containers starting with arbitary positions.
@@ -56,14 +84,14 @@ After finishing writing the cryptoblob, you will be asked to remember the locati
 
 It is **hidden** because it is impossible to distinguish between random container data and random cryptoblob data, and it is impossible to determine the location of written cryptoblobs without knowing the positions and keys.
 
-Containers do not contain any headers, all data about cryptoblob locations must be stored separately by the user.
+Containers do not contain *any* headers, all data about cryptoblob locations must be stored separately by the user.
 
 The location of the start of the cryptoblob in the container is user-defined, and the location of the start and end positions of the cryptoblob must be stored by the user separately from the container. This is why this "file system" is called a **user-driven file system**.
 
 Container structure (as an example):
 
 ```
-+—————————————+ Container initial position (0)
++—————————————+ Position 0
 |             |
 | Random data |
 |             |
@@ -83,7 +111,7 @@ Container structure (as an example):
 |             |
 +—————————————+ Cryptoblob2 final position
 | Random data |
-+—————————————+ Container final position
++—————————————+
 ```
 
 ## Tradeoffs and limitations
@@ -96,7 +124,6 @@ Container structure (as an example):
 - `tird` does not support low-level device reading and writing when used on MS Windows (devices cannot be used as keyfiles, cannot be overwritten, cannot be encrypted or hidden).
 - `tird` does not provide a graphical user interface.
 - `tird` does not provide a password generator.
-- `tird` does not wipe sensitive data from the heap.
 - `tird` can only encrypt one file per iteration. Encryption of directories and multiple files is not supported.
 - `tird` does not fake file timestamps (atime, mtime, ctime).
 - `tird` encryption speed is not very fast: up to 180 MiB/s (in my tests).
@@ -107,7 +134,8 @@ Container structure (as an example):
 - ⚠️ `tird` has not been independently audited.
 - ⚠️ `tird` probably won't help much when used in a compromised environment.
 - ⚠️ `tird` probably won't help much when used with short and predictable keys.
-- ⚠️ Keys may leak into the swap space.
+- ⚠️ Sensitive data may leak into the swap space.
+- ⚠️ `tird` does not erase sensitive data from memory after use.
 - ⚠️ `tird` always releases unverified plaintext (violates [The Cryptographic Doom Principle](https://moxie.org/2011/12/13/the-cryptographic-doom-principle.html)).
 - ⚠️ `tird` does not sort digests of keyfiles and passphrases in constant time.
 - ⚠️ Development is not complete, there may be backward compatibility issues in the future.
