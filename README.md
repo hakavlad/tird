@@ -35,7 +35,6 @@
 `tird` encrypted files (cryptoblobs) are indistinguishable from uniform random data and have no identifiable headers. `tird` produces cryptoblobs contain bilateral [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with uniform random data ([PURBs](https://en.wikipedia.org/wiki/PURB_(cryptography))). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data.
 
 Cryptoblob structure:
-
 ```
                      512 B        0+ B
                  +——————————+———————————————+
@@ -60,7 +59,7 @@ Alternative scheme:
 | of the ciphertext size       |         |
 | by default                   |         |
 +——————————————————————————————+—————————+
-| Ciphertext: 512+ B cosist    |         |
+| Ciphertext: 512+ B consist   |         |
 | of encrypted comments        |         |
 | (always 512 B) and encryped  | Random- |
 | payload file contents (0+ B) | looking |
@@ -89,7 +88,6 @@ Containers do not contain *any* headers, all data about cryptoblob locations mus
 The location of the start of the cryptoblob in the container is user-defined, and the location of the start and end positions of the cryptoblob must be stored by the user separately from the container. This is why this "file system" is called a **user-driven file system**.
 
 Container structure (as an example):
-
 ```
 +—————————————+ Position 0
 |             |
