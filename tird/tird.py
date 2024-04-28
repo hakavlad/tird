@@ -1174,7 +1174,7 @@ def print_positions() -> None:
 # #############################################################################
 
 
-def cryptoembed(action: int) -> bool:
+def encrypt_and_embed(action: int) -> bool:
     """
     """
     md['act'] = True
@@ -1275,7 +1275,7 @@ def cryptoembed(action: int) -> bool:
             print(f'{ITA}I: stopped by user request{RES}')
             return False
 
-    ok: bool = cryptoembed_processor(
+    ok: bool = encrypt_and_embed_handler(
         action,
         i_size,
         init_pos,
@@ -1287,7 +1287,7 @@ def cryptoembed(action: int) -> bool:
     return ok
 
 
-def cryptoembed_processor(
+def encrypt_and_embed_handler(
     action: int,
     i_size: int,
     init_pos: Optional[int],
@@ -1724,12 +1724,12 @@ def embed(action: int) -> bool:
 
         print(f'{ITA}I: message size to retrieve: {message_size} B{RES}')
 
-    ok: bool = embed_processor(action, init_pos, message_size)
+    ok: bool = embed_handler(action, init_pos, message_size)
 
     return ok
 
 
-def embed_processor(action: int, init_pos: int, message_size: int) -> bool:
+def embed_handler(action: int, init_pos: int, message_size: int) -> bool:
     """
     """
     if DEBUG:
@@ -1816,7 +1816,7 @@ def embed_processor(action: int, init_pos: int, message_size: int) -> bool:
     return True
 
 
-def randgen(action: int) -> bool:
+def create_with_random(action: int) -> bool:
     """
     """
     md['act'] = True
@@ -1827,12 +1827,12 @@ def randgen(action: int) -> bool:
     o_size: int = get_output_file_size()
     print(f'{ITA}I: size: {string_size(o_size)}{RES}')
 
-    ok: bool = randgen_processor(o_size)
+    ok: bool = create_with_random_handler(o_size)
 
     return ok
 
 
-def randgen_processor(o_size: int) -> bool:
+def create_with_random_handler(o_size: int) -> bool:
     """
     """
     print(f'{ITA}I: writing random data...{RES}')
@@ -1870,7 +1870,7 @@ def randgen_processor(o_size: int) -> bool:
     return True
 
 
-def wiper(action: int) -> bool:
+def overwrite_with_random(action: int) -> bool:
     """
     """
     md['act'] = True
@@ -1912,12 +1912,12 @@ def wiper(action: int) -> bool:
         print(f'{ITA}I: stopped by user request{RES}')
         return False
 
-    ok: bool = wiper_processor(init_pos, data_size)
+    ok: bool = overwrite_with_random_handler(init_pos, data_size)
 
     return ok
 
 
-def wiper_processor(init_pos: int, data_size: int) -> bool:
+def overwrite_with_random_handler(init_pos: int, data_size: int) -> bool:
     """
     """
     if DEBUG:
@@ -2015,16 +2015,16 @@ def main() -> NoReturn:
                 print(DEBUG_INFO)
 
         elif action in (2, 3, 6, 7):
-            ok = cryptoembed(action)
+            ok = encrypt_and_embed(action)
 
         elif action in (4, 5):
             ok = embed(action)
 
         elif action == 8:
-            ok = randgen(action)
+            ok = create_with_random(action)
 
         else:  # 9
-            ok = wiper(action)
+            ok = overwrite_with_random(action)
 
         if 'i' in iod:
             close_file(iod['i'])
