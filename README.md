@@ -141,6 +141,7 @@ Container structure (as an example):
 - ⚠️ `tird` does not erase sensitive data from memory after use.
 - ⚠️ `tird` always releases unverified plaintext (violates [The Cryptographic Doom Principle](https://moxie.org/2011/12/13/the-cryptographic-doom-principle.html)).
 - ⚠️ `tird` does not sort digests of keyfiles and passphrases in constant time.
+- ⚠️ Overwriting file contents does not mean securely destroying the data on the media.
 - ⚠️ Development is not complete, there may be backward compatibility issues in the future.
 
 ## Usage
