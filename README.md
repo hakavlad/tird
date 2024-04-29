@@ -9,7 +9,16 @@
 
 `tird` *(an acronym for "this is random data")* is a tool for writing random bytes, encrypting file contents, and hiding encrypted data.
 
-`tird` can create files with random data, overwrite file contents with random data, encrypt file contents and comments, hide encrypted data among random data, minimize metadata leakage, and can provide some forms of [plausible deniability](https://en.wikipedia.org/wiki/Plausible_deniability#Use_in_cryptography).
+> [!NOTE]
+> Further "cryptoblob" implies `tird` encryption format.
+
+Using `tird` you can:
+
+1. Create files with random data. Use them as containers or keyfiles.
+2. Overwrite the contents of devices and regular files with random data. This can be used to destroy residual data and prepare containers.
+3. Encrypt file contents and comments with modern cryptographic primitives. The encrypted file format is [padded uniform random blob (PURB)](https://en.wikipedia.org/wiki/PURB_(cryptography)): it looks like random data and has randomized size. This reduces metadata leakage through file format and length, and also allows cryptoblobs to be hidden among random data.
+4. Create [steganographic](https://en.wikipedia.org/wiki/Steganography) (hidden, undetectable) user-driven file systems inside container files and devices. Unlike [Veracrypt](https://veracrypt.fr) containers, `tird` containers do not contain headers at all: the user specifies the location of the data in the container and is responsible for ensuring that this location is separated from the container.
+5. Resist [coercive](https://en.wikipedia.org/wiki/Coercion) attacks (keywords: [key disclosure law](https://en.wikipedia.org/wiki/Key_disclosure_law), [rubber-hose cryptanalysis](https://en.wikipedia.org/wiki/Deniable_encryption)). `tird` provides some forms of [plausible deniability](https://en.wikipedia.org/wiki/Plausible_deniability) out of the box even if you encrypt files without hiding them in containers.
 
 ## Goals
 
