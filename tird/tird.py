@@ -2096,6 +2096,8 @@ predictable keys.{RES}
 Cryptographic Doom Principle).{RES}
 {WAR}    - tird does not sort digests of keyfiles and passphrases in \
 constant time.{RES}
+{WAR}    - Overwriting file contents does not mean securely destroying the \
+data on the media.{RES}
 {WAR}    - Development is not complete, there may be backward compatibility \
 issues in the future.{RES}"""
 
