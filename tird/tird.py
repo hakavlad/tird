@@ -133,54 +133,43 @@ def select_action() -> int:
         action: str = input(MENU)
 
         if action == '0':
-            print(f'{ITA}I: action #0:\n    exit{RES}')
+            print(A0_DESCRIPTION)
             return 0
 
         if action == '1':
-            print(f'{ITA}I: action #1:\n    displaying info and warnings{RES}')
+            print(A1_DESCRIPTION)
             return 1
 
         if action == '2':
-            print(f'{ITA}I: action #2:\n    encrypt file contents and '
-                  f'comments;\n    write the cryptoblob to a new file{RES}')
+            print(A2_DESCRIPTION)
             return 2
 
         if action == '3':
-            print(f'{ITA}I: action #3:\n    decrypt cryptoblob;\n    display '
-                  f'the decrypted comments and\n    write the decrypted '
-                  f'contents to a new file{RES}')
+            print(A3_DESCRIPTION)
             return 3
 
         if action == '4':
-            print(f'{ITA}I: action #4:\n    embed file contents '
-                  f'(no encryption):\n    write input file contents over '
-                  f'output file contents{RES}')
+            print(A4_DESCRIPTION)
             return 4
 
         if action == '5':
-            print(f'{ITA}I: action #5:\n    extract file contents '
-                  f'(no decryption) to a new file{RES}')
+            print(A5_DESCRIPTION)
             return 5
 
         if action == '6':
-            print(f'{ITA}I: action #6:\n    encrypt file contents and '
-                  f'comments;\n    write the cryptoblob over a container{RES}')
+            print(A6_DESCRIPTION)
             return 6
 
         if action == '7':
-            print(f'{ITA}I: action #7:\n    extract and decrypt '
-                  f'cryptoblob;\n    display the decrypted comments '
-                  f'and\n    write the decrypted contents to a new file{RES}')
+            print(A7_DESCRIPTION)
             return 7
 
         if action == '8':
-            print(f'{ITA}I: action #8:\n    create a file '
-                  f'with random bytes{RES}')
+            print(A8_DESCRIPTION)
             return 8
 
         if action == '9':
-            print(f'{ITA}I: action #9:\n    overwrite file contents '
-                  f'with random bytes{RES}')
+            print(A9_DESCRIPTION)
             return 9
 
         print(f'{ERR}E: invalid value{RES}')
@@ -2111,6 +2100,44 @@ MENU: str = f"""
     8. Create w/ random  9. Overwrite w/ random
     ———————————————————————————————————————————
 [01] Select an option [0-9]:{RES} """
+
+
+A0_DESCRIPTION: str = f'''{ITA}I: action #0:\n\
+    exit{RES}'''
+
+A1_DESCRIPTION: str = f'''{ITA}I: action #1:\n\
+    displaying info and warnings{RES}'''
+
+A2_DESCRIPTION: str = f'''{ITA}I: action #2:\n\
+    encrypt file contents and comments;\n\
+    write the cryptoblob to a new file{RES}'''
+
+A3_DESCRIPTION: str = f'''{ITA}I: action #3:\n\
+    decrypt cryptoblob;\n\
+    display the decrypted comments and\n\
+    write the decrypted contents to a new file{RES}'''
+
+A4_DESCRIPTION: str = f'''{ITA}I: action #4:\n\
+    embed file contents (no encryption):\n\
+    write input file contents over output file contents{RES}'''
+
+A5_DESCRIPTION: str = f'''{ITA}I: action #5:\n\
+    extract file contents (no decryption) to a new file{RES}'''
+
+A6_DESCRIPTION: str = f'''{ITA}I: action #6:\n\
+    encrypt file contents and comments;\n\
+    write the cryptoblob over a container{RES}'''
+
+A7_DESCRIPTION: str = f'''{ITA}I: action #7:\n\
+    extract and decrypt cryptoblob;\n\
+    display the decrypted comments and\n\
+    write the decrypted contents to a new file{RES}'''
+
+A8_DESCRIPTION: str = f'''{ITA}I: action #8:\n\
+    create a file with random bytes{RES}'''
+
+A9_DESCRIPTION: str = f'''{ITA}I: action #9:\n\
+    overwrite file contents with random bytes{RES}'''
 
 
 INVALID_UTF8_BYTE: bytes = b'\xff'
