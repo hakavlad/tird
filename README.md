@@ -48,19 +48,19 @@ Using `tird` you can:
 Cryptoblob structure:
 
 ```
-                     512 B        0+ B
-                 +——————————+———————————————+
-                 | Comments | File contents |
-                 +——————————+———————————————+
-  16 B    0+ B   |     Plaintext/Payload    |  64 B      0+ B     16 B
-+——————+—————————+——————————————————————————+—————————+—————————+——————+
-| Salt | Padding |        Ciphertext        | MAC tag | Padding | Salt |
-+——————+—————————+——————————————————————————+—————————+—————————+——————+
-|  Random bytes  |     Random-looking bytes           |  Random bytes  |
-+————————————————+————————————————————————————————————+————————————————+
+                  512 B        0+ B
+              +——————————+———————————————+
+              | Comments | File contents |
+              +——————————+———————————————+
+  16 B   0+ B |         Payload          |  64 B     0+ B   16 B
++——————+——————+——————————————————————————+—————————+——————+——————+
+| Salt | Pad  |        Ciphertext        | MAC tag | Pad  | Salt |
++——————+——————+——————————————————————————+—————————+——————+——————+
+| Random data |     Random-looking data            | Random data |
++—————————————+————————————————————————————————————+—————————————+
 ```
 
-Alternative scheme:
+An alternative scheme:
 
 ```
 +——————————————————————————————+—————————+
@@ -72,7 +72,7 @@ Alternative scheme:
 | of the ciphertext size       |         |
 | by default                   |         |
 +——————————————————————————————+—————————+
-| Ciphertext: 512+ B consist   |         |
+| Ciphertext: 512+ B, consists |         |
 | of encrypted comments        |         |
 | (always 512 B) and encryped  | Random- |
 | payload file contents (0+ B) | looking |
