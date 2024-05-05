@@ -6,18 +6,16 @@
 [![Releases](https://img.shields.io/github/v/release/hakavlad/tird?label=Release)](https://github.com/hakavlad/tird/releases)
 [![PyPI](https://img.shields.io/pypi/v/tird?color=008080&label=PyPI)](https://pypi.org/project/tird/)
 [![Tutorial](https://img.shields.io/badge/%F0%9F%93%96-Tutorial-808)](https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md)
-[![Specification](https://img.shields.io/badge/%F0%9F%93%84-Specification-444)](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md)
+[![man page](https://img.shields.io/badge/tird(1)-man%20page-666)](https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md)
+[![Specification](https://img.shields.io/badge/%F0%9F%93%84-Specification-000)](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md)
 
 `tird` *(an acronym for "this is random data")* is a tool for encrypting files and hiding encrypted data.
-
-> [!NOTE]
-> Further "cryptoblob" implies `tird` encryption format.
 
 Using `tird` you can:
 
 1. Create files with random data. Use them as containers or keyfiles.
 2. Overwrite the contents of devices and regular files with random data. This can be used to destroy residual data and prepare containers.
-3. Encrypt file contents and comments with modern cryptographic primitives. The encrypted file format is [padded uniform random blob (PURB)](https://en.wikipedia.org/wiki/PURB_(cryptography)): it looks like random data and has randomized size. This reduces metadata leakage through file format and length, and also allows cryptoblobs to be hidden among random data.
+3. Encrypt file contents and comments with modern cryptographic primitives. The encrypted file format (cryptoblob) is [padded uniform random blob (PURB)](https://en.wikipedia.org/wiki/PURB_(cryptography)): it looks like random data and has randomized size. This reduces metadata leakage through file format and length, and also allows cryptoblobs to be hidden among random data.
 4. Create [steganographic](https://en.wikipedia.org/wiki/Steganography) (hidden, undetectable) user-driven file systems inside container files and devices. Unlike [Veracrypt](https://veracrypt.fr) containers, `tird` containers do not contain headers at all: the user specifies the location of the data in the container and is responsible for ensuring that this location is separated from the container.
 5. Resist [coercive](https://en.wikipedia.org/wiki/Coercion) attacks (keywords: [key disclosure law](https://en.wikipedia.org/wiki/Key_disclosure_law), [rubber-hose cryptanalysis](https://en.wikipedia.org/wiki/Deniable_encryption), [xkcd 538](https://xkcd.com/538/)). `tird` provides some forms of [plausible deniability](https://en.wikipedia.org/wiki/Plausible_deniability) out of the box even if you encrypt files without hiding them in containers.
 
