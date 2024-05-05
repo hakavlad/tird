@@ -6,6 +6,7 @@
 [![Releases](https://img.shields.io/github/v/release/hakavlad/tird?label=Release)](https://github.com/hakavlad/tird/releases)
 [![PyPI](https://img.shields.io/pypi/v/tird?color=008080&label=PyPI)](https://pypi.org/project/tird/)
 [![Tutorial](https://img.shields.io/badge/%F0%9F%93%96-Tutorial-808)](https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md)
+[![Specification](https://img.shields.io/badge/%F0%9F%93%84-Specification-444)](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md)
 
 `tird` *(an acronym for "this is random data")* is a tool for encrypting files and hiding encrypted data.
 
@@ -183,6 +184,10 @@ Enabling debug messages additionally shows:
 ## Tutorial
 
 See [here](https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md).
+
+## Specification
+
+See [here](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md).
 
 ## Requirements
 
