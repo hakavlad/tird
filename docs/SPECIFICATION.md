@@ -20,7 +20,7 @@ digest:64  digest:64  digest:64
                |
                |  <-------------- hashing sorted digests with BLAKE2b-512
                v
-      Argon2 password, 64 B
+      Argon2 password (64 B)
                |                 +------------------------------------------+
                |  <--------------| salted Argon2id:                         |
                v                 | 1 lane, 512 MiB, 4 iterations by default |
@@ -36,6 +36,6 @@ encryption key    padding key               MAC key
    v              v         v                v
 ChaCha20    pad_key1:16  pad_key2:16   keyed BLAKE2b-512
               /                 \
-    difines total       defines proportions between
+    defines total       defines proportions between
       pad size           header_pad and footer_pad
 ```
