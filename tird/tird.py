@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""A tool for writing random bytes, encrypting file contents,
-and hiding encrypted data.
+"""A tool for encrypting files and hiding encrypted data.
 """
 
 from gc import collect
@@ -2064,9 +2063,7 @@ else:
 VERSION: str = '0.12.0'
 
 INFO: str = f"""{ITA}I: tird v{VERSION}
-    A tool for writing random bytes,
-    encrypting file contents,
-    and hiding encrypted data.
+    A tool for encrypting files and hiding encrypted data.
     Homepage: https://github.com/hakavlad/tird{RES}"""
 
 DEBUG_INFO: str = f"""{ITA}D: Python version {version} on {platform} platform
