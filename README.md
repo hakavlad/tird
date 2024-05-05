@@ -103,25 +103,25 @@ The location of the start of the cryptoblob in the container is user-defined, an
 Container structure (as an example):
 
 ```
-+—————————————+ Position 0
-|             |
-| Random data |
-|             |
-+—————————————+ Cryptoblob1 initial position
-|             |
-| Cryptoblob1 |
-|             |
-+—————————————+ Cryptoblob1 final position
-|             |
-| Random data |
-|             |
-+—————————————+ Cryptoblob2 initial position
-|             |
-| Cryptoblob2 |
-|             |
-+—————————————+ Cryptoblob2 final position
-| Random data |
-+—————————————+
++————————————+—————————————+ Position 0
+|            |             |
+|            | Random data |
+|            |             |
+|            +—————————————+ Cryptoblob1 initial position
+| Headerless |             |
+|            | Cryptoblob1 |
+| Layered    |             |
+|            +—————————————+ Cryptoblob1 final position
+| Cake       |             |
+|            | Random data |
+|            |             |
+|            +—————————————+ Cryptoblob2 initial position
+|            |             |
+|            | Cryptoblob2 |
+|            |             |
+|            +—————————————+ Cryptoblob2 final position
+|            | Random data |
++————————————+—————————————+
 ```
 
 ## Tradeoffs and limitations
