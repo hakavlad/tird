@@ -2080,8 +2080,10 @@ predictable keys.{RES}
 {WAR}    - tird does not erase sensitive data from memory after use.{RES}
 {WAR}    - tird always releases unverified plaintext (violates The \
 Cryptographic Doom Principle).{RES}
+{WAR}    - Padding is not used to create a MAC tag (only ciphertext and \
+salt will be authenticated).{RES}
 {WAR}    - tird does not sort digests of keyfiles and passphrases in \
-constant time.{RES}
+constant-time.{RES}
 {WAR}    - Overwriting file contents does not mean securely destroying the \
 data on the media.{RES}
 {WAR}    - Development is not complete, there may be backward compatibility \
