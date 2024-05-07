@@ -42,7 +42,7 @@ Using `tird` you can:
 
 ## Encrypted file format
 
-`tird` encrypted files (cryptoblobs) are indistinguishable from uniform random data and have no identifiable headers. `tird` produces cryptoblobs contain bilateral [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with uniform random data ([PURBs](https://en.wikipedia.org/wiki/PURB_(cryptography))). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data.
+`tird` encrypted files (cryptoblobs) are indistinguishable from uniform random data and have no identifiable headers. `tird` produces cryptoblobs contain bilateral [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with uniform random data (PURBs). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data.
 
 Cryptoblob structure:
 
@@ -102,25 +102,23 @@ The location of the start of the cryptoblob in the container is user-defined, an
 Container structure (as an example):
 
 ```
-+————————————+—————————————+ Position 0
-|            |             |
-|            | Random data |
-|            |             |
-|            +—————————————+ Cryptoblob1 initial position
-| Headerless |             |
-|            | Cryptoblob1 |
-| Layered    |             |
-|            +—————————————+ Cryptoblob1 final position
-| Cake       |             |
-|            | Random data |
-|            |             |
-|            +—————————————+ Cryptoblob2 initial position
-|            |             |
-|            | Cryptoblob2 |
-|            |             |
-|            +—————————————+ Cryptoblob2 final position
-|            | Random data |
-+————————————+—————————————+
++—————————+—————————————+ Position 0
+|         |             |
+|         | Random data |
+|         |             |
+|         +—————————————+ Cryptoblob1 initial position
+| Header- |             |
+| less    | Cryptoblob1 |
+|         |             |
+| Layer   +—————————————+ Cryptoblob1 final position
+|         | Random data |
+| Cake    +—————————————+ Cryptoblob2 initial position
+|         |             |
+|         | Cryptoblob2 |
+|         |             |
+|         +—————————————+ Cryptoblob2 final position
+|         | Random data |
++—————————+—————————————+
 ```
 
 ## Tradeoffs and limitations
@@ -179,13 +177,12 @@ Enabling debug messages additionally shows:
 - salts, passphrases, digests, keys, nonces, tags;
 - some other info.
 
-## Tutorial
+## Documentation
 
-See [here](https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md).
-
-## Specification
-
-See [here](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md).
+- [man page](https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md)
+- [Input options](https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md)
+- [Specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md)
+- [Tutorial](https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md)
 
 ## Requirements
 
