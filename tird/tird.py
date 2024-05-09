@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""A tool for encrypting files and hiding encrypted data.
-"""
+"""A tool for encrypting files and hiding encrypted data."""
 
 from gc import collect
 from getpass import getpass
@@ -8,7 +7,7 @@ from hashlib import blake2b
 from hmac import compare_digest
 from os import fsync, path, urandom, walk
 from signal import SIGINT, signal
-from sys import argv, executable, exit, platform, version
+from sys import argv, exit, platform, version
 from time import monotonic
 from typing import Any, NoReturn, Optional
 
@@ -25,6 +24,8 @@ from nacl.pwhash import argon2id
 # pylint: disable=too-many-locals
 # pylint: disable=too-many-return-statements
 # pylint: disable=too-many-statements
+
+# --------------------------------------------------------------------------- #
 
 
 def open_file(f_path: str, f_mode: str) -> Any:
@@ -122,7 +123,7 @@ def fsync_data() -> bool:
         return False
 
 
-# #############################################################################
+# --------------------------------------------------------------------------- #
 
 
 def select_action() -> int:
@@ -218,41 +219,41 @@ def get_argon2_time_cost() -> int:
         return argon2_time_cost
 
 
-def get_pad_max_percent() -> int:
+def get_max_pad_size_percent() -> int:
     """
     """
     while True:
-        pad_max_percent_s: str = input(
+        max_pad_size_percent_s: str = input(
             f'    {BOL}[04] Max padding size, % (default'
-            f'={DEFAULT_PAD_MAX_PERCENT}):{RES} ')
+            f'={DEFAULT_MAX_PAD_SIZE_PERCENT}):{RES} ')
 
-        if pad_max_percent_s in ('', str(DEFAULT_PAD_MAX_PERCENT)):
-            return DEFAULT_PAD_MAX_PERCENT
+        if max_pad_size_percent_s in ('', str(DEFAULT_MAX_PAD_SIZE_PERCENT)):
+            return DEFAULT_MAX_PAD_SIZE_PERCENT
 
         try:
-            pad_max_percent: int = int(pad_max_percent_s)
+            max_pad_size_percent: int = int(max_pad_size_percent_s)
         except Exception:
             print(f'    {ERR}E: invalid value; must be an integer >= 0{RES}')
             continue
 
-        if pad_max_percent < 0:
+        if max_pad_size_percent < 0:
             print(f'    {ERR}E: invalid value; must be an integer >= 0{RES}')
             continue
 
-        return pad_max_percent
+        return max_pad_size_percent
 
 
 def is_fake_mac() -> bool:
     """
     """
     while True:
-        use_fake_mac: str = input(
+        set_fake_mac: str = input(
             f'    {BOL}[05] Set a fake MAC tag? (Y/N, default=N):{RES} ')
 
-        if use_fake_mac in ('', 'N', 'n', '0'):
+        if set_fake_mac in ('', 'N', 'n', '0'):
             return False
 
-        if use_fake_mac in ('Y', 'y', '1'):
+        if set_fake_mac in ('Y', 'y', '1'):
             return True
 
         print(f'    {ERR}E: invalid value; valid values are: '
@@ -442,7 +443,7 @@ def get_comments_bytes() -> bytes:
         f'{BOL}[10] Comments (optional, up to {COMMENTS_SIZE} B):{RES} ')
 
     if comments != '':
-        # Sanitize comments: prevent UnicodeDecodeError in some cases
+        # Sanitize comments: prevent possible UnicodeDecodeError in some cases
         comments = comments.encode()[:COMMENTS_SIZE].decode('utf-8', 'ignore')
 
         comments_bytes: bytes = comments.encode()
@@ -452,7 +453,7 @@ def get_comments_bytes() -> bytes:
             urandom(COMMENTS_SIZE)
         ])[:COMMENTS_SIZE]
     else:
-        if md['use_fake_mac']:
+        if md['set_fake_mac']:
             comments_bytes = urandom(COMMENTS_SIZE)
         else:
             while True:
@@ -597,7 +598,7 @@ def get_output_file_size() -> int:
         return o_size
 
 
-# #############################################################################
+# --------------------------------------------------------------------------- #
 
 
 def set_custom_settings(action: int) -> None:
@@ -613,28 +614,28 @@ def set_custom_settings(action: int) -> None:
                   f'values!{RES}')
 
         argon2_time_cost: int = get_argon2_time_cost()
-        pad_max_percent: int = get_pad_max_percent()
+        max_pad_size_percent: int = get_max_pad_size_percent()
 
         if action in (2, 6):
-            use_fake_mac: bool = is_fake_mac()
+            set_fake_mac: bool = is_fake_mac()
     else:
         argon2_time_cost = DEFAULT_ARGON2_TIME_COST
-        pad_max_percent = DEFAULT_PAD_MAX_PERCENT
+        max_pad_size_percent = DEFAULT_MAX_PAD_SIZE_PERCENT
 
         if action in (2, 6):
-            use_fake_mac = DEFAULT_USE_FAKE_MAC
+            set_fake_mac = DEFAULT_SET_FAKE_MAC
 
     if DEBUG:
         print(f'{ITA}D: Argon2 time cost: {argon2_time_cost}{RES}')
-        print(f'{ITA}D: max padding size, %: {pad_max_percent}{RES}')
+        print(f'{ITA}D: max padding size, %: {max_pad_size_percent}{RES}')
 
         if action in (2, 6):
-            print(f'{ITA}D: use fake MAC tag: {use_fake_mac}{RES}')
+            print(f'{ITA}D: set fake MAC tag: {set_fake_mac}{RES}')
 
     md['argon2_time_cost'] = argon2_time_cost
-    md['pad_max_percent'] = pad_max_percent
+    md['max_pad_size_percent'] = max_pad_size_percent
     if action in (2, 6):
-        md['use_fake_mac'] = use_fake_mac
+        md['set_fake_mac'] = set_fake_mac
 
 
 def get_salts(i_size: int, final_pos: int, action: int) -> bool:
@@ -995,62 +996,98 @@ def encrypt_decrypt(input_data: bytes) -> bytes:
 
 def pad_from_ciphertext(
     ciphertext_size: int,
-    rnd_bytes: bytes,
-    pad_max_percent: int
+    pad_key1_bytes: bytes,
+    max_pad_size_percent: int
 ) -> int:
     """
     """
-    rnd_int: int = int.from_bytes(rnd_bytes, BYTEORDER)
+    pad_key1_int: int = int.from_bytes(pad_key1_bytes, BYTEORDER)
 
-    pad_size: int = ciphertext_size * pad_max_percent * rnd_int // (
-        RND_SPACE * 100)
+    pad_size: int = ciphertext_size * max_pad_size_percent * pad_key1_int // (
+        PAD_KEY_SPACE * 100)
 
     if DEBUG:
-        print(f'{ITA}D: pad_from_ciphertext()...{RES}')
-        print(f'{ITA}D: rnd_bytes:\n    {rnd_bytes.hex()}{RES}')
-        print(f'{ITA}D: rnd_int:\n    {rnd_int}{RES}')
-        print(f'{ITA}D: rnd_int/RND_SPACE:\n    {rnd_int/RND_SPACE}{RES}')
+        print(f'{ITA}D: getting total pad size...{RES}')
+
+        print(f'{ITA}D: pad_key1_bytes:             '
+              f'{pad_key1_bytes.hex()}{RES}')
+
+        print(f'{ITA}D: pad_key1_int:               {pad_key1_int}{RES}')
+
+        print(f'{ITA}D: pad_key1_int/PAD_KEY_SPACE: '
+              f'{pad_key1_int/PAD_KEY_SPACE}{RES}')
+
+        print(f'{ITA}D: ciphertext_size:            '
+              f'{string_size(ciphertext_size)} B{RES}')
+
+        print(f'{ITA}D: pad_size:                   '
+              f'{string_size(pad_size)}{RES}')
+
+        print(f'{ITA}D: pad_size/ciphertext_size:   '
+              f'{pad_size/ciphertext_size}{RES}')
 
     return pad_size
 
 
 def pad_from_padded_ciphertext(
     padded_ciphertext_size: int,
-    rnd_bytes: bytes,
-    pad_max_percent: int
+    pad_key1_bytes: bytes,
+    max_pad_size_percent: int
 ) -> int:
     """
     """
-    rnd_int: int = int.from_bytes(rnd_bytes, BYTEORDER)
+    pad_key1_int: int = int.from_bytes(pad_key1_bytes, BYTEORDER)
 
-    pad_size: int = padded_ciphertext_size * rnd_int * pad_max_percent // (
-        rnd_int * pad_max_percent + RND_SPACE * 100)
+    pad_size: int = (
+        padded_ciphertext_size * pad_key1_int * max_pad_size_percent // (
+            pad_key1_int * max_pad_size_percent + PAD_KEY_SPACE * 100)
+    )
 
     if DEBUG:
-        print(f'{ITA}D: pad_from_padded_ciphertext()...{RES}')
-        print(f'{ITA}D: rnd_bytes:\n    {rnd_bytes.hex()}{RES}')
-        print(f'{ITA}D: rnd_int:\n    {rnd_int}{RES}')
-        print(f'{ITA}D: rnd_int/RND_SPACE:\n    {rnd_int/RND_SPACE}{RES}')
+        print(f'{ITA}D: getting total pad size...{RES}')
+
+        print(f'{ITA}D: pad_key1_bytes:             '
+              f'{pad_key1_bytes.hex()}{RES}')
+
+        print(f'{ITA}D: pad_key1_int:               {pad_key1_int}{RES}')
+
+        print(f'{ITA}D: pad_key1_int/PAD_KEY_SPACE: '
+              f'{pad_key1_int/PAD_KEY_SPACE}{RES}')
+
+        print(f'{ITA}D: padded_ciphertext_size:     '
+              f'{string_size(padded_ciphertext_size)}{RES}')
+
+        print(f'{ITA}D: pad_size:                   '
+              f'{string_size(pad_size)}{RES}')
+
+        ciphertext_size: int = padded_ciphertext_size - pad_size
+
+        print(f'{ITA}D: ciphertext_size:            '
+              f'{string_size(ciphertext_size)}{RES}')
+
+        print(f'{ITA}D: pad_size/ciphertext_size:   '
+              f'{pad_size/ciphertext_size}{RES}')
 
     return pad_size
 
 
 def header_footer_pads(
     pad_size: int,
-    rnd_bytes: bytes
+    pad_key2_bytes: bytes
 ) -> tuple:
     """
     """
-    rnd_int: int = int.from_bytes(rnd_bytes, BYTEORDER)
+    pad_key2_int: int = int.from_bytes(pad_key2_bytes, BYTEORDER)
 
-    header_pad_size: int = rnd_int % (pad_size + 1)
+    header_pad_size: int = pad_key2_int % (pad_size + 1)
     footer_pad_size: int = pad_size - header_pad_size
 
     if DEBUG:
-        print(f'{ITA}D: header_footer_pads()...{RES}')
-        print(f'{ITA}D: rnd_bytes:\n    {rnd_bytes.hex()}{RES}')
-        print(f'{ITA}D: rnd_int:\n    {rnd_int}{RES}')
-        print(f'{ITA}D: rnd_int/RND_SPACE:\n    {rnd_int/RND_SPACE}{RES}')
+        print(f'{ITA}D: getting sizes of header_pad and footer_pad...{RES}')
+        print(f'{ITA}D: pad_key2_bytes:   {pad_key2_bytes.hex()}{RES}')
+        print(f'{ITA}D: pad_key2_int:     {pad_key2_int}{RES}')
+        print(f'{ITA}D: header_pad_size:  {string_size(header_pad_size)}{RES}')
+        print(f'{ITA}D: footer_pad_size:  {string_size(footer_pad_size)}{RES}')
 
     return header_pad_size, footer_pad_size
 
@@ -1159,7 +1196,7 @@ def print_positions() -> None:
         print(f'{ITA}D: current position: of={o}{RES}')
 
 
-# #############################################################################
+# --------------------------------------------------------------------------- #
 
 
 def encrypt_and_embed(action: int) -> bool:
@@ -1184,7 +1221,7 @@ def encrypt_and_embed(action: int) -> bool:
 
         min_cryptoblob_size: int = i_size + MIN_VALID_CRYPTOBLOB_SIZE
 
-        max_pad: int = ciphertext_size * md['pad_max_percent'] // 100 - 1
+        max_pad: int = ciphertext_size * md['max_pad_size_percent'] // 100 - 1
         max_pad = max(0, max_pad)
 
         max_cryptoblob_size: int = max_pad + min_cryptoblob_size
@@ -1297,7 +1334,7 @@ def encrypt_and_embed_handler(
         key=md['mac_key']
     )
 
-    # #########################################################################
+    # ----------------------------------------------------------------------- #
 
     pad_key: bytes = md['pad_key']
 
@@ -1308,7 +1345,7 @@ def encrypt_and_embed_handler(
         pad_size: int = pad_from_ciphertext(
             ciphertext_size,
             pad_key1,
-            md['pad_max_percent']
+            md['max_pad_size_percent']
         )
     else:  # 3, 7
         if action == 3:
@@ -1320,22 +1357,17 @@ def encrypt_and_embed_handler(
         pad_size = pad_from_padded_ciphertext(
             padded_ciphertext_size,
             pad_key1,
-            md['pad_max_percent']
+            md['max_pad_size_percent']
         )
 
     header_pad_size, footer_pad_size = header_footer_pads(pad_size, pad_key2)
-
-    if DEBUG:
-        print(f'{ITA}D: pad_size: {string_size(pad_size)}{RES}')
-        print(f'{ITA}D: header_pad_size: {string_size(header_pad_size)}{RES}')
-        print(f'{ITA}D: footer_pad_size: {string_size(footer_pad_size)}{RES}')
 
     del pad_key, pad_key1, pad_key2
     del md['argon2_password'], md['pad_key'], md['mac_key']
 
     collect()
 
-    # #########################################################################
+    # ----------------------------------------------------------------------- #
 
     if action in (2, 6):
         cryptoblob_size: int = i_size + pad_size + MIN_VALID_CRYPTOBLOB_SIZE
@@ -1370,7 +1402,7 @@ def encrypt_and_embed_handler(
 
     w_sum: int = 0
 
-    # #########################################################################
+    # ----------------------------------------------------------------------- #
 
     print(f'{ITA}I: reading, writing...{RES}')
 
@@ -1393,7 +1425,7 @@ def encrypt_and_embed_handler(
             print(f'{ITA}D: header_salt is written{RES}')
             print_positions()
 
-    # #########################################################################
+    # ----------------------------------------------------------------------- #
 
     if DEBUG:
         print(f'{ITA}D: handling header padding...{RES}')
@@ -1415,7 +1447,7 @@ def encrypt_and_embed_handler(
         print(f'{ITA}D: handling header padding is completed{RES}')
         print_positions()
 
-    # #########################################################################
+    # ----------------------------------------------------------------------- #
 
     if DEBUG:
         print(f'{ITA}D: handling comments...{RES}')
@@ -1455,7 +1487,7 @@ def encrypt_and_embed_handler(
         print(f'{ITA}D: handling comments is completed{RES}')
         print_positions()
 
-    # #########################################################################
+    # ----------------------------------------------------------------------- #
 
     if DEBUG:
         if action in (2, 6):
@@ -1530,7 +1562,7 @@ def encrypt_and_embed_handler(
     if action in (3, 7):
         print(f'{ITA}I: decryption is completed{RES}')
 
-    # #########################################################################
+    # ----------------------------------------------------------------------- #
 
     if DEBUG:
         print(f'{ITA}D: handling MAC tag...{RES}')
@@ -1546,7 +1578,7 @@ def encrypt_and_embed_handler(
         if DEBUG:
             print(f'{ITA}D: fake MAC tag:\n    {fake_mac_tag.hex()}{RES}')
 
-        if md['use_fake_mac']:
+        if md['set_fake_mac']:
             mac_tag: bytes = fake_mac_tag
         else:
             mac_tag = found_mac_tag
@@ -1587,7 +1619,7 @@ def encrypt_and_embed_handler(
         print(f'{ITA}D: handling MAC tag is completed{RES}')
         print_positions()
 
-    # #########################################################################
+    # ----------------------------------------------------------------------- #
 
     if DEBUG:
         print(f'{ITA}D: handling footer padding...{RES}')
@@ -1609,7 +1641,7 @@ def encrypt_and_embed_handler(
         print(f'{ITA}D: handling footer padding is completed{RES}')
         print_positions()
 
-    # #########################################################################
+    # ----------------------------------------------------------------------- #
 
     if action in (2, 6):
         if DEBUG:
@@ -1636,7 +1668,7 @@ def encrypt_and_embed_handler(
         t1: float = monotonic()
         print(f'{ITA}I: fsynced in {round(t1 - t0, 1)}s{RES}')
 
-    # #########################################################################
+    # ----------------------------------------------------------------------- #
 
     if action == 6:
         final_pos = iod['o'].tell()
@@ -1964,7 +1996,7 @@ def overwrite_with_random_handler(init_pos: int, data_size: int) -> bool:
     return True
 
 
-# #############################################################################
+# --------------------------------------------------------------------------- #
 
 
 def signal_handler(signum: Any, frame: Any) -> NoReturn:
@@ -2030,7 +2062,7 @@ def main() -> NoReturn:
             print(f'{ITA}I: action is completed{RES}')
 
 
-# #############################################################################
+# --------------------------------------------------------------------------- #
 
 
 WIN32: bool = bool(platform == 'win32')
@@ -2066,8 +2098,7 @@ INFO: str = f"""{ITA}I: tird v{VERSION}
     A tool for encrypting files and hiding encrypted data.
     Homepage: https://github.com/hakavlad/tird{RES}"""
 
-DEBUG_INFO: str = f"""{ITA}D: Python version {version} on {platform} platform
-D: executable: {executable}{RES}"""
+DEBUG_INFO: str = f"""{ITA}D: Python version {version}{RES}"""
 
 WARNINGS: str = f"""{WAR}W: warnings:{RES}
 {WAR}    - The author is not a cryptographer.{RES}
@@ -2089,8 +2120,8 @@ data on the media.{RES}
 {WAR}    - Development is not complete, there may be backward compatibility \
 issues in the future.{RES}"""
 
-MENU: str = f"""
-                       {BOL}MENU
+MENU: str = f"""{BOL}
+                       MENU
     ———————————————————————————————————————————
     0. Exit              1. Info & warnings
     2. Encrypt           3. Decrypt
@@ -2101,49 +2132,49 @@ MENU: str = f"""
 [01] Select an option [0-9]:{RES} """
 
 
-A0_DESCRIPTION: str = f'''{ITA}I: action #0:\n\
-    exit{RES}'''
+A0_DESCRIPTION: str = f"""{ITA}I: action #0:\n\
+    exit{RES}"""
 
-A1_DESCRIPTION: str = f'''{ITA}I: action #1:\n\
-    displaying info and warnings{RES}'''
+A1_DESCRIPTION: str = f"""{ITA}I: action #1:\n\
+    displaying info and warnings{RES}"""
 
-A2_DESCRIPTION: str = f'''{ITA}I: action #2:\n\
+A2_DESCRIPTION: str = f"""{ITA}I: action #2:\n\
     encrypt file contents and comments;\n\
-    write the cryptoblob to a new file{RES}'''
+    write the cryptoblob to a new file{RES}"""
 
-A3_DESCRIPTION: str = f'''{ITA}I: action #3:\n\
+A3_DESCRIPTION: str = f"""{ITA}I: action #3:\n\
     decrypt cryptoblob;\n\
     display the decrypted comments and\n\
-    write the decrypted contents to a new file{RES}'''
+    write the decrypted contents to a new file{RES}"""
 
-A4_DESCRIPTION: str = f'''{ITA}I: action #4:\n\
+A4_DESCRIPTION: str = f"""{ITA}I: action #4:\n\
     embed file contents (no encryption):\n\
-    write input file contents over output file contents{RES}'''
+    write input file contents over output file contents{RES}"""
 
-A5_DESCRIPTION: str = f'''{ITA}I: action #5:\n\
-    extract file contents (no decryption) to a new file{RES}'''
+A5_DESCRIPTION: str = f"""{ITA}I: action #5:\n\
+    extract file contents (no decryption) to a new file{RES}"""
 
-A6_DESCRIPTION: str = f'''{ITA}I: action #6:\n\
+A6_DESCRIPTION: str = f"""{ITA}I: action #6:\n\
     encrypt file contents and comments;\n\
-    write the cryptoblob over a container{RES}'''
+    write the cryptoblob over a container{RES}"""
 
-A7_DESCRIPTION: str = f'''{ITA}I: action #7:\n\
+A7_DESCRIPTION: str = f"""{ITA}I: action #7:\n\
     extract and decrypt cryptoblob;\n\
     display the decrypted comments and\n\
-    write the decrypted contents to a new file{RES}'''
+    write the decrypted contents to a new file{RES}"""
 
-A8_DESCRIPTION: str = f'''{ITA}I: action #8:\n\
-    create a file with random bytes{RES}'''
+A8_DESCRIPTION: str = f"""{ITA}I: action #8:\n\
+    create a file with random bytes{RES}"""
 
-A9_DESCRIPTION: str = f'''{ITA}I: action #9:\n\
-    overwrite file contents with random bytes{RES}'''
+A9_DESCRIPTION: str = f"""{ITA}I: action #9:\n\
+    overwrite file contents with random bytes{RES}"""
 
 
 INVALID_UTF8_BYTE: bytes = b'\xff'
 
 iod: dict = {}  # I/O file objects
 sd: dict = {}  # salts
-md: dict = {}  # miscellanea
+md: dict = {}  # miscellaneous
 
 K: int = 2 ** 10
 M: int = 2 ** 20
@@ -2169,8 +2200,8 @@ RW_CHUNK_SIZE: int = K * 128
 
 # Default values for custom options
 DEFAULT_ARGON2_TIME_COST: int = 4
-DEFAULT_PAD_MAX_PERCENT: int = 20
-DEFAULT_USE_FAKE_MAC: bool = False
+DEFAULT_MAX_PAD_SIZE_PERCENT: int = 20
+DEFAULT_SET_FAKE_MAC: bool = False
 
 # BLAKE2b constants
 PERSON_SIZE: int = 16
@@ -2184,7 +2215,7 @@ EMBED_DIGEST_SIZE: int = 32
 # Padding constants
 PAD_KEY_HALF_SIZE: int = 16
 PAD_KEY_SIZE: int = PAD_KEY_HALF_SIZE * 2
-RND_SPACE: int = 256 ** PAD_KEY_HALF_SIZE
+PAD_KEY_SPACE: int = 256 ** PAD_KEY_HALF_SIZE
 
 # Argon2 constants
 ARGON2_MEM: int = M * 512
