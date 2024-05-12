@@ -192,15 +192,44 @@ Enabling debug messages additionally shows:
 
 ## Install
 
+#### Installing from PyPI
+
 Install `python3` and `python3-pip` (or `python-pip`), then run
 
 ```bash
 $ pip install tird
 ```
 
-Standalone executables (made with [PyInstaller](https://pyinstaller.org/en/stable/)) are also available (see [Releases](https://github.com/hakavlad/tird/releases)).
+#### Standalone executables
+
+Standalone executables (made with [PyInstaller](https://pyinstaller.org/en/stable/)) are also available (see [Releases](https://github.com/hakavlad/tird/releases)) for MS Windows and Linux amd64.
 
 ![tird.exe](https://i.imgur.com/hjnarbH.png)
+
+#### Building and installing the package on Debian and Ubuntu-based distros
+
+It's easy to build a `deb` package with the latest git snapshot. Install build dependencies:
+
+```
+sudo apt install make fakeroot
+```
+
+Clone the repo:
+
+```
+git clone https://github.com/hakavlad/tird.git && cd tird
+```
+
+Build the package:
+
+```
+make build-deb
+```
+
+Install or reinstall the package:
+```
+sudo make install-deb
+```
 
 ## TODO
 
