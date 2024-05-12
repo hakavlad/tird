@@ -7,7 +7,7 @@ def readme():
 
 
 NAME = 'tird'
-VERSION = '0.12.0'
+VERSION = '0.13.0'
 
 setup(
     name=NAME,

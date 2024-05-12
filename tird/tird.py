@@ -2092,7 +2092,7 @@ else:
     exit(1)
 
 
-VERSION: str = '0.12.0'
+VERSION: str = '0.13.0'
 
 INFO: str = f"""{ITA}I: tird v{VERSION}
     A tool for encrypting files and hiding encrypted data.
