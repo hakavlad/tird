@@ -1,0 +1,29 @@
+Package: tird
+Version: 0.13.0
+Section: utils
+Architecture: all
+Depends: python3 (>= 3.6.0), python3-nacl (>= 1.2.0), python3-pycryptodome (>= 3.6.2)
+Maintainer: Alexey Avramov <hakavlad@gmail.com>
+Priority: optional
+Homepage: https://github.com/hakavlad/tird
+Description: tool for encrypting files and hiding encrypted data
+ tird (an acronym for "this is random data") is a tool for encrypting files
+ and hiding encrypted data.
+ .
+ Using tird you can:
+ 1. Create files with random data. Use them as containers or keyfiles.
+ 2. Overwrite the contents of devices and regular files with random data.
+ This can be used to destroy residual data and prepare containers.
+ 3. Encrypt file contents and comments with modern cryptographic primitives.
+ The encrypted file format (cryptoblob) is padded uniform random blob (PURB):
+ it looks like random data and has randomized size. This reduces metadata
+ leakage through file format and length, and also allows cryptoblobs to be
+ hidden among random data.
+ 4. Create steganographic (hidden, undetectable) user-driven file systems
+ inside container files and devices. Unlike Veracrypt containers, tird
+ containers do not contain headers at all: the user specifies the location of
+ the data in the container and is responsible for ensuring that this location
+ is separated from the container.
+ 5. Resist coercive attacks (keywords: key disclosure law, rubber-hose
+ cryptanalysis, xkcd 538). tird provides some forms of plausible deniability
+ out of the box even if you encrypt files without hiding them in containers.
