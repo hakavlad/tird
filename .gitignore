@@ -127,3 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# deb
+/deb/tird/
+/deb/tird.deb
