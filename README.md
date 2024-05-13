@@ -210,25 +210,26 @@ Standalone executables (made with [PyInstaller](https://pyinstaller.org/en/stabl
 
 It's easy to build a `deb` package with the latest git snapshot. Install build dependencies:
 
-```
-sudo apt install make fakeroot
+```bash
+$ sudo apt install make fakeroot
 ```
 
 Clone the repo:
 
-```
-git clone https://github.com/hakavlad/tird.git && cd tird
+```bash
+$ git clone https://github.com/hakavlad/tird.git && cd tird
 ```
 
 Build the package:
 
-```
-make build-deb
+```bash
+$ make build-deb
 ```
 
 Install or reinstall the package:
-```
-sudo make install-deb
+
+```bash
+$ sudo make install-deb
 ```
 
 ## TODO
