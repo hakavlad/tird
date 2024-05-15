@@ -42,7 +42,7 @@ Using `tird` you can:
 
 ## Encrypted file format
 
-`tird` encrypted files (cryptoblobs) are indistinguishable from uniform random data and have no identifiable headers. `tird` produces cryptoblobs contain bilateral [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with uniform random data (PURBs). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data.
+`tird` encrypted files (cryptoblobs) are indistinguishable from random data and have no identifiable headers. `tird` produces cryptoblobs contain bilateral [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with uniform random data (PURBs). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data.
 
 Cryptoblob structure:
 
@@ -59,7 +59,7 @@ Cryptoblob structure:
 +—————————————+————————————————————————————————————+—————————————+
 ```
 
-An alternative scheme:
+Alternative scheme:
 
 ```
 +——————————————————————————————+—————————+
@@ -73,7 +73,7 @@ An alternative scheme:
 +——————————————————————————————+—————————+
 | Ciphertext: 512+ B, consists |         |
 | of encrypted comments        |         |
-| (always 512 B) and encryped  | Random- |
+| (always 512 B) and encrypted | Random- |
 | payload file contents (0+ B) | looking |
 +——————————————————————————————+ data    |
 | MAC tag: 64 B                |         |
@@ -133,7 +133,7 @@ Container structure (as an example):
 - `tird` does not provide a password generator.
 - `tird` can only encrypt one file per iteration. Encryption of directories and multiple files is not supported.
 - `tird` does not fake file timestamps (atime, mtime, ctime).
-- `tird` encryption speed is not very fast: up to 180 MiB/s (in my tests).
+- `tird` encryption speed is not very fast (up to 180 MiB/s in my tests).
 
 ## Warnings
 
@@ -190,7 +190,7 @@ Enabling debug messages additionally shows:
 - [PyNaCl](https://pypi.org/project/PyNaCl/) >= 1.2.0 (provides `Argon2`)
 - [PyCryptodomex](https://pypi.org/project/pycryptodomex/) >= 3.6.2 (provides `ChaCha20`)
 
-## Install
+## Installation
 
 #### Installing from PyPI
 
@@ -200,15 +200,9 @@ Install `python3` and `python3-pip` (or `python-pip`), then run
 $ pip install tird
 ```
 
-#### Standalone executables
-
-Standalone executables (made with [PyInstaller](https://pyinstaller.org/en/stable/)) are also available (see [Releases](https://github.com/hakavlad/tird/releases)) for MS Windows and Linux amd64.
-
-![tird.exe](https://i.imgur.com/hjnarbH.png)
-
 #### Building and installing the package on Debian and Ubuntu-based distros
 
-It's easy to build a `deb` package with the latest git snapshot. Install build dependencies:
+It's easy to build a `deb` package with the latest git snapshot. Install the build dependencies:
 
 ```bash
 $ sudo apt install make fakeroot
@@ -232,6 +226,12 @@ Install or reinstall the package:
 $ sudo make install-deb
 ```
 
+#### Standalone executables
+
+Standalone executables (made with [PyInstaller](https://pyinstaller.org/en/stable/)) are also available (see [Releases](https://github.com/hakavlad/tird/releases)) for MS Windows and Linux amd64.
+
+![tird.exe](https://i.imgur.com/hjnarbH.png)
+
 ## TODO
 
 Write documentation:
@@ -243,7 +243,7 @@ Write documentation:
 
 ## Feedback
 
-Feel free to post any questions, feedback or criticisms to the [Discussions](https://github.com/hakavlad/tird/discussions).
+Feel free to post any questions, reviews, or criticisms in the [Discussions](https://github.com/hakavlad/tird/discussions).
 
 ## License
 
