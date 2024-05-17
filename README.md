@@ -51,9 +51,9 @@ Cryptoblob structure:
               +——————————+———————————————+
               | Comments | File contents |
               +——————————+———————————————+
-  16 B   0+ B |         Payload          |  64 B     0+ B   16 B
+  16 B   0+ B |        Plaintext         |  64 B     0+ B   16 B
 +——————+——————+——————————————————————————+—————————+——————+——————+
-| Salt | Pad  |        Ciphertext        | MAC tag | Pad  | Salt |
+| Salt | Pad  |       Ciphertext         | MAC tag | Pad  | Salt |
 +——————+——————+——————————————————————————+—————————+——————+——————+
 | Random data |     Random-looking data            | Random data |
 +—————————————+————————————————————————————————————+—————————————+
@@ -102,21 +102,21 @@ The location of the start of the cryptoblob in the container is user-defined, an
 Container structure (as an example):
 
 ```
-+—————————+—————————————+ Position 0
++—————————+—————————————+— Position 0
 |         |             |
 |         | Random data |
 |         |             |
-|         +—————————————+ Cryptoblob1 initial position
+|         +—————————————+— Cryptoblob1 initial position
 | Header- |             |
 | less    | Cryptoblob1 |
 |         |             |
-| Layer   +—————————————+ Cryptoblob1 final position
+| Layer   +—————————————+— Cryptoblob1 final position
 |         | Random data |
-| Cake    +—————————————+ Cryptoblob2 initial position
+| Cake    +—————————————+— Cryptoblob2 initial position
 |         |             |
 |         | Cryptoblob2 |
 |         |             |
-|         +—————————————+ Cryptoblob2 final position
+|         +—————————————+— Cryptoblob2 final position
 |         | Random data |
 +—————————+—————————————+
 ```
@@ -200,7 +200,7 @@ Install `python3` and `python3-pip` (or `python-pip`), then run
 $ pip install tird
 ```
 
-### Building and installing the package on `deb`-based distros
+### Building and installing the package on `deb`-based Linux distros
 
 It's easy to build a `deb` package for Debian and Ubuntu-based distros with the latest git snapshot.
 
