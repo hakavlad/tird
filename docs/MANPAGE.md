@@ -2,7 +2,7 @@
 
 # NAME
 
-tird - write random bytes, encrypt file contents, and hide encrypted data
+tird - encrypt files and hide encrypted data
 
 # SYNOPSIS
 
@@ -10,7 +10,7 @@ tird - write random bytes, encrypt file contents, and hide encrypted data
 
 # DESCRIPTION
 
-**tird** *(an acronym for "this is random data")* is a tool for writing random bytes, encrypting file contents, and hiding encrypted data.
+**tird** *(an acronym for "this is random data")* is a tool for encrypting files and hiding encrypted data.
 
 **tird** can create files with random data, overwrite file contents with random data, encrypt file contents and comments, hide encrypted data among random data, minimize metadata leakage, and can provide some forms of plausible deniability.
 
