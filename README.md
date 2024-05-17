@@ -72,7 +72,7 @@ Alternative scheme:
 | by default                   |         |
 +——————————————————————————————+—————————+
 | Ciphertext: 512+ B, consists |         |
-| of encrypted comments        |         |
+| of encrypted padded comments |         |
 | (always 512 B) and encrypted | Random- |
 | payload file contents (0+ B) | looking |
 +——————————————————————————————+ data    |
