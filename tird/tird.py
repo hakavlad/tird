@@ -377,63 +377,63 @@ def get_output_file_exist(i_file: str, i_size: int, action: int) -> tuple:
     return o_file, o_size, o_object
 
 
-def get_init_pos(max_init_pos: int, no_default: bool) -> int:
+def get_start_pos(max_start_pos: int, no_default: bool) -> int:
     """
     """
     while True:
         if no_default:
-            init_pos_s: str = input(
-                f'{BOL}[08] Initial position, valid values '
-                f'are [0; {max_init_pos}]:{RES} ')
-            if init_pos_s == '':
-                print(f'{ERR}E: initial position is not specified{RES}')
+            start_pos_s: str = input(
+                f'{BOL}[08] Start position, valid values '
+                f'are [0; {max_start_pos}]:{RES} ')
+            if start_pos_s == '':
+                print(f'{ERR}E: start position is not specified{RES}')
                 continue
         else:
-            init_pos_s = input(
-                f'{BOL}[08] Initial position, valid values '
-                f'are [0; {max_init_pos}], default=0:{RES} ')
-            if init_pos_s == '':
-                init_pos_s = '0'
+            start_pos_s = input(
+                f'{BOL}[08] Start position, valid values '
+                f'are [0; {max_start_pos}], default=0:{RES} ')
+            if start_pos_s == '':
+                start_pos_s = '0'
 
         try:
-            init_pos: int = int(init_pos_s)
+            start_pos: int = int(start_pos_s)
         except Exception:
             print(f'{ERR}E: invalid value{RES}')
             continue
 
-        if init_pos > max_init_pos or init_pos < 0:
+        if start_pos > max_start_pos or start_pos < 0:
             print(f'{ERR}E: invalid value{RES}')
             continue
 
-        return init_pos
+        return start_pos
 
 
-def get_final_pos(min_pos: int, max_pos: int, no_default: bool) -> int:
+def get_end_pos(min_pos: int, max_pos: int, no_default: bool) -> int:
     """
     """
     while True:
         if no_default:
-            final_pos_s: str = input(
-                f'{BOL}[09] Final position, valid values '
+            end_pos_s: str = input(
+                f'{BOL}[09] End position, valid values '
                 f'are [{min_pos}; {max_pos}]:{RES} ')
         else:
-            final_pos_s = input(
-                f'{BOL}[09] Final position, valid values '
+            end_pos_s = input(
+                f'{BOL}[09] End position, valid values '
                 f'are [{min_pos}; {max_pos}], default={max_pos}:{RES} ')
-            if final_pos_s == '':
-                final_pos_s = str(max_pos)
+            if end_pos_s == '':
+                end_pos_s = str(max_pos)
 
         try:
-            final_pos: int = int(final_pos_s)
+            end_pos: int = int(end_pos_s)
         except Exception:
             print(f'{ERR}E: invalid value{RES}')
             continue
 
-        if final_pos < min_pos or final_pos > max_pos:
+        if end_pos < min_pos or end_pos > max_pos:
             print(f'{ERR}E: invalid value{RES}')
             continue
 
-        return final_pos
+        return end_pos
 
 
 def get_comments_bytes() -> bytes:
@@ -638,7 +638,7 @@ def set_custom_settings(action: int) -> None:
         md['set_fake_mac'] = set_fake_mac
 
 
-def get_salts(i_size: int, final_pos: int, action: int) -> bool:
+def get_salts(i_size: int, end_pos: int, action: int) -> bool:
     """
     """
     if DEBUG:
@@ -677,7 +677,7 @@ def get_salts(i_size: int, final_pos: int, action: int) -> bool:
         if action == 3:
             new_pos: int = i_size - SALTS_HALF_SIZE
         else:  # 7
-            new_pos = final_pos - SALTS_HALF_SIZE
+            new_pos = end_pos - SALTS_HALF_SIZE
 
         # move to the beginning of footer_salt
         if not seek_pos(iod['i'], new_pos):
@@ -1206,8 +1206,8 @@ def encrypt_and_embed(action: int) -> bool:
 
     comments_bytes: Optional[bytes] = None
     ciphertext_size: Optional[int] = None
-    init_pos: Optional[int] = None
-    final_pos: Optional[int] = None
+    start_pos: Optional[int] = None
+    end_pos: Optional[int] = None
 
     set_custom_settings(action)
 
@@ -1239,7 +1239,7 @@ def encrypt_and_embed(action: int) -> bool:
                       f'cryptoblob size is {MIN_VALID_CRYPTOBLOB_SIZE} '
                       f'bytes){RES}')
             else:  # 7
-                print(f'{ERR}E: inporrect initial/final positions (min '
+                print(f'{ERR}E: inporrect start/end positions (min '
                       f'valid cryptoblob size is '
                       f'{MIN_VALID_CRYPTOBLOB_SIZE} B){RES}')
             return False
@@ -1251,44 +1251,44 @@ def encrypt_and_embed(action: int) -> bool:
         o_file, o_size, iod['o'] = get_output_file_exist(
             i_file, max_cryptoblob_size, action
         )
-        max_init_pos: int = o_size - max_cryptoblob_size
+        max_start_pos: int = o_size - max_cryptoblob_size
         print(f'{ITA}I: path: "{o_file}"{RES}')
     else:  # 7
         o_file, iod['o'] = get_output_file_new(action)
-        max_init_pos = i_size - MIN_VALID_CRYPTOBLOB_SIZE
+        max_start_pos = i_size - MIN_VALID_CRYPTOBLOB_SIZE
         print(f'{ITA}I: new file "{o_file}" has been created{RES}')
 
     if action == 6:
         print(f'{ITA}I: size: {string_size(o_size)}{RES}')
 
     if action in (6, 7):
-        init_pos = get_init_pos(max_init_pos, no_default=True)
+        start_pos = get_start_pos(max_start_pos, no_default=True)
 
-        print(f'{ITA}I: initial position: {init_pos}{RES}')
+        print(f'{ITA}I: start position: {start_pos}{RES}')
 
     if action == 7:
-        final_pos = get_final_pos(
-            min_pos=init_pos + MIN_VALID_CRYPTOBLOB_SIZE,
+        end_pos = get_end_pos(
+            min_pos=start_pos + MIN_VALID_CRYPTOBLOB_SIZE,
             max_pos=i_size,
             no_default=True
         )
-        print(f'{ITA}I: final position: {final_pos}{RES}')
+        print(f'{ITA}I: end position: {end_pos}{RES}')
 
     if action in (2, 6):
         comments_bytes = get_comments_bytes()
 
     if action == 6:
-        if not seek_pos(iod['o'], init_pos):
+        if not seek_pos(iod['o'], start_pos):
             return False
     if action == 7:
-        if not seek_pos(iod['i'], init_pos):
+        if not seek_pos(iod['i'], start_pos):
             return False
 
     if DEBUG and action in (6, 7):
-        print(f'{ITA}D: pointers set to initial positions{RES}')
+        print(f'{ITA}D: pointers set to start positions{RES}')
         print_positions()
 
-    if not get_salts(i_size, final_pos, action):
+    if not get_salts(i_size, end_pos, action):
         return False
 
     get_argon2_password()
@@ -1303,8 +1303,8 @@ def encrypt_and_embed(action: int) -> bool:
     ok: bool = encrypt_and_embed_handler(
         action,
         i_size,
-        init_pos,
-        final_pos,
+        start_pos,
+        end_pos,
         ciphertext_size,
         comments_bytes,
     )
@@ -1315,8 +1315,8 @@ def encrypt_and_embed(action: int) -> bool:
 def encrypt_and_embed_handler(
     action: int,
     i_size: int,
-    init_pos: Optional[int],
-    final_pos: Optional[int],
+    start_pos: Optional[int],
+    end_pos: Optional[int],
     ciphertext_size: Optional[int],
     comments_bytes: Optional[bytes],
 ) -> bool:
@@ -1352,7 +1352,7 @@ def encrypt_and_embed_handler(
             padded_ciphertext_size: int = i_size - SALTS_SIZE - MAC_TAG_SIZE
         else:  # 7
             padded_ciphertext_size = (
-                final_pos - init_pos - SALTS_SIZE - MAC_TAG_SIZE)
+                end_pos - start_pos - SALTS_SIZE - MAC_TAG_SIZE)
 
         pad_size = pad_from_padded_ciphertext(
             padded_ciphertext_size,
@@ -1374,7 +1374,7 @@ def encrypt_and_embed_handler(
     elif action == 3:
         cryptoblob_size = i_size
     else:  # 7
-        cryptoblob_size = final_pos - init_pos
+        cryptoblob_size = end_pos - start_pos
 
     if action in (2, 6):
         contents_size: int = i_size
@@ -1671,10 +1671,10 @@ def encrypt_and_embed_handler(
     # ----------------------------------------------------------------------- #
 
     if action == 6:
-        final_pos = iod['o'].tell()
+        end_pos = iod['o'].tell()
         print(f'{ITA}I: remember the location of the cryptoblob in the '
               f'container:')
-        print(f'    [{init_pos}:{final_pos}]{RES}')
+        print(f'    [{start_pos}:{end_pos}]{RES}')
 
     if action in (3, 7):
         progress(w_sum, output_data_size, t_start)
@@ -1711,56 +1711,56 @@ def embed(action: int) -> bool:
     if action == 4:
         o_file, o_size, iod['o'] = get_output_file_exist(
             i_file, i_size, action)
-        max_init_pos = o_size - i_size
+        max_start_pos = o_size - i_size
         print(f'{ITA}I: path: "{o_file}"{RES}')
     else:  # 5
         o_file, iod['o'] = get_output_file_new(action)
-        max_init_pos = i_size - 1
+        max_start_pos = i_size - 1
         print(f'{ITA}I: new file "{o_file}" has been created{RES}')
 
     if action == 4:
         print(f'{ITA}I: size: {string_size(o_size)}{RES}')
 
-    init_pos: int = get_init_pos(max_init_pos, no_default=True)
-    print(f'{ITA}I: initial position: {init_pos}{RES}')
+    start_pos: int = get_start_pos(max_start_pos, no_default=True)
+    print(f'{ITA}I: start position: {start_pos}{RES}')
 
     if action == 4:
         message_size: int = i_size
-        final_pos: int = init_pos + message_size
-        print(f'{ITA}I: final position: {final_pos}{RES}')
+        end_pos: int = start_pos + message_size
+        print(f'{ITA}I: end position: {end_pos}{RES}')
 
         if not do_continue():
             print(f'{ITA}I: stopped by user request{RES}\n')
             return False
     else:
-        final_pos = get_final_pos(
-            min_pos=init_pos,
+        end_pos = get_end_pos(
+            min_pos=start_pos,
             max_pos=i_size,
             no_default=True
         )
-        print(f'{ITA}I: final position: {final_pos}{RES}')
+        print(f'{ITA}I: end position: {end_pos}{RES}')
 
-        message_size = final_pos - init_pos
+        message_size = end_pos - start_pos
 
         print(f'{ITA}I: message size to retrieve: {message_size} B{RES}')
 
-    ok: bool = embed_handler(action, init_pos, message_size)
+    ok: bool = embed_handler(action, start_pos, message_size)
 
     return ok
 
 
-def embed_handler(action: int, init_pos: int, message_size: int) -> bool:
+def embed_handler(action: int, start_pos: int, message_size: int) -> bool:
     """
     """
     if DEBUG:
         print_positions()
 
-    # seek init_pos in the container
+    # seek start_pos in the container
     if action == 4:
-        if not seek_pos(iod['o'], init_pos):
+        if not seek_pos(iod['o'], start_pos):
             return False
     else:  # 5
-        if not seek_pos(iod['i'], init_pos):
+        if not seek_pos(iod['i'], start_pos):
             return False
 
     if DEBUG:
@@ -1825,11 +1825,11 @@ def embed_handler(action: int, init_pos: int, message_size: int) -> bool:
 
     message_checksum: str = ho.hexdigest()
 
-    final_pos: int = iod['o'].tell()
+    end_pos: int = iod['o'].tell()
 
     if action == 4:
         print(f'{ITA}I: remember the location of the message '
-              f'in the container:\n    [{init_pos}:{final_pos}]')
+              f'in the container:\n    [{start_pos}:{end_pos}]')
 
     print(f'{ITA}I: message checksum:\n    {message_checksum}{RES}')
 
@@ -1904,24 +1904,24 @@ def overwrite_with_random(action: int) -> bool:
         print(f'{ITA}I: nothing to do{RES}')
         return False
 
-    init_pos: int = get_init_pos(
-        max_init_pos=o_size,
+    start_pos: int = get_start_pos(
+        max_start_pos=o_size,
         no_default=False
     )
-    print(f'{ITA}I: initial position: {init_pos}{RES}')
+    print(f'{ITA}I: start position: {start_pos}{RES}')
 
-    if init_pos == o_size:
+    if start_pos == o_size:
         print(f'{ITA}I: nothing to do{RES}')
         return False
 
-    final_pos: int = get_final_pos(
-        min_pos=init_pos,
+    end_pos: int = get_end_pos(
+        min_pos=start_pos,
         max_pos=o_size,
         no_default=False
     )
-    print(f'{ITA}I: final position: {final_pos}{RES}')
+    print(f'{ITA}I: end position: {end_pos}{RES}')
 
-    data_size: int = final_pos - init_pos
+    data_size: int = end_pos - start_pos
     print(f'{ITA}I: data size to write: {string_size(data_size)}{RES}')
 
     if data_size == 0:
@@ -1932,18 +1932,18 @@ def overwrite_with_random(action: int) -> bool:
         print(f'{ITA}I: stopped by user request{RES}')
         return False
 
-    ok: bool = overwrite_with_random_handler(init_pos, data_size)
+    ok: bool = overwrite_with_random_handler(start_pos, data_size)
 
     return ok
 
 
-def overwrite_with_random_handler(init_pos: int, data_size: int) -> bool:
+def overwrite_with_random_handler(start_pos: int, data_size: int) -> bool:
     """
     """
     if DEBUG:
         print_positions()
 
-    if not seek_pos(iod['o'], init_pos):
+    if not seek_pos(iod['o'], start_pos):
         return False
 
     if DEBUG:
