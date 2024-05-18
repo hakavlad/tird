@@ -3,7 +3,7 @@
 
 ---
 
-### [01] Select an action to perform from the MENU list
+### [01] Select an action
 
 ---
 
@@ -31,11 +31,11 @@
 
 ---
 
-### [08] Initial position
+### [08] Start position
 
 ---
 
-### [09] Final position
+### [09] End position
 
 ---
 
