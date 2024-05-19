@@ -25,6 +25,171 @@ from nacl.pwhash import argon2id
 # pylint: disable=too-many-return-statements
 # pylint: disable=too-many-statements
 
+
+# Define constants
+# --------------------------------------------------------------------------- #
+
+
+WIN32: bool = bool(platform == 'win32')
+
+if WIN32:
+    BOL: str = ''
+    ITA: str = ''
+    ERR: str = ''
+    WAR: str = ''
+    RES: str = ''
+else:
+    BOL = '\033[1m'  # bold text
+    ITA = '\033[3m'  # italic text
+    ERR = '\033[1;3;97;101m'  # bold italic white text, red background
+    WAR = '\033[1;3;93;40m'  # bold italic yellow text, black background
+    RES = '\033[0m'  # reset
+
+
+DEBUG: bool = False
+
+if not argv[1:]:
+    pass
+elif argv[1:] == ['-d'] or argv[1:] == ['--debug']:
+    DEBUG = True
+else:
+    print(f'{ERR}E: invalid command line options: {argv[1:]}{RES}')
+    exit(1)
+
+
+VERSION: str = '0.13.0'
+
+INFO: str = f"""{ITA}I: tird v{VERSION}
+    A tool for encrypting files and hiding encrypted data.
+    Homepage: https://github.com/hakavlad/tird{RES}"""
+
+DEBUG_INFO: str = f"""{ITA}D: Python version {version}{RES}"""
+
+WARNINGS: str = f"""{WAR}W: warnings:{RES}
+{WAR}    - The author is not a cryptographer.{RES}
+{WAR}    - tird has not been independently audited.{RES}
+{WAR}    - tird probably won't help much when used in a compromised \
+environment.{RES}
+{WAR}    - tird probably won't help much when used with short and \
+predictable keys.{RES}
+{WAR}    - Sensitive data may leak into the swap space.{RES}
+{WAR}    - tird does not erase sensitive data from memory after use.{RES}
+{WAR}    - tird always releases unverified plaintext (violates The \
+Cryptographic Doom Principle).{RES}
+{WAR}    - Padding is not used to create a MAC tag (only ciphertext and \
+salt will be authenticated).{RES}
+{WAR}    - tird does not sort digests of keyfiles and passphrases in \
+constant-time.{RES}
+{WAR}    - Overwriting file contents does not mean securely destroying the \
+data on the media.{RES}
+{WAR}    - Development is not complete, there may be backward compatibility \
+issues in the future.{RES}"""
+
+MENU: str = f"""{BOL}
+                       MENU
+    ———————————————————————————————————————————
+    0. Exit              1. Info & warnings
+    2. Encrypt           3. Decrypt
+    4. Embed             5. Extract
+    6. Encrypt & embed   7. Extract & decrypt
+    8. Create w/ random  9. Overwrite w/ random
+    ———————————————————————————————————————————
+[01] Select an option [0-9]:{RES} """
+
+
+A0_DESCRIPTION: str = f"""{ITA}I: action #0:\n\
+    exit{RES}"""
+
+A1_DESCRIPTION: str = f"""{ITA}I: action #1:\n\
+    displaying info and warnings{RES}"""
+
+A2_DESCRIPTION: str = f"""{ITA}I: action #2:\n\
+    encrypt file contents and comments;\n\
+    write the cryptoblob to a new file{RES}"""
+
+A3_DESCRIPTION: str = f"""{ITA}I: action #3:\n\
+    decrypt cryptoblob;\n\
+    display the decrypted comments and\n\
+    write the decrypted contents to a new file{RES}"""
+
+A4_DESCRIPTION: str = f"""{ITA}I: action #4:\n\
+    embed file contents (no encryption):\n\
+    write input file contents over output file contents{RES}"""
+
+A5_DESCRIPTION: str = f"""{ITA}I: action #5:\n\
+    extract file contents (no decryption) to a new file{RES}"""
+
+A6_DESCRIPTION: str = f"""{ITA}I: action #6:\n\
+    encrypt file contents and comments;\n\
+    write the cryptoblob over a container{RES}"""
+
+A7_DESCRIPTION: str = f"""{ITA}I: action #7:\n\
+    extract and decrypt cryptoblob;\n\
+    display the decrypted comments and\n\
+    write the decrypted contents to a new file{RES}"""
+
+A8_DESCRIPTION: str = f"""{ITA}I: action #8:\n\
+    create a file with random data{RES}"""
+
+A9_DESCRIPTION: str = f"""{ITA}I: action #9:\n\
+    overwrite file contents with random data{RES}"""
+
+
+INVALID_UTF8_BYTE: bytes = b'\xff'
+
+iod: dict = {}  # I/O file objects
+sd: dict = {}  # salts
+md: dict = {}  # miscellaneous
+
+K: int = 2 ** 10
+M: int = 2 ** 20
+G: int = 2 ** 30
+
+MIN_PRINT_INTERVAL: float = 5.0
+
+BYTEORDER: str = 'little'
+
+COMMENTS_SIZE: int = 512
+
+# Salt constants
+ONE_SALT_HALF_SIZE: int = 8
+ONE_SALT_SIZE: int = ONE_SALT_HALF_SIZE * 2
+SALTS_HALF_SIZE: int = ONE_SALT_HALF_SIZE * 2
+SALTS_SIZE: int = ONE_SALT_SIZE * 2
+
+# ChaCha20 constants
+ENC_KEY_SIZE: int = 32
+NONCE_SIZE: int = 12
+NONCE_COUNTER_INIT_VALUE: int = 0
+RW_CHUNK_SIZE: int = K * 128
+
+# Default values for custom options
+DEFAULT_ARGON2_TIME_COST: int = 4
+DEFAULT_MAX_PAD_SIZE_PERCENT: int = 20
+DEFAULT_SET_FAKE_MAC: bool = False
+
+# BLAKE2b constants
+PERSON_SIZE: int = 16
+PERSON_KEYFILE: bytes = b'K' * PERSON_SIZE
+PERSON_PASSPHRASE: bytes = b'P' * PERSON_SIZE
+IKM_DIGEST_SIZE: int = 64
+MAC_KEY_SIZE: int = 64
+MAC_TAG_SIZE: int = 64
+EMBED_DIGEST_SIZE: int = 32
+
+# Padding constants
+PAD_KEY_HALF_SIZE: int = 16
+PAD_KEY_SIZE: int = PAD_KEY_HALF_SIZE * 2
+PAD_KEY_SPACE: int = 256 ** PAD_KEY_HALF_SIZE
+
+# Argon2 constants
+ARGON2_MEM: int = M * 512
+ARGON2_TAG_SIZE: int = ENC_KEY_SIZE + PAD_KEY_SIZE + MAC_KEY_SIZE
+
+MIN_VALID_CRYPTOBLOB_SIZE: int = SALTS_SIZE + COMMENTS_SIZE + MAC_TAG_SIZE
+
+
+# Handle files: open, seek, read etc.
 # --------------------------------------------------------------------------- #
 
 
@@ -123,6 +288,7 @@ def fsync_data() -> bool:
         return False
 
 
+# Handle user input
 # --------------------------------------------------------------------------- #
 
 
@@ -598,6 +764,7 @@ def get_output_file_size() -> int:
         return o_size
 
 
+# Handle various things to perform actions
 # --------------------------------------------------------------------------- #
 
 
@@ -899,13 +1066,13 @@ def get_argon2_password() -> None:
     """
     digest_list: list = get_ikm_digest_list()
 
-    print(f'{ITA}I: receiving keying material is completed{RES}')
+    print(f'{ITA}I: entering keying material is completed{RES}')
 
     if not digest_list:
         print(f'{WAR}W: no keyfile or passphrase specified!{RES}')
 
     if DEBUG:
-        print(f'{ITA}D: receiving user input is completed{RES}')
+        print(f'{ITA}D: user input is complete{RES}')
         print_positions()
 
     digest_list.sort()
@@ -1196,6 +1363,7 @@ def print_positions() -> None:
         print(f'{ITA}D: current position: of={o}{RES}')
 
 
+# Perform actions: high-level functions
 # --------------------------------------------------------------------------- #
 
 
@@ -1996,6 +2164,7 @@ def overwrite_with_random_handler(start_pos: int, data_size: int) -> bool:
     return True
 
 
+# Handle signals and main()
 # --------------------------------------------------------------------------- #
 
 
@@ -2061,167 +2230,6 @@ def main() -> NoReturn:
         if ok:
             print(f'{ITA}I: action is completed{RES}')
 
-
-# --------------------------------------------------------------------------- #
-
-
-WIN32: bool = bool(platform == 'win32')
-
-if WIN32:
-    BOL: str = ''
-    ITA: str = ''
-    ERR: str = ''
-    WAR: str = ''
-    RES: str = ''
-else:
-    BOL = '\033[1m'  # bold text
-    ITA = '\033[3m'  # italic text
-    ERR = '\033[1;3;97;101m'  # bold italic white text, red background
-    WAR = '\033[1;3;93;40m'  # bold italic yellow text, black background
-    RES = '\033[0m'  # reset
-
-
-DEBUG: bool = False
-
-if not argv[1:]:
-    pass
-elif argv[1:] == ['-d'] or argv[1:] == ['--debug']:
-    DEBUG = True
-else:
-    print(f'{ERR}E: invalid command line options: {argv[1:]}{RES}')
-    exit(1)
-
-
-VERSION: str = '0.13.0'
-
-INFO: str = f"""{ITA}I: tird v{VERSION}
-    A tool for encrypting files and hiding encrypted data.
-    Homepage: https://github.com/hakavlad/tird{RES}"""
-
-DEBUG_INFO: str = f"""{ITA}D: Python version {version}{RES}"""
-
-WARNINGS: str = f"""{WAR}W: warnings:{RES}
-{WAR}    - The author is not a cryptographer.{RES}
-{WAR}    - tird has not been independently audited.{RES}
-{WAR}    - tird probably won't help much when used in a compromised \
-environment.{RES}
-{WAR}    - tird probably won't help much when used with short and \
-predictable keys.{RES}
-{WAR}    - Sensitive data may leak into the swap space.{RES}
-{WAR}    - tird does not erase sensitive data from memory after use.{RES}
-{WAR}    - tird always releases unverified plaintext (violates The \
-Cryptographic Doom Principle).{RES}
-{WAR}    - Padding is not used to create a MAC tag (only ciphertext and \
-salt will be authenticated).{RES}
-{WAR}    - tird does not sort digests of keyfiles and passphrases in \
-constant-time.{RES}
-{WAR}    - Overwriting file contents does not mean securely destroying the \
-data on the media.{RES}
-{WAR}    - Development is not complete, there may be backward compatibility \
-issues in the future.{RES}"""
-
-MENU: str = f"""{BOL}
-                       MENU
-    ———————————————————————————————————————————
-    0. Exit              1. Info & warnings
-    2. Encrypt           3. Decrypt
-    4. Embed             5. Extract
-    6. Encrypt & embed   7. Extract & decrypt
-    8. Create w/ random  9. Overwrite w/ random
-    ———————————————————————————————————————————
-[01] Select an option [0-9]:{RES} """
-
-
-A0_DESCRIPTION: str = f"""{ITA}I: action #0:\n\
-    exit{RES}"""
-
-A1_DESCRIPTION: str = f"""{ITA}I: action #1:\n\
-    displaying info and warnings{RES}"""
-
-A2_DESCRIPTION: str = f"""{ITA}I: action #2:\n\
-    encrypt file contents and comments;\n\
-    write the cryptoblob to a new file{RES}"""
-
-A3_DESCRIPTION: str = f"""{ITA}I: action #3:\n\
-    decrypt cryptoblob;\n\
-    display the decrypted comments and\n\
-    write the decrypted contents to a new file{RES}"""
-
-A4_DESCRIPTION: str = f"""{ITA}I: action #4:\n\
-    embed file contents (no encryption):\n\
-    write input file contents over output file contents{RES}"""
-
-A5_DESCRIPTION: str = f"""{ITA}I: action #5:\n\
-    extract file contents (no decryption) to a new file{RES}"""
-
-A6_DESCRIPTION: str = f"""{ITA}I: action #6:\n\
-    encrypt file contents and comments;\n\
-    write the cryptoblob over a container{RES}"""
-
-A7_DESCRIPTION: str = f"""{ITA}I: action #7:\n\
-    extract and decrypt cryptoblob;\n\
-    display the decrypted comments and\n\
-    write the decrypted contents to a new file{RES}"""
-
-A8_DESCRIPTION: str = f"""{ITA}I: action #8:\n\
-    create a file with random data{RES}"""
-
-A9_DESCRIPTION: str = f"""{ITA}I: action #9:\n\
-    overwrite file contents with random data{RES}"""
-
-
-INVALID_UTF8_BYTE: bytes = b'\xff'
-
-iod: dict = {}  # I/O file objects
-sd: dict = {}  # salts
-md: dict = {}  # miscellaneous
-
-K: int = 2 ** 10
-M: int = 2 ** 20
-G: int = 2 ** 30
-
-MIN_PRINT_INTERVAL: float = 5.0
-
-BYTEORDER: str = 'little'
-
-COMMENTS_SIZE: int = 512
-
-# Salt constants
-ONE_SALT_HALF_SIZE: int = 8
-ONE_SALT_SIZE: int = ONE_SALT_HALF_SIZE * 2
-SALTS_HALF_SIZE: int = ONE_SALT_HALF_SIZE * 2
-SALTS_SIZE: int = ONE_SALT_SIZE * 2
-
-# ChaCha20 constants
-ENC_KEY_SIZE: int = 32
-NONCE_SIZE: int = 12
-NONCE_COUNTER_INIT_VALUE: int = 0
-RW_CHUNK_SIZE: int = K * 128
-
-# Default values for custom options
-DEFAULT_ARGON2_TIME_COST: int = 4
-DEFAULT_MAX_PAD_SIZE_PERCENT: int = 20
-DEFAULT_SET_FAKE_MAC: bool = False
-
-# BLAKE2b constants
-PERSON_SIZE: int = 16
-PERSON_KEYFILE: bytes = b'K' * PERSON_SIZE
-PERSON_PASSPHRASE: bytes = b'P' * PERSON_SIZE
-IKM_DIGEST_SIZE: int = 64
-MAC_KEY_SIZE: int = 64
-MAC_TAG_SIZE: int = 64
-EMBED_DIGEST_SIZE: int = 32
-
-# Padding constants
-PAD_KEY_HALF_SIZE: int = 16
-PAD_KEY_SIZE: int = PAD_KEY_HALF_SIZE * 2
-PAD_KEY_SPACE: int = 256 ** PAD_KEY_HALF_SIZE
-
-# Argon2 constants
-ARGON2_MEM: int = M * 512
-ARGON2_TAG_SIZE: int = ENC_KEY_SIZE + PAD_KEY_SIZE + MAC_KEY_SIZE
-
-MIN_VALID_CRYPTOBLOB_SIZE: int = SALTS_SIZE + COMMENTS_SIZE + MAC_TAG_SIZE
 
 if __name__ == '__main__':
     main()
