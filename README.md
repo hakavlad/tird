@@ -16,16 +16,17 @@ Using `tird` you can:
 1. Create files with random data. Use them as containers or keyfiles.
 2. Overwrite the contents of devices and regular files with random data. This can be used to destroy residual data and prepare containers.
 3. Encrypt file contents and comments with modern cryptographic primitives. The encrypted file format (cryptoblob) is [padded uniform random blob (PURB)](https://en.wikipedia.org/wiki/PURB_(cryptography)): it looks like random data and has randomized size. This reduces metadata leakage through file format and length, and also allows cryptoblobs to be hidden among random data.
-4. Create [steganographic](https://en.wikipedia.org/wiki/Steganography) (hidden, undetectable) user-driven file systems inside container files and devices. Unlike [Veracrypt](https://veracrypt.fr) containers, `tird` containers do not contain headers at all: the user specifies the location of the data in the container and is responsible for ensuring that this location is separated from the container.
+4. Create [steganographic](https://en.wikipedia.org/wiki/Steganography) (hidden, undetectable) user-driven file systems inside container files and devices. Unlike [VeraCrypt](https://veracrypt.fr) containers, `tird` containers do not contain headers at all: the user specifies the location of the data in the container and is responsible for ensuring that this location is separated from the container.
 5. Resist [coercive](https://en.wikipedia.org/wiki/Coercion) attacks (keywords: [key disclosure law](https://en.wikipedia.org/wiki/Key_disclosure_law), [rubber-hose cryptanalysis](https://en.wikipedia.org/wiki/Deniable_encryption), [xkcd 538](https://xkcd.com/538/)). `tird` provides some forms of [plausible deniability](https://en.wikipedia.org/wiki/Plausible_deniability) out of the box even if you encrypt files without hiding them in containers.
 
 ## Goals
 
 - Providing protection for individual files, including:
-  - symmetric encryption;
-  - reducing metadata leakage;
-  - hiding encrypted data;
-  - plausible deniability.
+  - symmetric encryption and authentication;
+  - minimizing metadata leakage;
+  - preventing access to data in case of user coercion;
+  - plausible deniability of payload existence;
+  - hiding encrypted data.
 - Providing a stable encryption format with no [cryptographic agility](https://en.wikipedia.org/wiki/Cryptographic_agility) for long-term data storage.
 - Simplicity and no [feature creep](https://en.wikipedia.org/wiki/Feature_creep): refusal to implement features that are not directly related to primary security goals.
 
@@ -44,49 +45,7 @@ Using `tird` you can:
 
 `tird` encrypted files (cryptoblobs) are indistinguishable from random data and have no identifiable headers. `tird` produces cryptoblobs contain bilateral [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with uniform random data (PURBs). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data.
 
-Cryptoblob structure:
-
-```
-                  512 B        0+ B
-              +——————————+———————————————+
-              | Comments | File contents |
-              +——————————+———————————————+
-  16 B   0+ B |        Plaintext         |  64 B     0+ B   16 B
-+——————+——————+——————————————————————————+—————————+——————+——————+
-| Salt | Pad  |       Ciphertext         | MAC tag | Pad  | Salt |
-+——————+——————+——————————————————————————+—————————+——————+——————+
-| Random data |     Random-looking data            | Random data |
-+—————————————+————————————————————————————————————+—————————————+
-```
-
-Alternative scheme:
-
-```
-+——————————————————————————————+—————————+
-| Salt header: 16 B, 2 parts:  |         |
-| BLAKE2b salt[:8] +           |         |
-| Argon2 salt[:8]              | Random  |
-+——————————————————————————————+ data    |
-| Randomized padding: 0-20%    |         |
-| of the ciphertext size       |         |
-| by default                   |         |
-+——————————————————————————————+—————————+
-| Ciphertext: 512+ B, consists |         |
-| of encrypted padded comments |         |
-| (always 512 B) and encrypted | Random- |
-| payload file contents (0+ B) | looking |
-+——————————————————————————————+ data    |
-| MAC tag: 64 B                |         |
-+——————————————————————————————+—————————+
-| Randomized padding: 0-20%    |         |
-| of the ciphertext size       |         |
-| by default                   | Random  |
-+——————————————————————————————+ data    |
-| Salt footer: 16 B, 2 parts:  |         |
-| BLAKE2b salt[-8:] +          |         |
-| Argon2 salt[-8:]             |         |
-+——————————————————————————————+—————————+
-```
+See the [specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md) for more details.
 
 ## Hidden user-driven file system and container file format
 
@@ -236,7 +195,7 @@ Standalone executables (made with [PyInstaller](https://pyinstaller.org/en/stabl
 
 ## TODO
 
-Write documentation:
+Write or improve the documentation:
 
 - Features;
 - User guide;
