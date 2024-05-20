@@ -1,7 +1,28 @@
 
 # Draft Specification
 
-### Encrypted file format
+- Encrypted file format
+- Payload
+  - Comments
+  - File contents
+- IKM
+  - Keyfiles
+  - Passphrases
+- Salt
+- Key derivation scheme
+- Keys utilization
+  - Padding
+  - Encryption
+  - MAC
+- Layer cake: embed and extract
+  - Just embed and extract (no encryption)
+  - Encrypt & embed, Extract & decrypt
+- Creating files with random data
+- Overwriting file contents with random data
+
+---
+
+## Encrypted file format
 
 Cryptoblob structure:
 
@@ -47,7 +68,70 @@ Alternative scheme:
 +——————————————————————————————+—————————+
 ```
 
-### Key derivation scheme
+```
+cryptoblob = header_salt:16 || header_pad || ciphertext || MAC tag:64 || footer_pad || footer_salt:16
+```
+
+## Payload
+
+Payload consists of Comments up to 512 bytes and File contents from 0 bytes.
+
+### Comments
+
+User can add comments to encrypt it with a cryptoblob.
+
+```
+comments_bytes = (comments || 0xFF || random data)[:512]
+```
+
+### Payload file contents
+
+The payload file could be:
+
+- regular file;
+- block device.
+
+## Input keying material
+
+`tird` can use passhrases and contents of keyfiles to derive one-time keys.
+
+### Keyfiles
+
+User can specify none, one or multiple keyfile paths.
+
+### Passphrases
+
+User can specify none, one or multiple passphrases.
+
+## Salt
+
+Creating `blake2_salt` and `argon2_salt`:
+
+```
+blake2_salt = urandom(16)
+argon2_salt = urandom(16)
+```
+
+Separating salts into `header_salt` and `footer_salt` to write the `header_salt` at the beginning of the cryptoblob, and the `footer_salt` at the end of the cryptoblob:
+
+```
+header_salt = blake2_salt[:8] || argon2_salt[:8]
+footer_salt = blake2_salt[-8:] || argon2_salt[-8:]
+```
+
+When decrypting a cryptoblob, the `header_salt` and the `footer_salt` are read from the beginning and end of the cryptoblob and converted back to `blake2_salt` and `argon2_salt`:
+
+```
+header_salt = cryptoblob[:16]
+footer_salt = cryptoblob[-16:]
+
+blake2_salt = header_salt[:8] || footer_salt[:8]
+argon2_salt = header_salt[-8:] || footer_salt[-8:]
+```
+
+## Key derivation scheme
+
+How to get one-time keys (encryption key, padding key, MAC key) from input keying material and salt.
 
 ```
 passphrase  keyfile1  keyfile2  <-- input keying material (IKM)
@@ -86,7 +170,19 @@ ChaCha20    pad_key1:16  pad_key2:16   keyed BLAKE2b-512
       pad size           header_pad and footer_pad
 ```
 
+## Keys utilization
+
+### Padding
+
 ### Encryption
+
+`tird` uses ChaCha20 from [RFC 7539] with a counter nonce to encrypt a payload.
+
+256-bit encryption key is from Argon2 output.
+
+96-bit nonce is bytes in little-endian from a counter.
+
+nonce `0x010000000000000000000000` used to encrypt comments.
 
 <table>
   <tr> <td>Counter</td> <td>nonce                     </td> <td>Data                           </td> </tr>
@@ -98,14 +194,68 @@ ChaCha20    pad_key1:16  pad_key2:16   keyed BLAKE2b-512
   <tr> <td>5      </td> <td>0x050000000000000000000000</td> <td>File contents chunk3, 0-128 KiB</td> </tr>
 </table>
 
+Decryption never fails.
 
-### Container file format
+### MAC
 
+```
+MAC message = salt_header:16 || salt footer:16 || ciphertext
+```
+
+```
+MAC tag:64 = BLAKE2b(MAC message, MAC key:64)
+```
+
+```
+Fake MAC tag = urandom(64)
+```
+
+## Layer cake: embed and extract
+
+### Just embed and extract (no encryption)
+
+Container file format
 
 ```
 0              start          end
 |              |              |
 +--------------+--------------+----------+
-|              |     msg      |          |
+|              |   message    |          |
 +--------------+--------------+----------+
+```
+
+### Encrypt & embed, Extract & decrypt
+
+Container file format
+
+```
+0              start          end
+|              |              |
++--------------+--------------+----------+
+|              |  cryptoblob  |          |
++--------------+--------------+----------+
+```
+
+Write a cryptoblob over a container file.
+
+## Creating files with random data
+
+Create a new file and write random data with chunks up to 128 KiB.
+
+```
+output file contents = urandom(size)
+```
+
+## Overwriting file contents with random data
+
+Owerwrite file contents with random data from the start position to the end position.
+
+Use chunks up to 128 KiB.
+
+```
+0              start         end
+|              |             |
++--------------+-------------+----------+
+|              | random data |          |
++--------------+-------------+----------+
 ```
