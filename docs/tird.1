@@ -13,10 +13,31 @@ tird - encrypt files and hide encrypted data
 \f[B]tird\f[R] \f[I](an acronym for \[lq]this is random data\[rq])\f[R]
 is a tool for encrypting files and hiding encrypted data.
 .PP
-\f[B]tird\f[R] can create files with random data, overwrite file
-contents with random data, encrypt file contents and comments, hide
-encrypted data among random data, minimize metadata leakage, and can
-provide some forms of plausible deniability.
+Using \f[B]tird\f[R] you can:
+.IP "1." 3
+Create files with random data.
+Use them as containers or keyfiles.
+.IP "2." 3
+Overwrite the contents of devices and regular files with random data.
+This can be used to prepare containers and to destroy residual data.
+.IP "3." 3
+Encrypt file contents and comments with modern cryptographic primitives.
+The encrypted file format (cryptoblob) is padded uniform random blob
+(PURB): it looks like random data and has randomized size.
+This reduces metadata leakage through file format and length, and also
+allows cryptoblobs to be hidden among random data.
+.IP "4." 3
+Create steganographic (hidden, undetectable) user-driven file systems
+inside container files and devices.
+Unlike VeraCrypt and Shufflecake containers, \f[B]tird\f[R] containers
+do not contain headers at all: the user specifies the location of the
+data in the container and is responsible for ensuring that this location
+is separated from the container.
+.IP "5." 3
+Resist coercive attacks (keywords: key disclosure law, rubber-hose
+cryptanalysis, xkcd 538).
+\f[B]tird\f[R] provides some forms of plausible deniability out of the
+box even if you encrypt files without hiding them in containers.
 .SH COMMAND-LINE OPTIONS
 .SS -d, \[en]debug
 .PP
@@ -26,13 +47,15 @@ print debug messages
 Providing protection for individual files, including:
 .RS 2
 .IP \[bu] 2
-symmetric encryption;
+symmetric encryption and authentication;
 .IP \[bu] 2
-reducing metadata leakage;
+minimizing metadata leakage;
 .IP \[bu] 2
-hiding encrypted data;
+preventing access to data in case of user coercion;
 .IP \[bu] 2
-plausible deniability.
+plausible deniability of payload existence;
+.IP \[bu] 2
+hiding encrypted data.
 .RE
 .IP \[bu] 2
 Providing a stable encryption format with no cryptographic agility for
@@ -53,6 +76,54 @@ questions that \f[B]tird\f[R] will ask:
 $ tird
 \f[R]
 .fi
+.SH HIDDEN USER-DRIVEN FILE SYSTEM AND CONTAINER FILE FORMAT
+.PP
+You can encrypt files and write cryptoblobs over containers starting
+with arbitary positions.
+After finishing writing the cryptoblob, you will be asked to remember
+the location of the cryptoblob in the container (positions of the
+beginning and end of the cryptoblob), which can be used in the future to
+extract the cryptoblob.
+In this way, you can create a hidden user-driven file system inside a
+container.
+.PP
+It is hidden because it is impossible to distinguish between random
+container data and random cryptoblob data, and it is impossible to
+determine the location of written cryptoblobs without knowing the
+positions and keys.
+.PP
+Containers do not contain any headers, all data about cryptoblob
+locations must be stored separately by the user.
+.PP
+The location of the start of the cryptoblob in the container is
+user-defined, and the location of the start and end positions of the
+cryptoblob must be stored by the user separately from the container.
+This is why this \[lq]file system\[rq] is called a user-driven file
+system.
+.PP
+Container structure (as an example):
+.IP
+.nf
+\f[C]
++\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+\[em] Position 0
+|         |             |
+|         | Random data |
+|         |             |
+|         +\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+\[em] Cryptoblob1 start position
+| Header- |             |
+| less    | Cryptoblob1 |
+|         |             |
+| Layer   +\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+\[em] Cryptoblob1 end position
+|         | Random data |
+| Cake    +\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+\[em] Cryptoblob2 start position
+|         |             |
+|         | Cryptoblob2 |
+|         |             |
+|         +\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+\[em] Cryptoblob2 end position
+|         | Random data |
++\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+
+\f[R]
+.fi
 .SH DEBUG
 .PP
 Start \f[B]tird\f[R] with the option \f[B]\[en]debug\f[R] or
@@ -63,6 +134,18 @@ Start \f[B]tird\f[R] with the option \f[B]\[en]debug\f[R] or
 $ tird -d
 \f[R]
 .fi
+.PP
+Enabling debug messages additionally shows:
+.IP \[bu] 2
+opening and closing file descriptors;
+.IP \[bu] 2
+real paths to opened files;
+.IP \[bu] 2
+moving file pointers using the seek() method;
+.IP \[bu] 2
+salts, passphrases, digests, keys, nonces, tags;
+.IP \[bu] 2
+some other info.
 .SH TRADEOFFS AND LIMITATIONS
 .IP \[bu] 2
 \f[B]tird\f[R] does not support public-key cryptography.
@@ -83,14 +166,12 @@ overwritten, cannot be encrypted or hidden).
 .IP \[bu] 2
 \f[B]tird\f[R] does not provide a password generator.
 .IP \[bu] 2
-\f[B]tird\f[R] does not wipe sensitive data from the heap.
-.IP \[bu] 2
 \f[B]tird\f[R] can only encrypt one file per iteration.
 Encryption of directories and multiple files is not supported.
 .IP \[bu] 2
 \f[B]tird\f[R] does not fake file timestamps (atime, mtime, ctime).
 .IP \[bu] 2
-\f[B]tird\f[R] encryption speed is not very fast: up to 180 MiB/s (in my
+\f[B]tird\f[R] encryption speed is not very fast (up to 180 MiB/s in my
 tests).
 .SH WARNINGS
 .IP \[bu] 2
@@ -104,16 +185,24 @@ environment.
 \f[B]tird\f[R] probably won\[cq]t help much when used with short and
 predictable keys.
 .IP \[bu] 2
-Keys may leak into the swap space.
+Sensitive data may leak into the swap space.
+.IP \[bu] 2
+\f[B]tird\f[R] does not erase sensitive data from memory after use.
 .IP \[bu] 2
 \f[B]tird\f[R] always releases unverified plaintext (violates The
 Cryptographic Doom Principle).
 .IP \[bu] 2
-\f[B]tird\f[R] does not sort digests of keyfiles and passphrases in
-constant time.
+Padding is not used to create a MAC tag (only ciphertext and salt will
+be authenticated).
 .IP \[bu] 2
-Development is ongoing, there may be backward compatibility issues in
-the future.
+\f[B]tird\f[R] does not sort digests of keyfiles and passphrases in
+constant-time.
+.IP \[bu] 2
+Overwriting file contents does not mean securely destroying the data on
+the media.
+.IP \[bu] 2
+Development is not complete, there may be backward compatibility issues
+in the future.
 .SH REQUIREMENTS
 .IP \[bu] 2
 Python >= 3.6
@@ -126,7 +215,7 @@ PyCryptodomex >= 3.6.2
 Please report bugs at <https://github.com/hakavlad/tird/issues>.
 .SH FEEDBACK
 .PP
-Feel free to post any questions, feedback or criticisms at
+Feel free to post any questions, reviews, or criticisms at
 <https://github.com/hakavlad/tird/discussions>.
 .SH AUTHOR
 .PP
