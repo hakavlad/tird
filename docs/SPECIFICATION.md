@@ -43,7 +43,7 @@ Alternative scheme:
 
 ```
 +——————————————————————————————+—————————+
-| Salt header: 16 B, 2 parts:  |         |
+| Header salt: 16 B, 2 parts:  |         |
 | BLAKE2b salt[:8] +           |         |
 | Argon2 salt[:8]              | Random  |
 +——————————————————————————————+ data    |
@@ -62,14 +62,14 @@ Alternative scheme:
 | of the ciphertext size       |         |
 | by default                   | Random  |
 +——————————————————————————————+ data    |
-| Salt footer: 16 B, 2 parts:  |         |
+| Footer salt: 16 B, 2 parts:  |         |
 | BLAKE2b salt[-8:] +          |         |
 | Argon2 salt[-8:]             |         |
 +——————————————————————————————+—————————+
 ```
 
 ```
-cryptoblob = header_salt:16 || header_pad || ciphertext || MAC tag:64 || footer_pad || footer_salt:16
+cryptoblob = header_salt || header_pad || ciphertext || MAC tag || footer_pad || footer_salt
 ```
 
 ## Payload
@@ -182,16 +182,14 @@ ChaCha20    pad_key1:16  pad_key2:16   keyed BLAKE2b-512
 
 96-bit nonce is bytes in little-endian from a counter.
 
-nonce `0x010000000000000000000000` used to encrypt comments.
-
 <table>
-  <tr> <td>Counter</td> <td>nonce                     </td> <td>Data                           </td> </tr>
-  <tr> <td>0      </td> <td>                          </td> <td>Init value, not used           </td> </tr>
-  <tr> <td>1      </td> <td>0x010000000000000000000000</td> <td>Comments, 512 B                </td> </tr>
-  <tr> <td>2      </td> <td>0x020000000000000000000000</td> <td>File contents chunk0, 128 KiB  </td> </tr>
-  <tr> <td>3      </td> <td>0x030000000000000000000000</td> <td>File contents chunk1, 128 KiB  </td> </tr>
-  <tr> <td>4      </td> <td>0x040000000000000000000000</td> <td>File contents chunk2, 128 KiB  </td> </tr>
-  <tr> <td>5      </td> <td>0x050000000000000000000000</td> <td>File contents chunk3, 0-128 KiB</td> </tr>
+  <tr> <td>Counter</td> <td>nonce                                  </td> <td>Data                           </td> </tr>
+  <tr> <td>0      </td> <td>                                       </td> <td>Init value, not used           </td> </tr>
+  <tr> <td>1      </td> <td><code>0x010000000000000000000000</code></td> <td>Comments, 512 B                </td> </tr>
+  <tr> <td>2      </td> <td><code>0x020000000000000000000000</code></td> <td>File contents chunk0, 128 KiB  </td> </tr>
+  <tr> <td>3      </td> <td><code>0x030000000000000000000000</code></td> <td>File contents chunk1, 128 KiB  </td> </tr>
+  <tr> <td>4      </td> <td><code>0x040000000000000000000000</code></td> <td>File contents chunk2, 128 KiB  </td> </tr>
+  <tr> <td>5      </td> <td><code>0x050000000000000000000000</code></td> <td>File contents chunk3, 0-128 KiB</td> </tr>
 </table>
 
 Decryption never fails.
@@ -199,11 +197,11 @@ Decryption never fails.
 ### MAC
 
 ```
-MAC message = salt_header:16 || salt footer:16 || ciphertext
+MAC message = salt_header || salt_footer || ciphertext
 ```
 
 ```
-MAC tag:64 = BLAKE2b(MAC message, MAC key:64)
+MAC tag = BLAKE2b-512(MAC message, MAC key)
 ```
 
 ```
