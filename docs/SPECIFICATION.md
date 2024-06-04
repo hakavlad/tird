@@ -1,6 +1,7 @@
 
 # Draft Specification
 
+- Conventions used in this document
 - Encrypted file format
 - Payload
   - Comments
@@ -19,6 +20,18 @@
   - Encrypt & embed, Extract & decrypt
 - Creating files with random data
 - Overwriting file contents with random data
+
+---
+
+## Conventions used in this document
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [BCP 14](https://www.rfc-editor.org/info/bcp14) [[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119)] [[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174)] when, and only when, they appear in all capitals, as shown here.
+
+`||` denotes concatenation.
+`=` denotes assignment.
+`,` denotes separate parameters.
+`0x` followed by two hexadecimal characters denotes a byte value in the 0-255 range.
+`++` denotes incremented by one in little-endian.
 
 ---
 
@@ -72,6 +85,8 @@ Alternative scheme:
 cryptoblob = header_salt || header_pad || ciphertext || MAC tag || footer_pad || footer_salt
 ```
 
+---
+
 ## Payload
 
 Payload consists of Comments up to 512 bytes and File contents from 0 bytes.
@@ -91,6 +106,8 @@ The payload file could be:
 - regular file;
 - block device.
 
+---
+
 ## Input keying material
 
 `tird` can use passhrases and contents of keyfiles to derive one-time keys.
@@ -102,6 +119,8 @@ User can specify none, one or multiple keyfile paths.
 ### Passphrases
 
 User can specify none, one or multiple passphrases.
+
+---
 
 ## Salt
 
@@ -128,6 +147,8 @@ footer_salt = cryptoblob[-16:]
 blake2_salt = header_salt[:8] || footer_salt[:8]
 argon2_salt = header_salt[-8:] || footer_salt[-8:]
 ```
+
+---
 
 ## Key derivation scheme
 
@@ -170,6 +191,8 @@ ChaCha20    pad_key1:16  pad_key2:16   keyed BLAKE2b-512
       pad size           header_pad and footer_pad
 ```
 
+---
+
 ## Keys utilization
 
 ### Padding
@@ -208,6 +231,8 @@ MAC tag = BLAKE2b-512(MAC message, MAC key)
 Fake MAC tag = urandom(64)
 ```
 
+---
+
 ## Layer cake: embed and extract
 
 ### Just embed and extract (no encryption)
@@ -215,26 +240,28 @@ Fake MAC tag = urandom(64)
 Container file format
 
 ```
-0              start          end
-|              |              |
-+--------------+--------------+----------+
-|              |   message    |          |
-+--------------+--------------+----------+
+0    start      end     start      end
+|    |          |       |          |
++----+----------+-------+----------+-----+
+|    | message1 |       | message2 |     |
++----+----------+-------+----------+-----+
 ```
 
 ### Encrypt & embed, Extract & decrypt
 
-Container file format
+Container file format:
 
 ```
-0              start          end
-|              |              |
-+--------------+--------------+----------+
-|              |  cryptoblob  |          |
-+--------------+--------------+----------+
+0    start         end     start         end
+|    |             |       |             |
++----+-------------+-------+-------------+------+
+|    | cryptoblob1 |       | cryptoblob2 |      |
++----+-------------+-------+-------------+------+
 ```
 
 Write a cryptoblob over a container file.
+
+---
 
 ## Creating files with random data
 
@@ -244,6 +271,8 @@ Create a new file and write random data with chunks up to 128 KiB.
 output file contents = urandom(size)
 ```
 
+---
+
 ## Overwriting file contents with random data
 
 Owerwrite file contents with random data from the start position to the end position.
@@ -251,9 +280,9 @@ Owerwrite file contents with random data from the start position to the end posi
 Use chunks up to 128 KiB.
 
 ```
-0              start         end
-|              |             |
-+--------------+-------------+----------+
-|              | random data |          |
-+--------------+-------------+----------+
+0       start         end
+|       |             |
++-------+-------------+-----+
+|       | random data |     |
++-------+-------------+-----+
 ```
