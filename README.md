@@ -19,6 +19,8 @@ Using `tird` you can:
 4. Create [steganographic](https://en.wikipedia.org/wiki/Steganography) (hidden, undetectable) user-driven file systems inside container files and devices. Unlike [VeraCrypt](https://veracrypt.fr) and [Shufflecake](https://shufflecake.net/) containers, `tird` containers do not contain headers at all: the user specifies the location of the data in the container and is responsible for ensuring that this location is separated from the container.
 5. Resist [coercive](https://en.wikipedia.org/wiki/Coercion) attacks (keywords: [key disclosure law](https://en.wikipedia.org/wiki/Key_disclosure_law), [rubber-hose cryptanalysis](https://en.wikipedia.org/wiki/Deniable_encryption), [xkcd 538](https://xkcd.com/538/)). `tird` provides some forms of [plausible deniability](https://en.wikipedia.org/wiki/Plausible_deniability) out of the box even if you encrypt files without hiding them in containers.
 
+---
+
 ## Goals
 
 - Providing protection for individual files, including:
@@ -29,6 +31,8 @@ Using `tird` you can:
   - hiding encrypted data.
 - Providing a stable encryption format with no [cryptographic agility](https://en.wikipedia.org/wiki/Cryptographic_agility) for long-term data storage.
 - Simplicity and no [feature creep](https://en.wikipedia.org/wiki/Feature_creep): refusal to implement features that are not directly related to primary security goals.
+
+---
 
 ## Cryptographic primitives
 
@@ -41,11 +45,15 @@ Using `tird` you can:
 - `Argon2` memory-hard function ([RFC 9106](https://datatracker.ietf.org/doc/html/rfc9106/)) for key stretching and key derivation.
 - `ChaCha20` cipher ([RFC 7539](https://datatracker.ietf.org/doc/html/rfc7539)) for data encryption.
 
+---
+
 ## Encrypted file format
 
 `tird` encrypted files (cryptoblobs) are indistinguishable from random data and have no identifiable headers. `tird` produces cryptoblobs contain bilateral [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with uniform random data (PURBs). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data.
 
 See the [specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md) for more details.
+
+---
 
 ## Hidden user-driven file system and container file format
 
@@ -80,33 +88,7 @@ Container structure (as an example):
 +—————————+—————————————+
 ```
 
-## Tradeoffs and limitations
-
-- `tird` does not support public-key cryptography.
-- `tird` does not support file compression.
-- `tird` does not support ASCII armored output.
-- `tird` does not support Reed–Solomon error correction.
-- `tird` does not support splitting the output into chunks.
-- `tird` does not support low-level device reading and writing when used on MS Windows (devices cannot be used as keyfiles, cannot be overwritten, cannot be encrypted or hidden).
-- `tird` does not provide a graphical user interface.
-- `tird` does not provide a password generator.
-- `tird` can only encrypt one file per iteration. Encryption of directories and multiple files is not supported.
-- `tird` does not fake file timestamps (atime, mtime, ctime).
-- `tird` encryption speed is not very fast (up to 180 MiB/s in my tests).
-
-## Warnings
-
-- ⚠️ The author is not a cryptographer.
-- ⚠️ `tird` has not been independently audited.
-- ⚠️ `tird` probably won't help much when used in a compromised environment.
-- ⚠️ `tird` probably won't help much when used with short and predictable keys.
-- ⚠️ Sensitive data may leak into the swap space.
-- ⚠️ `tird` does not erase sensitive data from memory after use.
-- ⚠️ `tird` always releases unverified plaintext (violates [The Cryptographic Doom Principle](https://moxie.org/2011/12/13/the-cryptographic-doom-principle.html)).
-- ⚠️ Padding is not used to create a MAC tag (only ciphertext and salt will be authenticated).
-- ⚠️ `tird` does not sort digests of keyfiles and passphrases in constant-time.
-- ⚠️ Overwriting file contents does not mean securely destroying the data on the media.
-- ⚠️ Development is not complete, there may be backward compatibility issues in the future.
+---
 
 ## Usage
 
@@ -119,6 +101,8 @@ $ tird
 ```
 
 ![screenshot: MENU](https://i.imgur.com/h2KG9iy.png)
+
+---
 
 ## Debug
 
@@ -136,6 +120,8 @@ Enabling debug messages additionally shows:
 - salts, passphrases, digests, keys, nonces, tags;
 - some other info.
 
+---
+
 ## Documentation
 
 - [man page](https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md)
@@ -143,11 +129,47 @@ Enabling debug messages additionally shows:
 - [Specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md)
 - [Tutorial](https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md)
 
+---
+
+## Tradeoffs and limitations
+
+- `tird` does not support public-key cryptography.
+- `tird` does not support file compression.
+- `tird` does not support ASCII armored output.
+- `tird` does not support Reed–Solomon error correction.
+- `tird` does not support splitting the output into chunks.
+- `tird` does not support low-level device reading and writing when used on MS Windows (devices cannot be used as keyfiles, cannot be overwritten, cannot be encrypted or hidden).
+- `tird` does not provide a graphical user interface.
+- `tird` does not provide a password generator.
+- `tird` can only encrypt one file per iteration. Encryption of directories and multiple files is not supported.
+- `tird` does not fake file timestamps (atime, mtime, ctime).
+- `tird` encryption speed is not very fast (up to 180 MiB/s in my tests).
+
+---
+
+## Warnings
+
+- ⚠️ The author is not a cryptographer.
+- ⚠️ `tird` has not been independently audited.
+- ⚠️ `tird` probably won't help much when used in a compromised environment.
+- ⚠️ `tird` probably won't help much when used with short and predictable keys.
+- ⚠️ Sensitive data may leak into the swap space.
+- ⚠️ `tird` does not erase sensitive data from memory after use.
+- ⚠️ `tird` always releases unverified plaintext (violates [The Cryptographic Doom Principle](https://moxie.org/2011/12/13/the-cryptographic-doom-principle.html)).
+- ⚠️ Padding is not used to create a MAC tag (only ciphertext and salt will be authenticated).
+- ⚠️ `tird` does not sort digests of keyfiles and passphrases in constant-time.
+- ⚠️ Overwriting file contents does not mean securely destroying the data on the media.
+- ⚠️ Development is not complete, there may be backward compatibility issues in the future.
+
+---
+
 ## Requirements
 
 - Python >= 3.6
 - [PyNaCl](https://pypi.org/project/PyNaCl/) >= 1.2.0 (provides `Argon2`)
 - [PyCryptodomex](https://pypi.org/project/pycryptodomex/) >= 3.6.2 (provides `ChaCha20`)
+
+---
 
 ## Installation
 
@@ -193,6 +215,8 @@ Standalone executables (made with [PyInstaller](https://pyinstaller.org/en/stabl
 
 ![tird.exe](https://i.imgur.com/hjnarbH.png)
 
+---
+
 ## TODO
 
 Write or improve the documentation:
@@ -202,10 +226,8 @@ Write or improve the documentation:
 - Specification;
 - Design rationale.
 
+---
+
 ## Feedback
 
 Feel free to post any questions, reviews, or criticisms in the [Discussions](https://github.com/hakavlad/tird/discussions).
-
-## License
-
-This project is licensed under the terms of the [Creative Commons Zero v1.0 Universal License](https://github.com/hakavlad/tird/blob/main/LICENSE) (Public Domain Dedication).
