@@ -235,9 +235,9 @@ Fake MAC tag = urandom(64)
 
 ## Layer cake: embed and extract
 
-### Just embed and extract (no encryption)
+### Embed (no encryption)
 
-Container file format
+Container file format:
 
 ```
 0    start      end     start      end
@@ -247,7 +247,9 @@ Container file format
 +----+----------+-------+----------+-----+
 ```
 
-### Encrypt & embed, Extract & decrypt
+Write input file contents over a container file.
+
+### Encrypt and embed
 
 Container file format:
 
