@@ -1,5 +1,5 @@
 Package: tird
-Version: 0.13.0
+Version: 0.14.0
 Section: utils
 Architecture: all
 Depends: python3 (>= 3.6.0), python3-nacl (>= 1.2.0), python3-pycryptodome (>= 3.6.2)
