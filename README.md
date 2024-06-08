@@ -213,14 +213,15 @@ $ sudo make install-deb
 
 Standalone executables (made with [PyInstaller](https://pyinstaller.org/en/stable/)) are also available (see [Releases](https://github.com/hakavlad/tird/releases)) for MS Windows and Linux amd64.
 
-⚠️ Use them only if you're brave enough!
+> [!WARNING]
+> Use them only if you're brave enough!
 
 ![tird.exe](https://i.imgur.com/hjnarbH.png)
 
 <details>
 <summary>How to verify signatures</summary>
 
-Use [Minisign](https://jedisct1.github.io/minisign/) to verify signatures. For example:
+Use [Minisign](https://jedisct1.github.io/minisign/) to verify signatures. You can find my public key [here](https://github.com/hakavlad/hakavlad). For example:
 
 ```
 $ minisign -Vm  tird-v0.14.0-linux-amd64.zip -P RWQLYkPbRQ8b56zEe8QdbjLFqC9UrjOaYxW5JxwsWV7v0ct/F/XfJlel
