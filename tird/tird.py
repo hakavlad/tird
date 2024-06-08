@@ -5,7 +5,7 @@ from gc import collect
 from getpass import getpass
 from hashlib import blake2b
 from hmac import compare_digest
-from os import fsync, path, urandom, walk
+from os import fsync, path, remove, urandom, walk
 from signal import SIGINT, signal
 from sys import argv, exit, platform, version
 from time import monotonic
@@ -174,7 +174,7 @@ PERSON_KEYFILE: bytes = b'K' * PERSON_SIZE
 PERSON_PASSPHRASE: bytes = b'P' * PERSON_SIZE
 IKM_DIGEST_SIZE: int = 64
 MAC_KEY_SIZE: int = 64
-MAC_TAG_SIZE: int = 64
+MAC_TAG_SIZE: int = MAC_KEY_SIZE
 EMBED_DIGEST_SIZE: int = 32
 
 # Padding constants
@@ -726,18 +726,28 @@ def get_ikm_digest_list() -> list:
     return ikm_digest_list
 
 
-def do_continue() -> bool:
+def proceed(var: int) -> bool:
     """
     """
-    print(f'{WAR}W: output file contents will be partially overwritten!{RES}')
+    if var == 1:
+        print(f'{WAR}W: output file contents will be '
+              f'partially overwritten!{RES}')
+        question: str = f'{BOL}[13] Proceed? (Y/N):{RES} '
+    else:
+        print(f'{ITA}I: next it\'s offered to remove '
+              f'the output file path{RES}')
+        question = f'{BOL}[13] Proceed? (Y/N, default=Y):{RES} '
 
     while True:
-        do_cont: str = input(f'{BOL}[13] Proceed? (Y/N):{RES} ')
+        user_input: str = input(question)
 
-        if do_cont in ('Y', 'y', '1'):
+        if user_input in ('Y', 'y', '1'):
             return True
 
-        if do_cont in ('N', 'n', '0'):
+        if user_input == '' and var == 2:
+            return True
+
+        if user_input in ('N', 'n', '0'):
             return False
 
         print(f'{ERR}E: invalid value; valid values are: '
@@ -1367,6 +1377,21 @@ def print_positions() -> None:
         print(f'{ITA}D: current position: of={o}{RES}')
 
 
+def remove_output() -> None:
+    """
+    """
+    if proceed(var=2):
+        o_name: str = iod['o'].name
+        try:
+            remove(o_name)
+            print(f'{ITA}I: path "{o_name}" has been removed{RES}')
+        except Exception as e:
+            print(f'{ERR}E: {e}{RES}')
+            print(f'{WAR}W: failed to remove path "{o_name}"!{RES}')
+    else:
+        print(f'{ITA}I: output file path is NOT removed{RES}')
+
+
 # Perform actions: high-level functions
 # --------------------------------------------------------------------------- #
 
@@ -1468,7 +1493,7 @@ def encrypt_and_embed(action: int) -> bool:
     collect()
 
     if action == 6:
-        if not do_continue():
+        if not proceed(var=1):
             print(f'{ITA}I: stopped by user request{RES}')
             return False
 
@@ -1768,6 +1793,8 @@ def encrypt_and_embed_handler(
         read_mac_tag: Optional[bytes] = read_data(iod['i'], MAC_TAG_SIZE)
 
         if read_mac_tag is None:
+            md['auth_fail'] = True
+
             print(f'{WAR}W: integrity/authenticity verification failed!{RES}')
             return False
 
@@ -1780,6 +1807,8 @@ def encrypt_and_embed_handler(
 
             print(f'{ITA}I: integrity/authenticity verification: OK{RES}')
         else:
+            md['auth_fail'] = True
+
             if DEBUG:
                 print(f'{ITA}D: found_mac_tag is not equal to '
                       f'read_mac_tag{RES}')
@@ -1855,7 +1884,7 @@ def encrypt_and_embed_handler(
         print(f'{ITA}D: written {w_sum} B{RES}')
 
     if w_sum != output_data_size:
-        print(f'{ITA}E: the size of the written data does not match '
+        print(f'{ERR}E: the size of the written data does not match '
               f'the expected size{RES}')
         return False
 
@@ -1900,7 +1929,7 @@ def embed(action: int) -> bool:
         end_pos: int = start_pos + message_size
         print(f'{ITA}I: end position: {end_pos}{RES}')
 
-        if not do_continue():
+        if not proceed(var=1):
             print(f'{ITA}I: stopped by user request{RES}\n')
             return False
     else:
@@ -2099,7 +2128,7 @@ def overwrite_with_random(action: int) -> bool:
         print(f'{ITA}I: nothing to do{RES}')
         return False
 
-    if not do_continue():
+    if not proceed(var=1):
         print(f'{ITA}I: stopped by user request{RES}')
         return False
 
@@ -2223,6 +2252,11 @@ def main() -> NoReturn:
 
         if 'o' in iod:
             close_file(iod['o'])
+
+        if action in (2, 3, 5, 7, 8):
+            # Offer to remove the output file path if something went wrong
+            if not ok or 'auth_fail' in md:
+                remove_output()
 
         iod.clear()
         sd.clear()
