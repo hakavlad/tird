@@ -135,7 +135,7 @@ A9_DESCRIPTION: str = f"""{ITA}I: action #9:\n\
     overwrite file contents with random data{RES}"""
 
 
-INVALID_UTF8_BYTE: bytes = b'\xff'
+INVALID_UTF8_BYTE: bytes = b'\xff'  # 0xFF is not valid in UTF-8
 
 iod: dict = {}  # I/O file objects
 sd: dict = {}  # salts
@@ -149,7 +149,7 @@ MIN_PRINT_INTERVAL: float = 5.0
 
 BYTEORDER: str = 'little'
 
-COMMENTS_SIZE: int = 512
+POT_COMMENTS_SIZE: int = 512
 
 # Salt constants
 ONE_SALT_HALF_SIZE: int = 8
@@ -186,7 +186,7 @@ PAD_KEY_SPACE: int = 256 ** PAD_KEY_HALF_SIZE
 ARGON2_MEM: int = M * 512
 ARGON2_TAG_SIZE: int = ENC_KEY_SIZE + PAD_KEY_SIZE + MAC_KEY_SIZE
 
-MIN_VALID_CRYPTOBLOB_SIZE: int = SALTS_SIZE + COMMENTS_SIZE + MAC_TAG_SIZE
+MIN_VALID_CRYPTOBLOB_SIZE: int = SALTS_SIZE + POT_COMMENTS_SIZE + MAC_TAG_SIZE
 
 
 # Handle files: open, seek, read etc.
@@ -602,39 +602,43 @@ def get_end_pos(min_pos: int, max_pos: int, no_default: bool) -> int:
         return end_pos
 
 
-def get_comments_bytes() -> bytes:
+def get_pot_comments() -> bytes:
     """
     """
     comments: str = input(
-        f'{BOL}[10] Comments (optional, up to {COMMENTS_SIZE} B):{RES} ')
+        f'{BOL}[10] Comments (optional, up to {POT_COMMENTS_SIZE} B):{RES} ')
 
     if comments != '':
         # Sanitize comments: prevent possible UnicodeDecodeError in some cases
-        comments = comments.encode()[:COMMENTS_SIZE].decode('utf-8', 'ignore')
+        comments = comments.encode(
+        )[:POT_COMMENTS_SIZE].decode('utf-8', 'ignore')
 
         comments_bytes: bytes = comments.encode()
-        comments_bytes = b''.join([
+
+        pot_comments: bytes = b''.join([
             comments_bytes,
             INVALID_UTF8_BYTE,
-            urandom(COMMENTS_SIZE)
-        ])[:COMMENTS_SIZE]
+            urandom(POT_COMMENTS_SIZE)
+        ])[:POT_COMMENTS_SIZE]
     else:
         if md['set_fake_mac']:
-            comments_bytes = urandom(COMMENTS_SIZE)
+            pot_comments = urandom(POT_COMMENTS_SIZE)
         else:
             while True:
-                comments_bytes = urandom(COMMENTS_SIZE)
-                if decode_comments(comments_bytes) is None:
-                    # p=99.164% if COMMENTS_SIZE=512
+                pot_comments = urandom(POT_COMMENTS_SIZE)
+
+                if decode_pot_comments(pot_comments) is None:
+                    # p=99.164% if POT_COMMENTS_SIZE=512
                     break
 
     if DEBUG:
-        print(f'{ITA}D: comments_bytes: {[comments_bytes]}{RES}')
+        print(f'{ITA}D: comments: {[comments]}{RES}')
+        print(f'{ITA}D: pot_comments: {[pot_comments]}{RES}')
 
-    comments_decoded: Optional[str] = decode_comments(comments_bytes)
+    comments_decoded: Optional[str] = decode_pot_comments(pot_comments)
     print(f'{ITA}I: comments will be shown as: {[comments_decoded]}{RES}')
 
-    return comments_bytes
+    return pot_comments
 
 
 def get_ikm_digest_list() -> list:
@@ -1303,13 +1307,13 @@ def write_pad(
     return w_sum, t_last_print
 
 
-def decode_comments(comments_bytes: bytes) -> Optional[str]:
+def decode_pot_comments(pot_comments: bytes) -> Optional[str]:
     """
     """
-    comments_bytes_part: bytes = comments_bytes.partition(INVALID_UTF8_BYTE)[0]
+    pot_comments_part: bytes = pot_comments.partition(INVALID_UTF8_BYTE)[0]
 
     try:
-        decoded_comments: Optional[str] = comments_bytes_part.decode('utf-8')
+        decoded_comments: Optional[str] = pot_comments_part.decode('utf-8')
     except UnicodeDecodeError:
         decoded_comments = None
 
@@ -1372,7 +1376,7 @@ def encrypt_and_embed(action: int) -> bool:
     """
     md['act'] = True
 
-    comments_bytes: Optional[bytes] = None
+    pot_comments: Optional[bytes] = None
     ciphertext_size: Optional[int] = None
     start_pos: Optional[int] = None
     end_pos: Optional[int] = None
@@ -1385,7 +1389,7 @@ def encrypt_and_embed(action: int) -> bool:
           f'size: {string_size(i_size)}{RES}')
 
     if action in (2, 6):
-        ciphertext_size = i_size + COMMENTS_SIZE
+        ciphertext_size = i_size + POT_COMMENTS_SIZE
 
         min_cryptoblob_size: int = i_size + MIN_VALID_CRYPTOBLOB_SIZE
 
@@ -1443,7 +1447,7 @@ def encrypt_and_embed(action: int) -> bool:
         print(f'{ITA}I: end position: {end_pos}{RES}')
 
     if action in (2, 6):
-        comments_bytes = get_comments_bytes()
+        pot_comments = get_pot_comments()
 
     if action == 6:
         if not seek_pos(iod['o'], start_pos):
@@ -1474,7 +1478,7 @@ def encrypt_and_embed(action: int) -> bool:
         start_pos,
         end_pos,
         ciphertext_size,
-        comments_bytes,
+        pot_comments,
     )
 
     return ok
@@ -1486,7 +1490,7 @@ def encrypt_and_embed_handler(
     start_pos: Optional[int],
     end_pos: Optional[int],
     ciphertext_size: Optional[int],
-    comments_bytes: Optional[bytes],
+    pot_comments: Optional[bytes],
 ) -> bool:
     """
     """
@@ -1621,35 +1625,34 @@ def encrypt_and_embed_handler(
         print(f'{ITA}D: handling comments...{RES}')
 
     if action in (3, 7):
-        comments_bytes = read_data(iod['i'], COMMENTS_SIZE)
+        pot_comments = read_data(iod['i'], POT_COMMENTS_SIZE)
 
-        if comments_bytes is None:
+        if pot_comments is None:
             return False
 
-    comments_bytes_out: bytes = encrypt_decrypt(comments_bytes)
+    pot_comments_out: bytes = encrypt_decrypt(pot_comments)
 
     if DEBUG:
-        print(f'{ITA}D: comments (padded binary) found in plain and '
-              f'encrypted forms{RES}')
+        print(f'{ITA}D: pot_comments found in plain and encrypted forms{RES}')
 
     if action in (2, 6):
-        if not write_data(comments_bytes_out):
+        if not write_data(pot_comments_out):
             return False
 
-        w_sum += len(comments_bytes_out)
+        w_sum += len(pot_comments_out)
 
         if DEBUG:
             print(f'{ITA}D: encrypted comments '
-                  f'(size={len(comments_bytes_out)}) is written{RES}')
+                  f'(size={len(pot_comments_out)}) is written{RES}')
     else:  # 3, 7
-        comments: Optional[str] = decode_comments(comments_bytes_out)
+        decoded_comments: Optional[str] = decode_pot_comments(pot_comments_out)
 
-        print(f'{ITA}I: comments: {[comments]}{RES}')
+        print(f'{ITA}I: comments: {[decoded_comments]}{RES}')
 
     if action in (2, 6):
-        mac_ho.update(comments_bytes_out)
+        mac_ho.update(pot_comments_out)
     else:  # 3, 7
-        mac_ho.update(comments_bytes)
+        mac_ho.update(pot_comments)
 
     if DEBUG:
         print(f'{ITA}D: handling comments is completed{RES}')
