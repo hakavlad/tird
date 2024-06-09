@@ -57,7 +57,7 @@ else:
     exit(1)
 
 
-VERSION: str = '0.14.0'
+VERSION: str = '0.15.0'
 
 INFO: str = f"""{ITA}I: tird v{VERSION}
     A tool for encrypting files and hiding encrypted data.
