@@ -248,7 +248,9 @@ Standalone executables (made with [PyInstaller](https://pyinstaller.org/en/stabl
 <details>
 <summary>How to verify signatures</summary>
 
-Use [Minisign](https://jedisct1.github.io/minisign/) to verify signatures. You can find my public key [here](https://github.com/hakavlad/hakavlad). For example:
+Use [Minisign](https://jedisct1.github.io/minisign/) to verify signatures. You can find my public key [here](https://github.com/hakavlad/hakavlad).
+
+For example:
 
 ```
 $ minisign -Vm  tird-v0.15.0-linux-amd64.zip -P RWQLYkPbRQ8b56zEe8QdbjLFqC9UrjOaYxW5JxwsWV7v0ct/F/XfJlel
