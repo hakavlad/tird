@@ -2256,7 +2256,8 @@ def main() -> NoReturn:
         if action in (2, 3, 5, 7, 8):
             # Offer to remove the output file path if something went wrong
             if not ok or 'auth_fail' in md:
-                remove_output()
+                if 'o' in iod:
+                    remove_output()
 
         iod.clear()
         sd.clear()
