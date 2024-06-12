@@ -48,7 +48,7 @@ Select the action to perform from the MENU list.
 
 <tr>  <td><b>7. Extract & decrypt</b></td>  <td>Extract and decrypt cryptoblob; display the decrypted comments and write the decrypted contents to a new file.</td>  </tr>
 
-<tr>  <td><b>8. Create w/ random</b></td>  <td>Create a file with random data.</td>  </tr>
+<tr>  <td><b>8. Create w/ random</b></td>  <td>Create a file of the specified size with random data.</td>  </tr>
 
 <tr>  <td><b>9. Overwrite w/ random</b></td>  <td>Overwrite file contents with random data.</td>  </tr>
 
@@ -69,7 +69,7 @@ $ tird
     ———————————————————————————————————————————
 [01] Select an option [0-9]: 8
 I: action #8:
-    create a file with random data
+    create a file of the specified size with random data
 ```
 
 ---
