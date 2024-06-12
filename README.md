@@ -133,11 +133,12 @@ Enabling debug messages additionally shows:
 
 ## Tradeoffs and limitations
 
-- `tird` does not support public-key cryptography.
+- `tird` does not support [public-key cryptography](https://en.wikipedia.org/wiki/Public-key_cryptography).
 - `tird` does not support file compression.
 - `tird` does not support ASCII armored output.
-- `tird` does not support Reed–Solomon error correction.
+- `tird` does not support [Reed–Solomon error correction](https://en.wikipedia.org/wiki/Reed%E2%80%93Solomon_error_correction).
 - `tird` does not support splitting the output into chunks.
+- `tird` does not support the use of [standard streams](https://en.wikipedia.org/wiki/Standard_streams) for payload transmission.
 - `tird` does not support low-level device reading and writing when used on MS Windows (devices cannot be used as keyfiles, cannot be overwritten, cannot be encrypted or hidden).
 - `tird` does not provide a graphical user interface.
 - `tird` does not provide a password generator.
@@ -191,7 +192,7 @@ Install the build dependencies:
 $ sudo apt install make fakeroot
 ```
 
-Clone the repo (if `git` is already installed):
+Clone the repo (if `git` is already installed) and enter the directory:
 
 ```bash
 $ git clone https://github.com/hakavlad/tird.git && cd tird
@@ -224,10 +225,10 @@ Standalone executables (made with [PyInstaller](https://pyinstaller.org/en/stabl
 Use [Minisign](https://jedisct1.github.io/minisign/) to verify signatures. You can find my public key [here](https://github.com/hakavlad/hakavlad). For example:
 
 ```
-$ minisign -Vm  tird-v0.14.0-linux-amd64.zip -P RWQLYkPbRQ8b56zEe8QdbjLFqC9UrjOaYxW5JxwsWV7v0ct/F/XfJlel
+$ minisign -Vm  tird-v0.15.0-linux-amd64.zip -P RWQLYkPbRQ8b56zEe8QdbjLFqC9UrjOaYxW5JxwsWV7v0ct/F/XfJlel
 ```
 
-This requires the signature `tird-v0.14.0-linux-amd64.zip.minisig` to be present in the same directory.
+This requires the signature `tird-v0.15.0-linux-amd64.zip.minisig` to be present in the same directory.
 </details>
 
 ---
