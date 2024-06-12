@@ -40,10 +40,13 @@ Using `tird` you can:
 
 - `BLAKE2` ([RFC 7693](https://datatracker.ietf.org/doc/html/rfc7693.html)):
   - salted and personalized `BLAKE2b-512` for hashing keyfiles and passphrases;
+  - salted `BLAKE2b-512` for hashing digest list;
   - keyed `BLAKE2b-512` for creating message authentication codes;
   - `BLAKE2b-256` for creating message checksums.
 - `Argon2` memory-hard function ([RFC 9106](https://datatracker.ietf.org/doc/html/rfc9106/)) for key stretching and key derivation.
 - `ChaCha20` cipher ([RFC 7539](https://datatracker.ietf.org/doc/html/rfc7539)) for data encryption.
+
+See the [specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md) for more details.
 
 ---
 
@@ -124,20 +127,22 @@ Enabling debug messages additionally shows:
 
 `tird` has the following input options:
 
-- \[01] Select an option
-- \[02] Use custom settings?
-- \[03] Argon2 time cost
-- \[04] Max padding size
-- \[05] Set a fake MAC tag?
-- \[06] Input file path
-- \[07] Output file path
-- \[08] Start position
-- \[09] End position
-- \[10] Comments
-- \[11] Keyfile path
-- \[12] Passphrase
-- \[13] Proceed?
-- \[14] Output file size
+```
+[01] Select an option
+[02] Use custom settings?
+[03] Argon2 time cost
+[04] Max padding size
+[05] Set a fake MAC tag?
+[06] Input file path
+[07] Output file path
+[08] Start position
+[09] End position
+[10] Comments
+[11] Keyfile path
+[12] Passphrase
+[13] Proceed?
+[14] Output file size
+```
 
 A detailed description of these options with examples can be found [here](https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md).
 
