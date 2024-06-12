@@ -120,6 +120,27 @@ Enabling debug messages additionally shows:
 - salts, passphrases, digests, keys, nonces, tags;
 - some other info.
 
+## Input options
+
+`tird` has the following input options:
+
+- \[01] Select an option
+- \[02] Use custom settings?
+- \[03] Argon2 time cost
+- \[04] Max padding size
+- \[05] Set a fake MAC tag?
+- \[06] Input file path
+- \[07] Output file path
+- \[08] Start position
+- \[09] End position
+- \[10] Comments
+- \[11] Keyfile path
+- \[12] Passphrase
+- \[13] Proceed?
+- \[14] Output file size
+
+A detailed description of these options with examples can be found [here](https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md).
+
 ---
 
 ## Documentation
