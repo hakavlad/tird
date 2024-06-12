@@ -108,7 +108,7 @@ A2_DESCRIPTION: str = f"""{ITA}I: action #2:\n\
     write the cryptoblob to a new file{RES}"""
 
 A3_DESCRIPTION: str = f"""{ITA}I: action #3:\n\
-    decrypt cryptoblob;\n\
+    decrypt a file;\n\
     display the decrypted comments and\n\
     write the decrypted contents to a new file{RES}"""
 
@@ -129,7 +129,7 @@ A7_DESCRIPTION: str = f"""{ITA}I: action #7:\n\
     write the decrypted contents to a new file{RES}"""
 
 A8_DESCRIPTION: str = f"""{ITA}I: action #8:\n\
-    create a file with random data{RES}"""
+    create a file of the specified size with random data{RES}"""
 
 A9_DESCRIPTION: str = f"""{ITA}I: action #9:\n\
     overwrite file contents with random data{RES}"""
