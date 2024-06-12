@@ -5,7 +5,7 @@ This page describes `tird` input options.
 
 ## Table of contents
 
-- [[01] Select an action](#01-select-an-option)
+- [[01] Select an option](#01-select-an-option)
 - [[02] Use custom settings?](#02-use-custom-settings)
 - [[03] Argon2 time cost](#03-argon2-time-cost)
 - [[04] Max padding size](#04-max-padding-size)
@@ -30,27 +30,27 @@ Select the action to perform from the MENU list.
 
 <table>
 
-<tr> <td><b>Action number</b></td> <td><b>Short description</b></td> <td><b>Description</b></td> </tr>
+<tr>  <td><b>Action</b></td>  <td><b>Description</b></td>  </tr>
 
-<tr> <td>0</td> <td>Exit</td> <td>Exiting <code>tird</code>.</td></tr>
+<tr>  <td><b>0. Exit</b></td>  <td>Exiting <code>tird</code>.</td>  </tr>
 
-<tr> <td>1</td> <td>Info & warnings</td> <td>Displaying info and warnings.</td> </tr>
+<tr>  <td><b>1. Info & warnings</b></td>  <td>Displaying info and warnings.</td>  </tr>
 
-<tr> <td>2</td> <td>Encrypt</td> <td>Encrypt file contents and comments; write the cryptoblob to a new file.</td> </tr>
+<tr>  <td><b>2. Encrypt</b></td>  <td>Encrypt file contents and comments; write the cryptoblob to a new file.</td>  </tr>
 
-<tr> <td>3</td> <td>Decrypt</td> <td>Decrypt a file; display the decrypted comments and write the decrypted contents to a new file.</td> </tr>
+<tr>  <td><b>3. Decrypt</b></td>  <td>Decrypt a file; display the decrypted comments and write the decrypted contents to a new file.</td>  </tr>
 
-<tr> <td>4</td> <td>Embed</td> <td>Embed file contents (no encryption): write input file contents over output file contents.</td> </tr>
+<tr>  <td><b>4. Embed</b></td>  <td>Embed file contents (no encryption): write input file contents over output file contents.</td>  </tr>
 
-<tr> <td>5</td> <td>Extract</td> <td>Extract file contents (no decryption) to a new file.</td> </tr>
+<tr>  <td><b>5. Extract</b></td>  <td>Extract file contents (no decryption) to a new file.</td>  </tr>
 
-<tr> <td>6</td> <td>Encrypt & embed</td> <td>Encrypt file contents and comments; write the cryptoblob over a container.</td> </tr>
+<tr>  <td><b>6. Encrypt & embed</b></td>  <td>Encrypt file contents and comments; write the cryptoblob over a container.</td>  </tr>
 
-<tr> <td>7</td> <td>Extract & decrypt</td> <td>Extract and decrypt cryptoblob; display the decrypted comments and write the decrypted contents to a new file.</td> </tr>
+<tr>  <td><b>7. Extract & decrypt</b></td>  <td>Extract and decrypt cryptoblob; display the decrypted comments and write the decrypted contents to a new file.</td>  </tr>
 
-<tr> <td>8</td> <td>Create w/ random</td> <td>Create a file with random data.</td> </tr>
+<tr>  <td><b>8. Create w/ random</b></td>  <td>Create a file with random data.</td>  </tr>
 
-<tr> <td>9</td> <td>Overwrite w/ random</td> <td>Overwrite file contents with random data.</td> </tr>
+<tr>  <td><b>9. Overwrite w/ random</b></td>  <td>Overwrite file contents with random data.</td>  </tr>
 
 </table>
 
