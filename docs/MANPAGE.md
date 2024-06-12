@@ -26,6 +26,25 @@ Using **tird** you can:
 
 print debug messages
 
+# INPUT OPTIONS
+
+- \[01] Select an action
+- \[02] Use custom settings?
+- \[03] Argon2 time cost
+- \[04] Max padding size
+- \[05] Set a fake MAC tag?
+- \[06] Input file path
+- \[07] Output file path
+- \[08] Start position
+- \[09] End position
+- \[10] Comments
+- \[11] Keyfile path
+- \[12] Passphrase
+- \[13] Proceed?
+- \[14] Output file size
+
+See <https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md> for detailed descriptions and examples.
+
 # GOALS
 
 - Providing protection for individual files, including:
@@ -102,6 +121,7 @@ Enabling debug messages additionally shows:
 - **tird** does not support ASCII armored output.
 - **tird** does not support Reed–Solomon error correction.
 - **tird** does not support splitting the output into chunks.
+- **tird** does not support the use of standard streams for payload transmission.
 - **tird** does not support low-level device reading and writing when used on MS Windows (devices cannot be used as keyfiles, cannot be overwritten, cannot be encrypted or hidden).
 - **tird** does not provide a graphical user interface.
 - **tird** does not provide a password generator.
@@ -128,6 +148,14 @@ Enabling debug messages additionally shows:
 - Python >= 3.6
 - PyNaCl >= 1.2.0
 - PyCryptodomex >= 3.6.2
+
+# TUTORAL
+
+Step-by-step guides and examples you can see here <https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md>.
+
+# SPECIFICATION
+
+See <https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md>.
 
 # REPORTING BUGS
 

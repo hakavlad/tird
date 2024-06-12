@@ -42,6 +42,38 @@ box even if you encrypt files without hiding them in containers.
 .SS -d, \[en]debug
 .PP
 print debug messages
+.SH INPUT OPTIONS
+.IP \[bu] 2
+[01] Select an action
+.IP \[bu] 2
+[02] Use custom settings?
+.IP \[bu] 2
+[03] Argon2 time cost
+.IP \[bu] 2
+[04] Max padding size
+.IP \[bu] 2
+[05] Set a fake MAC tag?
+.IP \[bu] 2
+[06] Input file path
+.IP \[bu] 2
+[07] Output file path
+.IP \[bu] 2
+[08] Start position
+.IP \[bu] 2
+[09] End position
+.IP \[bu] 2
+[10] Comments
+.IP \[bu] 2
+[11] Keyfile path
+.IP \[bu] 2
+[12] Passphrase
+.IP \[bu] 2
+[13] Proceed?
+.IP \[bu] 2
+[14] Output file size
+.PP
+See <https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md>
+for detailed descriptions and examples.
 .SH GOALS
 .IP \[bu] 2
 Providing protection for individual files, including:
@@ -158,6 +190,9 @@ some other info.
 .IP \[bu] 2
 \f[B]tird\f[R] does not support splitting the output into chunks.
 .IP \[bu] 2
+\f[B]tird\f[R] does not support the use of standard streams for payload
+transmission.
+.IP \[bu] 2
 \f[B]tird\f[R] does not support low-level device reading and writing
 when used on MS Windows (devices cannot be used as keyfiles, cannot be
 overwritten, cannot be encrypted or hidden).
@@ -210,6 +245,13 @@ Python >= 3.6
 PyNaCl >= 1.2.0
 .IP \[bu] 2
 PyCryptodomex >= 3.6.2
+.SH TUTORAL
+.PP
+Step-by-step guides and examples you can see here
+<https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md>.
+.SH SPECIFICATION
+.PP
+See <https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md>.
 .SH REPORTING BUGS
 .PP
 Please report bugs at <https://github.com/hakavlad/tird/issues>.
