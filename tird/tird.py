@@ -605,34 +605,41 @@ def get_end_pos(min_pos: int, max_pos: int, no_default: bool) -> int:
 def get_pot_comments() -> bytes:
     """
     """
-    comments: str = input(
-        f'{BOL}[10] Comments (optional, up to {POT_COMMENTS_SIZE} B):{RES} ')
+    comments: str = input(f'{BOL}[10] Comments (optional, up to '
+                          f'{POT_COMMENTS_SIZE} B):{RES} ')
 
-    if comments != '':
-        # Sanitize comments: prevent possible UnicodeDecodeError in some cases
-        comments = comments.encode(
-        )[:POT_COMMENTS_SIZE].decode('utf-8', 'ignore')
+    comments_size: int = len(comments)
 
+    if comments_size == 0:
+        if md['set_fake_mac']:
+            pot_comments: bytes = urandom(POT_COMMENTS_SIZE)
+        else:
+            while True:
+                pot_comments = urandom(POT_COMMENTS_SIZE)
+                if decode_pot_comments(pot_comments) is None:
+                    # p=99.164% if POT_COMMENTS_SIZE=512
+                    break
+    elif comments_size <= POT_COMMENTS_SIZE:
         comments_bytes: bytes = comments.encode()
 
-        pot_comments: bytes = b''.join([
+        pot_comments = b''.join([
             comments_bytes,
             INVALID_UTF8_BYTE,
             urandom(POT_COMMENTS_SIZE)
         ])[:POT_COMMENTS_SIZE]
     else:
-        if md['set_fake_mac']:
-            pot_comments = urandom(POT_COMMENTS_SIZE)
-        else:
-            while True:
-                pot_comments = urandom(POT_COMMENTS_SIZE)
+        print(f'{WAR}W: comments size: {comments_size} B; '
+              f'comments will be truncated!{RES}')
 
-                if decode_pot_comments(pot_comments) is None:
-                    # p=99.164% if POT_COMMENTS_SIZE=512
-                    break
+        # Sanitize comments: prevent possible UnicodeDecodeError in some cases
+        comments = comments.encode(
+        )[:POT_COMMENTS_SIZE].decode('utf-8', 'ignore')
+
+        comments_bytes = comments.encode()
+        pot_comments = comments_bytes[:POT_COMMENTS_SIZE]
 
     if DEBUG:
-        print(f'{ITA}D: comments: {[comments]}{RES}')
+        print(f'{ITA}D: comments: {[comments]}, size: {comments_size} B{RES}')
         print(f'{ITA}D: pot_comments: {[pot_comments]}{RES}')
 
     comments_decoded: Optional[str] = decode_pot_comments(pot_comments)
