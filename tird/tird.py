@@ -649,8 +649,7 @@ def get_pot_comments() -> bytes:
 
 
 def get_ikm_digest_list() -> list:
-    """
-    Get input keying material (keyfiles and passphrases) and return digest
+    """Get input keying material (keyfiles and passphrases) and return digest
     list.
     """
     ikm_digest_list: list = []
@@ -677,8 +676,8 @@ def get_ikm_digest_list() -> list:
                 continue
 
             if not digest_list:
-                print(f'{WAR}W: this directory is empty; no keyfiles '
-                      f'to accept!{RES}')
+                print(f'{WAR}W: no files found in this directory; '
+                      f'no keyfiles to accept!{RES}')
             else:
                 ikm_digest_list.extend(digest_list)
                 print(f'{ITA}I: {len(digest_list)} keyfiles has been '
@@ -725,7 +724,8 @@ def get_ikm_digest_list() -> list:
             pp_digest: bytes = get_passphrase_digest(pp0)
             ikm_digest_list.append(pp_digest)
         else:
-            print(f'{ERR}E: passphrase confirmation failed{RES}')
+            print(f'{ERR}E: passphrase confirmation failed; '
+                  f'passphrase NOT accepted{RES}')
 
         del pp0, pp1
         collect()
