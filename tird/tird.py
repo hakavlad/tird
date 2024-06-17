@@ -990,65 +990,85 @@ def get_keyfile_digest(f_path: str) -> Optional[bytes]:
 def get_keyfile_digest_list(d_path: str) -> Optional[list]:
     """
     """
+    def walk_error_handler(error: Any) -> None:
+        """Handle walk error."""
+        print(f'{ERR}E: {error}{RES}')
+        raise UserWarning
+
+    # ----------------------------------------------------------------------- #
+
+    print(f'{ITA}I: scanning the directory "{d_path}"{RES}')
+
+    f_path_list: list = []
+
+    try:
+        for root, _, files in walk(d_path, onerror=walk_error_handler):
+            for fp in files:
+                f_path: str = path.join(root, fp)
+                f_path_list.append(f_path)
+    except UserWarning:
+        return None
+
+    list_len: int = len(f_path_list)
+
+    print(f'{ITA}I: found {list_len} files{RES}')
+
+    if list_len == 0:
+        return []
+
+    # ----------------------------------------------------------------------- #
+
     f_tuple_list: list = []
 
     size_sum: int = 0
 
-    print(f'{ITA}I: scanning the directory "{d_path}"{RES}')
+    for f_path in f_path_list:
+        if DEBUG:
+            print(f'{ITA}D: getting the size of "{f_path}" '
+                  f'(real path: "{path.realpath(f_path)}"){RES}')
 
-    for root, _, files in walk(d_path):
-        for fp in files:
-            f_path: str = path.join(root, fp)
+        opt_f_size: Optional[int] = get_file_size(f_path)
 
-            if DEBUG:
-                print(f'{ITA}D: getting the size of "{f_path}" '
-                      f'(real path: "{path.realpath(f_path)}"){RES}')
+        if opt_f_size is None:
+            return None
 
-            opt_f_size: Optional[int] = get_file_size(f_path)
+        f_size: int = opt_f_size
 
-            if opt_f_size is None:
-                return None
+        if DEBUG:
+            print(f'{ITA}D: size: {string_size(f_size)}{RES}')
 
-            f_size: int = opt_f_size
+        size_sum += f_size
 
-            if DEBUG:
-                print(f'{ITA}D: size: {string_size(f_size)}{RES}')
-
-            size_sum += f_size
-
-            f_tuple: tuple = (f_path, f_size)
-
-            f_tuple_list.append(f_tuple)
-
-    f_tuple_list_len: int = len(f_tuple_list)
-
-    if f_tuple_list_len == 0:
-        return []
+        f_tuple: tuple = (f_path, f_size)
+        f_tuple_list.append(f_tuple)
 
     for f_tuple in f_tuple_list:
         f_path, f_size = f_tuple
         print(f'{ITA}  - found "{f_path}", {string_size(f_size)}{RES}')
 
-    print(f'{ITA}I: found {f_tuple_list_len} files; '
+    print(f'{ITA}I: found {list_len} files; '
           f'total size: {string_size(size_sum)}{RES}')
+
+    # ----------------------------------------------------------------------- #
 
     print(f'{ITA}I: hashing files in the directory "{d_path}"{RES}')
 
     digest_list: list = []
 
     for f_tuple in f_tuple_list:
-
         f_path, f_size = f_tuple
 
         if DEBUG:
             print(f'{ITA}D: hashing "{f_path}"{RES}')
 
-        f = open_file(f_path, 'rb')
+        f: Any = open_file(f_path, 'rb')
 
         if f is None:
             return None
 
-        f_digest = blake2b_keyfile_digest(f, f_size, salt=sd['blake2_salt'])
+        f_digest: Optional[bytes] = blake2b_keyfile_digest(
+            f, f_size, salt=sd['blake2_salt']
+        )
 
         close_file(f)
 
