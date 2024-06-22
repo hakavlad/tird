@@ -132,7 +132,6 @@ I: action #2:
 
 **Default value:** `False`
 
-
 ### Examples
 
 Context: actions 2, 3, 6, 7 with default value:
@@ -200,11 +199,9 @@ D: max padding size, %: 100
 
 **Default value:** `4`
 
-
 ### Examples
 
 See [[02] Use custom settings?](#02-use-custom-settings)
-
 
 ---
 
@@ -220,11 +217,9 @@ See [[02] Use custom settings?](#02-use-custom-settings)
 
 **Default value:** `20`
 
-
 ### Examples
 
 See [[02] Use custom settings?](#02-use-custom-settings)
-
 
 ---
 
@@ -240,11 +235,9 @@ See [[02] Use custom settings?](#02-use-custom-settings)
 
 **Default value:** `False`
 
-
 ### Examples
 
 See [[02] Use custom settings?](#02-use-custom-settings)
-
 
 ---
 
@@ -260,9 +253,7 @@ See [[02] Use custom settings?](#02-use-custom-settings)
 
 **Default value:** (not defined)
 
-
 ### Examples
-
 
 Context: action 2:
 ```
@@ -288,7 +279,6 @@ Context: action 3:
 [06] File to decrypt: file.bin
 I: path: "file.bin"; size: 23845 B, 23.3 KiB
 ```
-
 
 Context: action 3 with debug messages enabled:
 ```
@@ -362,10 +352,7 @@ D: max_cryptoblob_size: 281540
 
 **Default value:** (not defined)
 
-
-
 ### Examples
-
 
 Context: action 2:
 ```
@@ -444,10 +431,7 @@ D: opened file (object): <_io.BufferedRandom name='/dev/sdc'>
 I: path: "/dev/sdc"; size: 16357785600 B, 15.2 GiB
 ```
 
-
-
 ---
-
 
 ## [08] Start position
 
@@ -461,9 +445,7 @@ I: path: "/dev/sdc"; size: 16357785600 B, 15.2 GiB
 
 **Default value:** not defined for actions `4|5|6|7`, `0` for action `9`
 
-
 ### Examples
-
 
 Context: action 4:
 ```
@@ -471,7 +453,6 @@ Context: action 4:
 I: start position: 1234
 I: end position: 25079
 ```
-
 
 Context: actions 5, 6, 7:
 ```
@@ -484,7 +465,6 @@ Context: action 9:
 [08] Start position, valid values are [0; 16357785600], default=0:
 I: start position: 0
 ```
-
 
 ---
 
@@ -500,11 +480,7 @@ I: start position: 0
 
 **Default value:** not defined for actions `5|7`, `output_file_size` in action `9`
 
-
-
-
 ### Examples
-
 
 Context: action 5:
 ```
@@ -526,12 +502,9 @@ I: end position: 16357785600
 I: data size to write: 16357785600 B, 15.2 GiB
 ```
 
-
-
 ---
 
 ## [10] Comments
-
 
 **Used in:** actions `2|6`
 
@@ -543,16 +516,13 @@ I: data size to write: 16357785600 B, 15.2 GiB
 
 **Default value:** (none)
 
-
 ### Examples
-
 
 Comments are not specified (by default):
 ```
 [10] Comments (optional, up to 512 B):
 I: comments will be shown as: [None]
 ```
-
 
 Comments are not specified with debug messages enabled:
 ```
@@ -562,14 +532,11 @@ D: pot_comments: [b'\xb0 F\xfe;~\x0b\xf5\xdf\xe7Xmg\xc6c\x86ml\xad\x90\xdexK\x9f
 I: comments will be shown as: [None]
 ```
 
-
 Short comments (up to 512 bytes):
 ```
 [10] Comments (optional, up to 512 B): zip archive with some secret data
 I: comments will be shown as: ['zip archive with some secret data']
 ```
-
-
 
 Short comments (up to 512 bytes) with debug messages enabled:
 ```
@@ -579,16 +546,12 @@ D: pot_comments: [b'zip archive with some secret data\xff\xe0\xe7\xaf\xbf\x99\xa
 I: comments will be shown as: ['zip archive with some secret data']
 ```
 
-
 Comments longer than 512 bytes:
 ```
 [10] Comments (optional, up to 512 B): An implementation reference for ChaCha20 has been published in RFC 7539. The IETF's implementation modified Bernstein's published algorithm by changing the 64-bit nonce and 64-bit block counter to a 96-bit nonce and 32-bit block counter.[46] The name was not changed when the algorithm was modified, as it is cryptographically insignificant (both form what a cryptographer would recognize as a 128-bit nonce), but the interface change could be a source of confusion for developers. Because of the reduced block counter, the maximum message length that can be safely encrypted by the IETF's variant is 232 blocks of 64 bytes (256 GiB). For applications where this is not enough, such as file or disk encryption, RFC 7539 proposes using the original algorithm with 64-bit nonce.
 W: comments size: 776 B; comments will be truncated!
 I: comments will be shown as: ["An implementation reference for ChaCha20 has been published in RFC 7539. The IETF's implementation modified Bernstein's published algorithm by changing the 64-bit nonce and 64-bit block counter to a 96-bit nonce and 32-bit block counter.[46] The name was not changed when the algorithm was modified, as it is cryptographically insignificant (both form what a cryptographer would recognize as a 128-bit nonce), but the interface change could be a source of confusion for developers. Because of the reduced block c"]
-
 ```
-
-
 
 Comments longer than 512 bytes with debug messages enabled:
 ```
@@ -598,7 +561,6 @@ D: comments: ["An implementation reference for ChaCha20 has been published in RF
 D: pot_comments: [b"An implementation reference for ChaCha20 has been published in RFC 7539. The IETF's implementation modified Bernstein's published algorithm by changing the 64-bit nonce and 64-bit block counter to a 96-bit nonce and 32-bit block counter.[46] The name was not changed when the algorithm was modified, as it is cryptographically insignificant (both form what a cryptographer would recognize as a 128-bit nonce), but the interface change could be a source of confusion for developers. Because of the reduced block c"]
 I: comments will be shown as: ["An implementation reference for ChaCha20 has been published in RFC 7539. The IETF's implementation modified Bernstein's published algorithm by changing the 64-bit nonce and 64-bit block counter to a 96-bit nonce and 32-bit block counter.[46] The name was not changed when the algorithm was modified, as it is cryptographically insignificant (both form what a cryptographer would recognize as a 128-bit nonce), but the interface change could be a source of confusion for developers. Because of the reduced block c"]
 ```
-
 
 ---
 
@@ -614,23 +576,166 @@ I: comments will be shown as: ["An implementation reference for ChaCha20 has bee
 
 **Default value:** (none)
 
-
-
 ### Examples
 
-Keyfiles are not specified (skipped):
+Keyfiles and passphrases are not specified (skipped):
 ```
 [11] Keyfile path (optional):
 [12] Passphrase (optional):
+I: entering keying material is completed
+W: no keyfile or passphrase specified!
 ```
 
+The same with debug messages enabled:
+```
+[11] Keyfile path (optional):
+W: entered passphrases will be displayed!
+[12] Passphrase (optional):
+I: entering keying material is completed
+W: no keyfile or passphrase specified!
+```
 
+Specifying only `keyfile.bin`:
+```
+[11] Keyfile path (optional): keyfile.bin
+I: path: "keyfile.bin"; size: 64 B
+I: hashing the keyfile...
+I: keyfile accepted
+[11] Keyfile path (optional):
+[12] Passphrase (optional):
+I: entering keying material is completed
+```
+
+The same with debug messages enabled:
+```
+[11] Keyfile path (optional): keyfile.bin
+D: real path: "/tmpfs/keyfile.bin"
+I: path: "keyfile.bin"; size: 64 B
+I: hashing the keyfile...
+D: opening file "keyfile.bin" in mode "rb"
+D: opened file (object): <_io.BufferedReader name='keyfile.bin'>
+D: closing <_io.BufferedReader name='keyfile.bin'>
+D: <_io.BufferedReader name='keyfile.bin'> closed
+D: digest:
+    4a92fe4c2ce1d68f3c33e35caca2e477606ca4cb3122be7888eb2b2924d1ed2dcee5efa2ede6bf0b8c3e0b9b3fba31ad00873d17bd7e2b308b928d675c963343
+I: keyfile accepted
+[11] Keyfile path (optional):
+W: entered passphrases will be displayed!
+[12] Passphrase (optional):
+I: entering keying material is completed
+```
+
+Possible errors and warnings:
+```
+[11] Keyfile path (optional): /
+I: scanning the directory "/"
+E: [Errno 13] Permission denied: '/sys/kernel/tracing'
+E: keyfiles NOT accepted
+[11] Keyfile path (optional): /---
+E: file "/---" does not exist
+E: keyfile NOT accepted
+[11] Keyfile path (optional): emptydir
+I: scanning the directory "emptydir"
+I: found 0 files
+W: no files found in this directory; no keyfiles to accept!
+```
+
+Specifying `keydir` and `/bin/sh` as keyfile paths:
+```
+[11] Keyfile path (optional): keydir
+I: scanning the directory "keydir"
+I: found 5 files
+  - found "keydir/file3", 123 B
+  - found "keydir/empty2", 0 B
+  - found "keydir/empty1", 0 B
+  - found "keydir/dir4/file6", 987 B
+  - found "keydir/dir4/file5", 456 B
+I: found 5 files; total size: 1566 B, 1.5 KiB
+I: hashing files in the directory "keydir"
+I: 5 keyfiles has been accepted
+[11] Keyfile path (optional): /bin/sh
+I: path: "/bin/sh"; size: 125560 B, 122.6 KiB
+I: hashing the keyfile...
+I: keyfile accepted
+```
+
+The same with debug messages enabled:
+```
+[11] Keyfile path (optional): keydir
+D: real path: "/tmpfs/keydir"
+I: scanning the directory "keydir"
+I: found 5 files
+D: getting the size of "keydir/file3" (real path: "/tmpfs/keydir/file3")
+D: size: 123 B
+D: getting the size of "keydir/empty2" (real path: "/tmpfs/keydir/empty2")
+D: size: 0 B
+D: getting the size of "keydir/empty1" (real path: "/tmpfs/keydir/empty1")
+D: size: 0 B
+D: getting the size of "keydir/dir4/file6" (real path: "/tmpfs/keydir/dir4/file6")
+D: size: 987 B
+D: getting the size of "keydir/dir4/file5" (real path: "/tmpfs/keydir/dir4/file5")
+D: size: 456 B
+  - found "keydir/file3", 123 B
+  - found "keydir/empty2", 0 B
+  - found "keydir/empty1", 0 B
+  - found "keydir/dir4/file6", 987 B
+  - found "keydir/dir4/file5", 456 B
+I: found 5 files; total size: 1566 B, 1.5 KiB
+I: hashing files in the directory "keydir"
+D: hashing "keydir/file3"
+D: opening file "keydir/file3" in mode "rb"
+D: opened file (object): <_io.BufferedReader name='keydir/file3'>
+D: closing <_io.BufferedReader name='keydir/file3'>
+D: <_io.BufferedReader name='keydir/file3'> closed
+D: digest:
+    d899cd303621e25563512edb9ad94c7186b63acb3b9972149c253c40b3220a72a73ed355fde58b581ee33f26fe2c98f7872d8318fc1c41a04ef2766e1349866b
+D: hashing "keydir/empty2"
+D: opening file "keydir/empty2" in mode "rb"
+D: opened file (object): <_io.BufferedReader name='keydir/empty2'>
+D: closing <_io.BufferedReader name='keydir/empty2'>
+D: <_io.BufferedReader name='keydir/empty2'> closed
+D: digest:
+    7d78429b1f562e733e9ccb2962edbc0544a6d27221714a66376ac99dda641758412c89354509bfefaa572c6a7dfb6805f9e4658461b9980272ac4ff9bad1e528
+D: hashing "keydir/empty1"
+D: opening file "keydir/empty1" in mode "rb"
+D: opened file (object): <_io.BufferedReader name='keydir/empty1'>
+D: closing <_io.BufferedReader name='keydir/empty1'>
+D: <_io.BufferedReader name='keydir/empty1'> closed
+D: digest:
+    7d78429b1f562e733e9ccb2962edbc0544a6d27221714a66376ac99dda641758412c89354509bfefaa572c6a7dfb6805f9e4658461b9980272ac4ff9bad1e528
+D: hashing "keydir/dir4/file6"
+D: opening file "keydir/dir4/file6" in mode "rb"
+D: opened file (object): <_io.BufferedReader name='keydir/dir4/file6'>
+D: closing <_io.BufferedReader name='keydir/dir4/file6'>
+D: <_io.BufferedReader name='keydir/dir4/file6'> closed
+D: digest:
+    c50270c01e9a8a7edc0d491ac66483d6da7f3877ab39cb3faa9608288ae62ae0850b01b9124303be280415e2fc09324953424e0d7962ee638bdd57157dfe8cc4
+D: hashing "keydir/dir4/file5"
+D: opening file "keydir/dir4/file5" in mode "rb"
+D: opened file (object): <_io.BufferedReader name='keydir/dir4/file5'>
+D: closing <_io.BufferedReader name='keydir/dir4/file5'>
+D: <_io.BufferedReader name='keydir/dir4/file5'> closed
+D: digest:
+    5d5b573bc31e76317b54e26d8e33a4b308c659643bffcf2d5b6ffd9a132318b4ce1db92d5c29862976024f7231abeb9d84e0a197639ce307134cd64c2df2f0e8
+I: 5 keyfiles has been accepted
+[11] Keyfile path (optional): /bin/sh
+D: real path: "/usr/bin/dash"
+I: path: "/bin/sh"; size: 125560 B, 122.6 KiB
+I: hashing the keyfile...
+D: opening file "/bin/sh" in mode "rb"
+D: opened file (object): <_io.BufferedReader name='/bin/sh'>
+D: closing <_io.BufferedReader name='/bin/sh'>
+D: <_io.BufferedReader name='/bin/sh'> closed
+D: digest:
+    b2698b7db6014716fdf84a6f1d09f6e045ab7e2b92e3702458b08135a6bf5147faa78e35bd9cb1e43043c7da6380facb78c4ad739ddb94cf9b530bb7b7a9f10a
+I: keyfile accepted
+```
 
 ---
 
 ## [12] Passphrase
 
-**User in:** actions `2|3|6|7`
+**Used in:** actions `2|3|6|7`
 
 **Function:** `get_ikm_digest_list()`
 
@@ -640,24 +745,76 @@ Keyfiles are not specified (skipped):
 
 **Default value:** (none)
 
-
 ### Examples
 
-
+Just specifying one passphrase:
 ```
 [12] Passphrase (optional):
 [12] Confirm passphrase:
 I: passphrase accepted
+[12] Passphrase (optional):
+I: entering keying material is completed
 ```
 
+The same with debug messages enabled:
+```
+W: entered passphrases will be displayed!
+[12] Passphrase (optional):
+D: entered passphrase: b'correct horse battery staple'
+D: length: 28 B
+[12] Confirm passphrase:
+D: entered passphrase: b'correct horse battery staple'
+D: length: 28 B
+I: passphrase accepted
+D: passphrase digest:
+    6ab2c5f1dd58431a6767aa1ceef6934bfb3157b03dbec4821898d9ef262e76d5cf4e3fb1725f7f256613fd5701839090cb7828938479e33af7c2cf7ba496da0c
+[12] Passphrase (optional):
+I: entering keying material is completed
+```
+
+Specify one passphrase, then fail to confirm passphrase, then specify another passphrase:
 ```
 [12] Passphrase (optional):
 [12] Confirm passphrase:
-E: passphrase confirmation failed
+I: passphrase accepted
+[12] Passphrase (optional):
+[12] Confirm passphrase:
+E: passphrase confirmation failed; passphrase NOT accepted
+[12] Passphrase (optional):
+[12] Confirm passphrase:
+I: passphrase accepted
+[12] Passphrase (optional):
+I: entering keying material is completed
 ```
 
-
+The same with debug messages enabled:
 ```
+W: entered passphrases will be displayed!
+[12] Passphrase (optional):
+D: entered passphrase: b'1111'
+D: length: 4 B
+[12] Confirm passphrase:
+D: entered passphrase: b'1111'
+D: length: 4 B
+I: passphrase accepted
+D: passphrase digest:
+    8c7836ac51589285b43f923817708d78c95183496c8b21a72b26d2d019eb52e717b8d4b384cbcca48092197b6c421d25358c706a4607da36a928ae5068acdde4
+[12] Passphrase (optional):
+D: entered passphrase: b'2222'
+D: length: 4 B
+[12] Confirm passphrase:
+D: entered passphrase: b'3333'
+D: length: 4 B
+E: passphrase confirmation failed; passphrase NOT accepted
+[12] Passphrase (optional):
+D: entered passphrase: b'666666'
+D: length: 6 B
+[12] Confirm passphrase:
+D: entered passphrase: b'666666'
+D: length: 6 B
+I: passphrase accepted
+D: passphrase digest:
+    93d1f25234dd8f3a94062b0be7ee2cddfab1a3299a9da528166971f3d61f20c41184421d42f03ea8c78e9d3dec613179d96e168140b0fbea4b165766760f43f8
 [12] Passphrase (optional):
 I: entering keying material is completed
 ```
@@ -676,29 +833,30 @@ I: entering keying material is completed
 
 **Default value:** not defined or True (depends on the context)
 
-
-
 ### Examples
 
-```
-W: output file contents will be partially overwritten!
-[13] Proceed? (Y/N): y
-I: writing random data...
-```
-
-```
-W: output file contents will be partially overwritten!
-[13] Proceed? (Y/N): n
-I: stopped by user reques
-```
-
+Context: actions 4, 6:
 ```
 W: output file contents will be partially overwritten!
 [13] Proceed? (Y/N): y
 I: reading, writing...
 ```
 
+Context: action 9:
+```
+W: output file contents will be partially overwritten!
+[13] Proceed? (Y/N): y
+I: writing random data...
+```
 
+Context: actions 4, 6, 9:
+```
+W: output file contents will be partially overwritten!
+[13] Proceed? (Y/N): n
+I: stopped by user request
+```
+
+Context: actions 2-9:
 ```
 I: next it's offered to remove the output file path
 [13] Proceed? (Y/N, default=Y):
@@ -708,7 +866,6 @@ I: path "fooo" has been removed
 ---
 
 ## [14] Output file size
-
 
 **Used in:** action `8`
 
@@ -720,11 +877,10 @@ I: path "fooo" has been removed
 
 **Default value:** (not defined)
 
+### Examples
 
-#### Examples
-
+Specifying 1000000 (1 MB):
 ```
 [14] Output file size in bytes: 1000000
 I: size: 1000000 B, 976.6 KiB
 ```
-
