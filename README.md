@@ -240,7 +240,7 @@ $ sudo make install-deb
 
 Standalone executables (made with [PyInstaller](https://pyinstaller.org/en/stable/)) are also available (see [Releases](https://github.com/hakavlad/tird/releases)) for MS Windows and Linux amd64.
 
-> [!WARNING]
+> \[!WARNING]
 > Use them only if you're brave enough!
 
 ![tird.exe](https://i.imgur.com/hjnarbH.png)
