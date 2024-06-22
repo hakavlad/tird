@@ -253,10 +253,10 @@ Use [Minisign](https://jedisct1.github.io/minisign/) to verify signatures. You c
 For example:
 
 ```
-$ minisign -Vm  tird-v0.15.0-linux-amd64.zip -P RWQLYkPbRQ8b56zEe8QdbjLFqC9UrjOaYxW5JxwsWV7v0ct/F/XfJlel
+$ minisign -Vm  tird-v0.15.1-linux-amd64.zip -P RWQLYkPbRQ8b56zEe8QdbjLFqC9UrjOaYxW5JxwsWV7v0ct/F/XfJlel
 ```
 
-This requires the signature `tird-v0.15.0-linux-amd64.zip.minisig` to be present in the same directory.
+This requires the signature `tird-v0.15.1-linux-amd64.zip.minisig` to be present in the same directory.
 </details>
 
 ---
