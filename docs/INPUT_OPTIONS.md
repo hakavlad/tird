@@ -22,7 +22,7 @@ This page describes `tird` input options.
 
 ---
 
-## [01] Select an option
+## \[01] Select an option
 
 **Function:** `select_action()`
 
@@ -120,7 +120,7 @@ I: action #2:
 
 ---
 
-## [02] Use custom settings?
+## \[02] Use custom settings?
 
 **Used in:** actions `2|3|6|7`
 
@@ -187,7 +187,7 @@ D: max padding size, %: 100
 
 ---
 
-## [03] Argon2 time cost
+## \[03] Argon2 time cost
 
 **Used in:** actions `2|3|6|7`
 
@@ -205,7 +205,7 @@ See [[02] Use custom settings?](#02-use-custom-settings)
 
 ---
 
-## [04] Max padding size
+## \[04] Max padding size
 
 **Used in:** actions `2|3|6|7`
 
@@ -223,7 +223,7 @@ See [[02] Use custom settings?](#02-use-custom-settings)
 
 ---
 
-## [05] Set a fake MAC tag?
+## \[05] Set a fake MAC tag?
 
 **Used in:** actions `2|6`
 
@@ -241,7 +241,7 @@ See [[02] Use custom settings?](#02-use-custom-settings)
 
 ---
 
-## [06] Input file path
+## \[06] Input file path
 
 **Used in:** actions `2|3|4|5|6|7`
 
@@ -340,7 +340,7 @@ D: max_cryptoblob_size: 281540
 
 ---
 
-## [07] Output file path
+## \[07] Output file path
 
 **Used in:** actions `2|3|4|5|6|7|8|9`
 
@@ -433,7 +433,7 @@ I: path: "/dev/sdc"; size: 16357785600 B, 15.2 GiB
 
 ---
 
-## [08] Start position
+## \[08] Start position
 
 **Used in:** actions `4|5|6|7|9`
 
@@ -468,7 +468,7 @@ I: start position: 0
 
 ---
 
-## [09] End position
+## \[09] End position
 
 **Used in:** actions `5|7|9`
 
@@ -504,7 +504,7 @@ I: data size to write: 16357785600 B, 15.2 GiB
 
 ---
 
-## [10] Comments
+## \[10] Comments
 
 **Used in:** actions `2|6`
 
@@ -564,7 +564,7 @@ I: comments will be shown as: ["An implementation reference for ChaCha20 has bee
 
 ---
 
-## [11] Keyfile path
+## \[11] Keyfile path
 
 **Used in:** actions `2|3|6|7`
 
@@ -733,7 +733,7 @@ I: keyfile accepted
 
 ---
 
-## [12] Passphrase
+## \[12] Passphrase
 
 **Used in:** actions `2|3|6|7`
 
@@ -821,7 +821,7 @@ I: entering keying material is completed
 
 ---
 
-## [13] Proceed?
+## \[13] Proceed?
 
 **Used in:** actions `2|3|4|5|6|7|8|9`
 
@@ -865,7 +865,7 @@ I: path "fooo" has been removed
 
 ---
 
-## [14] Output file size
+## \[14] Output file size
 
 **Used in:** action `8`
 
