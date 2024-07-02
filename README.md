@@ -38,13 +38,13 @@ Using `tird` you can:
 
 `tird` uses the following cryptographic primitives:
 
-- `BLAKE2` ([RFC 7693](https://datatracker.ietf.org/doc/html/rfc7693.html)):
+- `BLAKE2` ([RFC 7693](https://www.rfc-editor.org/rfc/rfc7693.html)):
   - salted and personalized `BLAKE2b-512` for hashing keyfiles and passphrases;
   - salted `BLAKE2b-512` for hashing digest list;
   - keyed `BLAKE2b-512` for creating message authentication codes;
   - `BLAKE2b-256` for creating message checksums.
-- `Argon2` memory-hard function ([RFC 9106](https://datatracker.ietf.org/doc/html/rfc9106/)) for key stretching and key derivation.
-- `ChaCha20` cipher ([RFC 7539](https://datatracker.ietf.org/doc/html/rfc7539)) for data encryption.
+- `Argon2` memory-hard function ([RFC 9106](https://www.rfc-editor.org/rfc/rfc9106.html)) for key stretching and key derivation.
+- `ChaCha20` cipher ([RFC 7539](https://www.rfc-editor.org/rfc/rfc7539.html)) for data encryption.
 
 See the [specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md) for more details.
 
@@ -253,10 +253,10 @@ Use [Minisign](https://jedisct1.github.io/minisign/) to verify signatures. You c
 For example:
 
 ```
-$ minisign -Vm  tird-v0.15.0-linux-amd64.zip -P RWQLYkPbRQ8b56zEe8QdbjLFqC9UrjOaYxW5JxwsWV7v0ct/F/XfJlel
+$ minisign -Vm  tird-v0.16.0-linux-amd64.zip -P RWQLYkPbRQ8b56zEe8QdbjLFqC9UrjOaYxW5JxwsWV7v0ct/F/XfJlel
 ```
 
-This requires the signature `tird-v0.15.0-linux-amd64.zip.minisig` to be present in the same directory.
+This requires the signature `tird-v0.16.0-linux-amd64.zip.minisig` to be present in the same directory.
 </details>
 
 ---
