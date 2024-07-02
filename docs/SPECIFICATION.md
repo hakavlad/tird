@@ -1,4 +1,3 @@
-
 # Draft Specification
 
 - Conventions used in this document
@@ -20,6 +19,7 @@
   - Encrypt & embed, Extract & decrypt
 - Creating files with random data
 - Overwriting file contents with random data
+- Test vectors
 
 ---
 
@@ -95,6 +95,8 @@ Payload consists of Comments up to 512 bytes and File contents from 0 bytes.
 
 User can add comments to encrypt it with a cryptoblob.
 
+`0xFF` is used as a marker to separate user-entered comments from random data.
+
 ```
 comments_bytes = (comments || 0xFF || random data)[:512]
 ```
@@ -169,7 +171,7 @@ digest:64  digest:64  digest:64
                v
       [sorted digest list]
                |
-               |  <-------------- hashing sorted digests with BLAKE2b-512
+               |  <------------- hashing sorted digests with salted BLAKE2b-512
                v
       Argon2 password (64 B)
                |                 +------------------------------------------+
@@ -177,7 +179,7 @@ digest:64  digest:64  digest:64
                v                 | 1 lane, 512 MiB, 4 iterations by default |
        Argon2 tag (128 B)        +------------------------------------------+
                |
-               |  <-- enc_key:32 || pad_key:32 || mac_key:64 = argon2_tag:128
+               |  <-- enc_key || pad_key || mac_key = argon2_tag
                v
    +-------------------+---------------------+
    |                   |                     |
@@ -199,21 +201,19 @@ ChaCha20    pad_key1:16  pad_key2:16   keyed BLAKE2b-512
 
 ### Encryption
 
-`tird` uses ChaCha20 from \[[RFC 8439](https://www.rfc-editor.org/rfc/rfc8439)] with a counter nonce to encrypt a payload.
+`tird` uses ChaCha20 from \[[RFC 7539](https://www.rfc-editor.org/rfc/rfc7539)] with a counter nonce to encrypt a payload.
 
 256-bit encryption key is from Argon2 output.
 
 96-bit nonce is bytes in little-endian from a counter.
 
-<table>
-  <tr> <td>Counter</td> <td>nonce                                  </td> <td>Data                           </td> </tr>
-  <tr> <td>0      </td> <td>                                       </td> <td>Init value, not used           </td> </tr>
-  <tr> <td>1      </td> <td><code>0x010000000000000000000000</code></td> <td>Comments, 512 B                </td> </tr>
-  <tr> <td>2      </td> <td><code>0x020000000000000000000000</code></td> <td>File contents chunk0, 128 KiB  </td> </tr>
-  <tr> <td>3      </td> <td><code>0x030000000000000000000000</code></td> <td>File contents chunk1, 128 KiB  </td> </tr>
-  <tr> <td>4      </td> <td><code>0x040000000000000000000000</code></td> <td>File contents chunk2, 128 KiB  </td> </tr>
-  <tr> <td>5      </td> <td><code>0x050000000000000000000000</code></td> <td>File contents chunk3, 0-128 KiB</td> </tr>
-</table>
+|Counter|nonce|Data to encrypt|
+|-|-|-|
+|1|`0x010000000000000000000000`|Comments, 512 B|
+|2|`0x020000000000000000000000`|File contents chunk0, 128 KiB|
+|3|`0x030000000000000000000000`|File contents chunk1, 128 KiB|
+|4|`0x040000000000000000000000`|File contents chunk2, 128 KiB|
+|5|`0x050000000000000000000000`|File contents chunk3, 0-128 KiB|
 
 Decryption never fails.
 
@@ -288,3 +288,7 @@ Use chunks up to 128 KiB.
 |       | random data |     |
 +-------+-------------+-----+
 ```
+
+---
+
+## Test vectors
