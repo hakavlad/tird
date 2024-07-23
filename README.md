@@ -38,13 +38,13 @@ Using `tird` you can:
 
 `tird` uses the following cryptographic primitives:
 
-- `BLAKE2` ([RFC 7693](https://www.rfc-editor.org/rfc/rfc7693.html)):
+- ❤️ `ChaCha20` cipher ([RFC 7539](https://www.rfc-editor.org/rfc/rfc7539.html)) for data encryption.
+- ❤️ `Argon2` memory-hard function ([RFC 9106](https://www.rfc-editor.org/rfc/rfc9106.html)) for key stretching and key derivation.
+- ❤️ `BLAKE2` ([RFC 7693](https://www.rfc-editor.org/rfc/rfc7693.html)):
   - salted and personalized `BLAKE2b-512` for hashing keyfiles and passphrases;
   - salted `BLAKE2b-512` for hashing digest list;
   - keyed `BLAKE2b-512` for creating message authentication codes;
   - `BLAKE2b-256` for creating message checksums.
-- `Argon2` memory-hard function ([RFC 9106](https://www.rfc-editor.org/rfc/rfc9106.html)) for key stretching and key derivation.
-- `ChaCha20` cipher ([RFC 7539](https://www.rfc-editor.org/rfc/rfc7539.html)) for data encryption.
 
 See the [specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md) for more details.
 
@@ -187,6 +187,8 @@ A detailed description of these options with examples can be found [here](https:
 - ⚠️ `tird` does not sort digests of keyfiles and passphrases in constant-time.
 - ⚠️ Overwriting file contents does not mean securely destroying the data on the media.
 - ⚠️ Development is not complete, there may be backward compatibility issues in the future.
+
+![Strong encryption, weak password](https://i.imgur.com/onTA8IX.jpeg)
 
 ---
 
