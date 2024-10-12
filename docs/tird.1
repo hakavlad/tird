@@ -43,37 +43,30 @@ box even if you encrypt files without hiding them in containers.
 .PP
 print debug messages
 .SH INPUT OPTIONS
-.IP \[bu] 2
-[01] Select an action
-.IP \[bu] 2
-[02] Use custom settings?
-.IP \[bu] 2
-[03] Argon2 time cost
-.IP \[bu] 2
-[04] Max padding size
-.IP \[bu] 2
-[05] Set a fake MAC tag?
-.IP \[bu] 2
-[06] Input file path
-.IP \[bu] 2
-[07] Output file path
-.IP \[bu] 2
-[08] Start position
-.IP \[bu] 2
-[09] End position
-.IP \[bu] 2
-[10] Comments
-.IP \[bu] 2
-[11] Keyfile path
-.IP \[bu] 2
-[12] Passphrase
-.IP \[bu] 2
-[13] Proceed?
-.IP \[bu] 2
-[14] Output file size
 .PP
-See <https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md>
-for detailed descriptions and examples.
+\f[B]tird\f[R] has the following input options:
+.IP
+.nf
+\f[C]
+[01] Select an option
+[02] Use custom settings?
+[03] Argon2 time cost
+[04] Max padding size
+[05] Set a fake MAC tag?
+[06] Input file path
+[07] Output file path
+[08] Start position
+[09] End position
+[10] Comments
+[11] Keyfile path
+[12] Passphrase
+[13] Proceed?
+[14] Output file size
+\f[R]
+.fi
+.PP
+For a detailed description of these options, see
+<https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md>.
 .SH GOALS
 .IP \[bu] 2
 Providing protection for individual files, including:
@@ -240,11 +233,11 @@ Development is not complete, there may be backward compatibility issues
 in the future.
 .SH REQUIREMENTS
 .IP \[bu] 2
-Python >= 3.6
-.IP \[bu] 2
-PyNaCl >= 1.2.0
+Python >= 3.9
 .IP \[bu] 2
 PyCryptodomex >= 3.6.2
+.IP \[bu] 2
+PyNaCl >= 1.2.0
 .SH TUTORAL
 .PP
 Step-by-step guides and examples you can see here

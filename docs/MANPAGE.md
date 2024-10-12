@@ -149,9 +149,10 @@ Enabling debug messages additionally shows:
 
 # REQUIREMENTS
 
-- Python >= 3.6
-- PyNaCl >= 1.2.0
+- Python >= 3.9
 - PyCryptodomex >= 3.6.2
+- PyNaCl >= 1.2.0
+
 
 # TUTORAL
 

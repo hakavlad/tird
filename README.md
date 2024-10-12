@@ -194,9 +194,9 @@ A detailed description of these options with examples can be found [here](https:
 
 ## Requirements
 
-- Python >= 3.6
-- [PyNaCl](https://pypi.org/project/PyNaCl/) >= 1.2.0 (provides `Argon2`)
+- Python >= 3.9
 - [PyCryptodomex](https://pypi.org/project/pycryptodomex/) >= 3.6.2 (provides `ChaCha20`)
+- [PyNaCl](https://pypi.org/project/PyNaCl/) >= 1.2.0 (provides `BLAKE2` and `Argon2`)
 
 ---
 
