@@ -11,65 +11,71 @@
 
 `tird` *(an acronym for "this is random data")* is a tool for encrypting files and hiding encrypted data.
 
-Using `tird` you can:
+With `tird`, you can:
 
-1. Create files with random data. Use them as containers or keyfiles.
+1. Create files filled with random data to serve as containers or keyfiles.
 2. Overwrite the contents of devices and regular files with random data. This can be used to prepare containers and to destroy residual data.
-3. Encrypt file contents and comments with modern cryptographic primitives. The encrypted file format (cryptoblob) is [padded uniform random blob (PURB)](https://en.wikipedia.org/wiki/PURB_(cryptography)): it looks like random data and has randomized size. This reduces metadata leakage through file format and length, and also allows cryptoblobs to be hidden among random data.
-4. Create [steganographic](https://en.wikipedia.org/wiki/Steganography) (hidden, undetectable) user-driven file systems inside container files and devices. Unlike [VeraCrypt](https://veracrypt.fr) and [Shufflecake](https://shufflecake.net/) containers, `tird` containers do not contain headers at all: the user specifies the location of the data in the container and is responsible for ensuring that this location is separated from the container.
-5. Resist [coercive](https://en.wikipedia.org/wiki/Coercion) attacks (keywords: [key disclosure law](https://en.wikipedia.org/wiki/Key_disclosure_law), [rubber-hose cryptanalysis](https://en.wikipedia.org/wiki/Deniable_encryption), [xkcd 538](https://xkcd.com/538/)). `tird` provides some forms of [plausible deniability](https://en.wikipedia.org/wiki/Plausible_deniability) out of the box even if you encrypt files without hiding them in containers.
+3. Encrypt file contents and comments with modern cryptographic primitives. The encrypted file format (cryptoblob) is a [padded uniform random blob (PURB)](https://en.wikipedia.org/wiki/PURB_(cryptography)): it looks like random data and has a randomized size. This reduces metadata leakage through file format and length, and also allows cryptoblobs to be hidden among random data.
+4. Create [steganographic](https://en.wikipedia.org/wiki/Steganography) (hidden, undetectable) user-driven file systems inside container files and devices. Unlike [VeraCrypt](https://veracrypt.fr) and [Shufflecake](https://shufflecake.net/) containers, `tird` containers do not contain headers at all; the user specifies the location of the data in the container and is responsible for ensuring that this location is separated from the container.
+5. Resist [coercive](https://en.wikipedia.org/wiki/Coercion) attacks (keywords: [key disclosure law](https://en.wikipedia.org/wiki/Key_disclosure_law), [rubber-hose cryptanalysis](https://en.wikipedia.org/wiki/Deniable_encryption), [xkcd 538](https://xkcd.com/538/)). `tird` provides some forms of [plausible deniability](https://en.wikipedia.org/wiki/Plausible_deniability) out of the box, even if you encrypt files without hiding them in containers.
 
 ---
 
 ## Goals
 
-- Providing protection for individual files, including:
-  - symmetric encryption and authentication;
-  - minimizing metadata leakage;
-  - preventing access to data in case of user coercion;
-  - plausible deniability of payload existence;
-  - hiding encrypted data.
-- Providing a stable encryption format with no [cryptographic agility](https://en.wikipedia.org/wiki/Cryptographic_agility) for long-term data storage.
-- Simplicity and no [feature creep](https://en.wikipedia.org/wiki/Feature_creep): refusal to implement features that are not directly related to primary security goals.
+- **File Protection:** Ensuring protection for individual files, including:
+  - Symmetric encryption and authentication.
+  - Minimizing metadata leakage.
+  - Preventing access to data in cases of user coercion.
+  - Plausible deniability of payload existence.
+  - Hiding encrypted data.
+- **Stable Format:** Ensuring a stable encryption format with no [cryptographic agility](https://en.wikipedia.org/wiki/Cryptographic_agility) for long-term data storage.
+- **Simplicity:** Ensuring simplicity and avoiding [feature creep](https://en.wikipedia.org/wiki/Feature_creep): refusal to implement features that are not directly related to primary security goals.
 
 ---
 
-## Cryptographic primitives
+## Cryptographic Primitives
 
-`tird` uses the following cryptographic primitives:
+The following cryptographic primitives are utilized by `tird`:
 
 - ❤️ `ChaCha20` cipher ([RFC 7539](https://www.rfc-editor.org/rfc/rfc7539.html)) for data encryption.
 - ❤️ `Argon2` memory-hard function ([RFC 9106](https://www.rfc-editor.org/rfc/rfc9106.html)) for key stretching and key derivation.
 - ❤️ `BLAKE2` ([RFC 7693](https://www.rfc-editor.org/rfc/rfc7693.html)):
-  - salted and personalized `BLAKE2b-512` for hashing keyfiles and passphrases;
-  - salted `BLAKE2b-512` for hashing digest list;
-  - keyed `BLAKE2b-512` for creating message authentication codes;
+  - Salted and personalized `BLAKE2b-512` for hashing keyfiles and passphrases.
+  - Salted `BLAKE2b-512` for hashing digest lists.
+  - Keyed `BLAKE2b-512` for creating message authentication codes.
   - `BLAKE2b-256` for creating message checksums.
 
-See the [specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md) for more details.
+For more details, refer to the [specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md).
 
 ---
 
-## Encrypted file format
+## Encrypted File Format
 
-`tird` encrypted files (cryptoblobs) are indistinguishable from random data and have no identifiable headers. `tird` produces cryptoblobs contain bilateral [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with uniform random data (PURBs). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data.
+Files encrypted with `tird` (cryptoblobs) cannot be distinguished from random data without knowledge of the keys and have no identifiable headers. `tird` produces cryptoblobs that contain bilateral [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with uniform random data (PURBs). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data.
 
-See the [specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md) for more details.
+For more details, refer to the [specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md).
 
 ---
 
-## Hidden user-driven file system and container file format
+## Hidden User-Driven File System and Container Format
 
-You can encrypt files and write cryptoblobs over containers starting with arbitary positions.
-After finishing writing the cryptoblob, you will be asked to remember the location of the cryptoblob in the container (positions of the beginning and end of the cryptoblob), which can be used in the future to extract the cryptoblob. In this way, you can create a **hidden user-driven file system** inside a container.
+You can encrypt files and embed cryptoblobs into containers starting at arbitrary positions. After writing the cryptoblob, you will need to remember its location in the container (the starting and ending positions), which will be used later to extract the cryptoblobs. In this way, you can create a **hidden, headerless, user-driven file system** inside a container:
 
-It is **hidden** because it is impossible to distinguish between random container data and random cryptoblob data, and it is impossible to determine the location of written cryptoblobs without knowing the positions and keys.
+- It is **hidden** because it is impossible to distinguish between random container data and cryptoblob data, as well as to determine the location of written cryptoblobs without knowing the positions and keys.
+- It is **headerless** because containers do not contain any headers; all data about cryptoblob locations must be stored separately by the user.
+- The starting position of the cryptoblob in the container is **user-defined**, and the **user must** store both the starting and ending positions separately from the container. This is why this "file system" is called a **user-driven file system**.
 
-Containers do not contain *any* headers, all data about cryptoblob locations must be stored separately by the user.
+Any file, disk, or partition larger than ~1 KiB can be a valid container. Cryptoblobs can be embedded into any area.
 
-The location of the start of the cryptoblob in the container is user-defined, and the location of the start and end positions of the cryptoblob must be stored by the user separately from the container. This is why this "file system" is called a **user-driven file system**.
+**Examples of valid containers include:**
 
-Container structure (as an example):
+1. Specially generated files with random data.
+2. Disk areas containing random data. For example, you can overwrite a disk with random data, format it in FAT32 or exFAT, and use a large portion of the disk, leaving a few dozen MB from the beginning. The disk will appear empty unless you add some files to it.
+3. `tird` cryptoblobs, as they contain unauthenticated padding of random data by default, which can be used to embed smaller cryptoblobs.
+4. VeraCrypt containers, even those that already contain hidden volumes.
+
+**Example of Container Structure:**
 
 ```
 +—————————+—————————————+— Position 0
@@ -95,7 +101,7 @@ Container structure (as an example):
 
 ## Usage
 
-You don't need to remember command line options to use `tird`.
+You don’t need to memorize command-line options to use `tird`.
 
 Just start `tird`, select a menu option, and then answer the questions that `tird` will ask:
 
@@ -107,7 +113,7 @@ $ tird
 
 ---
 
-## Debug
+## Debug Mode
 
 Start `tird` with the option `--debug` or `-d` to look under the hood while the program is running:
 
@@ -117,13 +123,15 @@ $ tird -d
 
 Enabling debug messages additionally shows:
 
-- opening and closing file descriptors;
-- real paths to opened files;
-- moving file pointers using the seek() method;
-- salts, passphrases, digests, keys, nonces, tags;
-- some other info.
+- Opening and closing file descriptors.
+- Real paths to opened files.
+- Moving file pointers using the `seek()` method.
+- Salts, passphrases, digests, keys, nonces, tags.
+- Some other information.
 
-## Input options
+---
+
+## Input Options
 
 `tird` has the following input options:
 
@@ -135,13 +143,13 @@ Enabling debug messages additionally shows:
 [05] Set a fake MAC tag?
 [06] Input file path
 [07] Output file path
-[08] Start position
-[09] End position
-[10] Comments
-[11] Keyfile path
-[12] Passphrase
-[13] Proceed?
-[14] Output file size
+[08] Output file size
+[09] Start position
+[10] End position
+[11] Comments
+[12] Keyfile path
+[13] Passphrase
+[14] Proceed?
 ```
 
 A detailed description of these options with examples can be found [here](https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md).
@@ -157,7 +165,7 @@ A detailed description of these options with examples can be found [here](https:
 
 ---
 
-## Tradeoffs and limitations
+## Tradeoffs and Limitations
 
 - `tird` does not support [public-key cryptography](https://en.wikipedia.org/wiki/Public-key_cryptography).
 - `tird` does not support file compression.
@@ -165,30 +173,34 @@ A detailed description of these options with examples can be found [here](https:
 - `tird` does not support [Reed–Solomon error correction](https://en.wikipedia.org/wiki/Reed%E2%80%93Solomon_error_correction).
 - `tird` does not support splitting the output into chunks.
 - `tird` does not support the use of [standard streams](https://en.wikipedia.org/wiki/Standard_streams) for payload transmission.
-- `tird` does not support low-level device reading and writing when used on MS Windows (devices cannot be used as keyfiles, cannot be overwritten, cannot be encrypted or hidden).
+- `tird` does not support low-level device reading and writing when used on MS Windows (devices cannot be used as keyfiles, cannot be overwritten, and cannot be encrypted or hidden).
 - `tird` does not provide a graphical user interface.
 - `tird` does not provide a password generator.
 - `tird` can only encrypt one file per iteration. Encryption of directories and multiple files is not supported.
-- `tird` does not fake file timestamps (atime, mtime, ctime).
-- `tird` encryption speed is not very fast (up to 180 MiB/s in my tests).
+- `tird` does not fake file access, modification, and creation timestamps (atime, mtime, ctime).
+- `tird`'s encryption speed is not very fast (up to 180 MiB/s in my tests).
 
 ---
 
 ## Warnings
 
-- ⚠️ The author is not a cryptographer.
+- ⚠️ The author does not have a background in cryptography.
 - ⚠️ `tird` has not been independently audited.
-- ⚠️ `tird` probably won't help much when used in a compromised environment.
-- ⚠️ `tird` probably won't help much when used with short and predictable keys.
-- ⚠️ Sensitive data may leak into the swap space.
+- ⚠️ `tird` is unlikely to be effective when used in a compromised environment.
+- ⚠️ `tird` is unlikely to be effective when used with short and predictable keys.
+- ⚠️ Sensitive data may leak into swap space.
 - ⚠️ `tird` does not erase sensitive data from memory after use.
-- ⚠️ `tird` always releases unverified plaintext (violates [The Cryptographic Doom Principle](https://moxie.org/2011/12/13/the-cryptographic-doom-principle.html)).
+- ⚠️ `tird` always releases unverified plaintext, violating [The Cryptographic Doom Principle](https://moxie.org/2011/12/13/the-cryptographic-doom-principle.html).
 - ⚠️ Padding is not used to create a MAC tag (only ciphertext and salt will be authenticated).
 - ⚠️ `tird` does not sort digests of keyfiles and passphrases in constant-time.
-- ⚠️ Overwriting file contents does not mean securely destroying the data on the media.
-- ⚠️ Development is not complete, there may be backward compatibility issues in the future.
+- ⚠️ Overwriting file contents does not guarantee secure destruction of the data on the media.
+- ⚠️ Development is not complete; there may be backward compatibility issues in the future.
+
+<details>
+<summary>Image</summary>
 
 ![Strong encryption, weak password](https://i.imgur.com/onTA8IX.jpeg)
+</details>
 
 ---
 
@@ -202,7 +214,7 @@ A detailed description of these options with examples can be found [here](https:
 
 ## Installation
 
-### Installing from PyPI
+### Installation from PyPI
 
 Install `python3` and `python3-pip` (or `python-pip`), then run
 
@@ -210,40 +222,37 @@ Install `python3` and `python3-pip` (or `python-pip`), then run
 $ pip install tird
 ```
 
-### Building and installing the package on `deb`-based Linux distros
+### Building and Installing the Package on Debian-based Linux Distros
 
-It's easy to build a `deb` package for Debian and Ubuntu-based distros with the latest git snapshot.
+It's easy to build a deb package for Debian and Ubuntu-based distros with the latest git snapshot.
 
-Install the build dependencies:
+1. Install the build dependencies:
 
 ```bash
 $ sudo apt install make fakeroot
 ```
 
-Clone the repo (if `git` is already installed) and enter the directory:
+2. Clone the repository (if `git` is already installed) and enter the directory:
 
 ```bash
 $ git clone https://github.com/hakavlad/tird.git && cd tird
 ```
 
-Build the package:
+3. Build the package:
 
 ```bash
 $ make build-deb
 ```
 
-Install or reinstall the package:
+4. Install or reinstall the package:
 
 ```bash
 $ sudo make install-deb
 ```
 
-### Standalone executables
+### Standalone Executables
 
-Standalone executables (made with [PyInstaller](https://pyinstaller.org/en/stable/)) are also available (see [Releases](https://github.com/hakavlad/tird/releases)) for MS Windows and Linux amd64.
-
-> \[!WARNING]
-> Use them only if you're brave enough!
+Standalone executables (made with [PyInstaller](https://pyinstaller.org/en/stable/)) are also available (see [Releases](https://github.com/hakavlad/tird/releases)) for MS Windows and Linux amd64. Use at your own risk.
 
 ![tird.exe](https://i.imgur.com/hjnarbH.png)
 
@@ -267,13 +276,13 @@ This requires the signature `tird-v0.16.0-linux-amd64.zip.minisig` to be present
 
 Write or improve the documentation:
 
-- Features;
-- User guide;
-- Specification;
-- Design rationale.
+- Features
+- User Guide
+- Specification
+- Design Rationale
 
 ---
 
 ## Feedback
 
-Feel free to post any questions, reviews, or criticisms in the [Discussions](https://github.com/hakavlad/tird/discussions).
+Please feel free to ask questions, leave feedback, or provide critiques in the [Discussions](https://github.com/hakavlad/tird/discussions) section.
