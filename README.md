@@ -13,9 +13,9 @@
 
 With `tird`, you can:
 
-1. Create files filled with random data to serve as containers or keyfiles.
+1. Create files filled with random data to use as containers or keyfiles.
 2. Overwrite the contents of devices and regular files with random data. This can be used to prepare containers and to destroy residual data.
-3. Encrypt file contents and comments with modern cryptographic primitives. The encrypted file format (cryptoblob) is a [padded uniform random blob (PURB)](https://en.wikipedia.org/wiki/PURB_(cryptography)): it looks like random data and has a randomized size. This reduces metadata leakage through file format and length, and also allows cryptoblobs to be hidden among random data.
+3. Encrypt file contents and comments with modern cryptographic primitives. The encrypted file format (cryptoblob) is a [padded uniform random blob (PURB)](https://en.wikipedia.org/wiki/PURB_(cryptography)): it looks like random data and has a randomized size. This reduces metadata leakage through file format and length, and also allows cryptoblobs to be hidden among random data. You can use keyfiles and passphrases at your choice to enhance security.
 4. Create [steganographic](https://en.wikipedia.org/wiki/Steganography) (hidden, undetectable) user-driven file systems inside container files and devices. Unlike [VeraCrypt](https://veracrypt.fr) and [Shufflecake](https://shufflecake.net/) containers, `tird` containers do not contain headers at all; the user specifies the location of the data in the container and is responsible for ensuring that this location is separated from the container.
 5. Resist [coercive](https://en.wikipedia.org/wiki/Coercion) attacks (keywords: [key disclosure law](https://en.wikipedia.org/wiki/Key_disclosure_law), [rubber-hose cryptanalysis](https://en.wikipedia.org/wiki/Deniable_encryption), [xkcd 538](https://xkcd.com/538/)). `tird` provides some forms of [plausible deniability](https://en.wikipedia.org/wiki/Plausible_deniability) out of the box, even if you encrypt files without hiding them in containers.
 
@@ -113,24 +113,6 @@ $ tird
 
 ---
 
-## Debug Mode
-
-Start `tird` with the option `--debug` or `-d` to look under the hood while the program is running:
-
-```bash
-$ tird -d
-```
-
-Enabling debug messages additionally shows:
-
-- Opening and closing file descriptors.
-- Real paths to opened files.
-- Moving file pointers using the `seek()` method.
-- Salts, passphrases, digests, keys, nonces, tags.
-- Some other information.
-
----
-
 ## Input Options
 
 `tird` has the following input options:
@@ -156,6 +138,24 @@ A detailed description of these options with examples can be found [here](https:
 
 ---
 
+## Debug Mode
+
+Start `tird` with the option `--debug` or `-d` to look under the hood while the program is running:
+
+```bash
+$ tird -d
+```
+
+Enabling debug messages additionally shows:
+
+- Opening and closing file descriptors.
+- Real paths to opened files.
+- Moving file pointers using the `seek()` method.
+- Salts, passphrases, digests, keys, nonces, tags.
+- Some other information.
+
+---
+
 ## Documentation
 
 - [man page](https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md)
@@ -176,7 +176,7 @@ A detailed description of these options with examples can be found [here](https:
 - `tird` does not support low-level device reading and writing when used on MS Windows (devices cannot be used as keyfiles, cannot be overwritten, and cannot be encrypted or hidden).
 - `tird` does not provide a graphical user interface.
 - `tird` does not provide a password generator.
-- `tird` can only encrypt one file per iteration. Encryption of directories and multiple files is not supported.
+- `tird` can handle (encrypt/embed) only one file in one pass. Encryption of directories and multiple files is not supported.
 - `tird` does not fake file access, modification, and creation timestamps (atime, mtime, ctime).
 - `tird`'s encryption speed is not very fast (up to 180 MiB/s in my tests).
 
