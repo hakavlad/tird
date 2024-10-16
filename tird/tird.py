@@ -3808,7 +3808,7 @@ DEBUG_INFO: Final[str] = f"""Python version {version}"""
 
 # Warnings related to the application usage
 WARNINGS: Final[tuple[str, ...]] = (
-    "The author is not a cryptographer.",
+    "The author does not have a background in cryptography.",
     "tird has not been independently audited.",
     "tird is unlikely to be effective when used in a compromised environment.",
     "tird is unlikely to be effective when used with short and "
