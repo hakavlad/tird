@@ -15,7 +15,7 @@ With `tird`, you can:
 
 1. Create files filled with random data to use as containers or keyfiles.
 2. Overwrite the contents of devices and regular files with random data. This can be used to prepare containers and to destroy residual data.
-3. Encrypt file contents and comments with modern cryptographic primitives. The encrypted file format (cryptoblob) is a [padded uniform random blob (PURB)](https://en.wikipedia.org/wiki/PURB_(cryptography)): it looks like random data and has a randomized size. This reduces metadata leakage through file format and length, and also allows cryptoblobs to be hidden among random data. You can use keyfiles and passphrases at your choice to enhance security.
+3. Encrypt file contents and comments with modern cryptographic primitives. The encrypted file format (cryptoblob) is a [padded uniform random blob (PURB)](https://en.wikipedia.org/wiki/PURB_(cryptography)): it looks like random data and has a randomized size. This reduces metadata leakage from file format and length, and also allows cryptoblobs to be hidden among random data. You can use keyfiles and passphrases at your choice to enhance security.
 4. Create [steganographic](https://en.wikipedia.org/wiki/Steganography) (hidden, undetectable) user-driven file systems inside container files and devices. Unlike [VeraCrypt](https://veracrypt.fr) and [Shufflecake](https://shufflecake.net/) containers, `tird` containers do not contain headers at all; the user specifies the location of the data in the container and is responsible for ensuring that this location is separated from the container.
 5. Resist [coercive](https://en.wikipedia.org/wiki/Coercion) attacks (keywords: [key disclosure law](https://en.wikipedia.org/wiki/Key_disclosure_law), [rubber-hose cryptanalysis](https://en.wikipedia.org/wiki/Deniable_encryption), [xkcd 538](https://xkcd.com/538/)). `tird` provides some forms of [plausible deniability](https://en.wikipedia.org/wiki/Plausible_deniability) out of the box, even if you encrypt files without hiding them in containers.
 
@@ -52,7 +52,7 @@ You can encrypt files and embed cryptoblobs into containers starting at arbitrar
 
 - It is **hidden** because it is impossible to distinguish between random container data and cryptoblob data, as well as to determine the location of written cryptoblobs without knowing the positions and keys.
 - It is **headerless** because containers do not contain any headers; all data about cryptoblob locations must be stored separately by the user.
-- The starting position of the cryptoblob in the container is **user-defined**, and the **user must** store both the starting and ending positions separately from the container. This is why this "file system" is called a **user-driven file system**.
+- The starting position of the cryptoblob in the container is **user-defined**, and the **user must** store both the starting and ending positions separately from the container. This is why it is called a **user-driven file system**.
 
 Any file, disk, or partition larger than ~1 KiB can be a valid container. Cryptoblobs can be embedded into any area.
 
@@ -233,7 +233,7 @@ $ sudo make install-deb
 
 ### Standalone Executables
 
-Standalone executables (made with [PyInstaller](https://pyinstaller.org/en/stable/)) are also available (see [Releases](https://github.com/hakavlad/tird/releases)) for MS Windows and Linux amd64. Use at your own risk.
+Standalone executables (made with [PyInstaller](https://pyinstaller.org/en/stable/)) are also available (see [Releases](https://github.com/hakavlad/tird/releases)) for Windows and Linux (amd64). Please use at your own risk.
 
 ![tird.exe](https://i.imgur.com/hjnarbH.png)
 
