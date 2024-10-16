@@ -62,7 +62,9 @@ For a detailed description of these options, see <https://github.com/hakavlad/ti
 
 # USAGE
 
-You don’t need to memorize command-line options to use **tird**. Just start **tird**, select a menu option, and then answer the questions that **tird** will ask:
+You don’t need to memorize command-line options to use **tird**.
+
+Just start **tird**, select a menu option, and then answer the questions that **tird** will ask:
 
 ```
 $ tird
@@ -144,7 +146,7 @@ Enabling debug messages additionally shows:
 - **tird** does not support low-level device reading and writing when used on MS Windows (devices cannot be used as keyfiles, cannot be overwritten, and cannot be encrypted or hidden).
 - **tird** does not provide a graphical user interface.
 - **tird** does not provide a password generator.
-- **tird** can handle (encrypt/embed) only one file in one pass. Encryption of directories and multiple files is not supported.
+- **tird** cannot handle (encrypt/embed) more than one file in one pass. Encryption of directories and multiple files is not supported.
 - **tird** does not fake file access, modification, and creation timestamps (atime, mtime, ctime).
 - **tird**'s encryption speed is not very fast (up to 180 MiB/s in my tests).
 
