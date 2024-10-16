@@ -11,7 +11,7 @@ Description: tool for encrypting files and hiding encrypted data
  files and hiding encrypted data.
  .
  With tird, you can:
- 1. Create files filled with random data to serve as containers or
+ 1. Create files filled with random data to use as containers or
  keyfiles.
  2. Overwrite the contents of devices and regular files with random
  data. This can be used to prepare containers and to destroy residual
@@ -20,7 +20,8 @@ Description: tool for encrypting files and hiding encrypted data
  primitives. The encrypted file format (cryptoblob) is a padded uniform
  random blob (PURB): it looks like random data and has a randomized
  size. This reduces metadata leakage through file format and length, and
- also allows cryptoblobs to be hidden among random data.
+ also allows cryptoblobs to be hidden among random data. You can use
+ keyfiles and passphrases at your choice to enhance security.
  4. Create steganographic (hidden, undetectable) user-driven file
  systems inside container files and devices. Unlike VeraCrypt and
  Shufflecake containers, tird containers do not contain headers at all;
