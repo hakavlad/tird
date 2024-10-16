@@ -19,7 +19,7 @@ Description: tool for encrypting files and hiding encrypted data
  3. Encrypt file contents and comments with modern cryptographic
  primitives. The encrypted file format (cryptoblob) is a padded uniform
  random blob (PURB): it looks like random data and has a randomized
- size. This reduces metadata leakage through file format and length, and
+ size. This reduces metadata leakage from file format and length, and
  also allows cryptoblobs to be hidden among random data. You can use
  keyfiles and passphrases at your choice to enhance security.
  4. Create steganographic (hidden, undetectable) user-driven file
