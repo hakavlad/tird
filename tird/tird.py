@@ -3822,6 +3822,8 @@ WARNINGS: Final[tuple[str, ...]] = (
     "tird doesn't sort digests of keyfiles and passphrases in constant-time.",
     "Overwriting file contents does not guarantee secure destruction "
     "of the data on the media.",
+    "You cannot prove to an adversary that your random-looking data does "
+    "not contain encrypted data.",
     "Development is not complete; there may be backward compatibility "
     "issues in the future."
 )
