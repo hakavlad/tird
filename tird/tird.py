@@ -3796,7 +3796,7 @@ def main() -> NoReturn:
 
 
 # Version of the application
-APP_VERSION: Final[str] = '0.16.0'
+APP_VERSION: Final[str] = '0.17.0'
 
 # Information string for the application
 INFO: Final[str] = f"""tird v{APP_VERSION}
