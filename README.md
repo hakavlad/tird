@@ -19,8 +19,6 @@ With `tird`, you can:
 4. Create [steganographic](https://en.wikipedia.org/wiki/Steganography) (hidden, undetectable) user-driven file systems inside container files and devices. Unlike [VeraCrypt](https://veracrypt.fr) and [Shufflecake](https://shufflecake.net/) containers, `tird` containers do not contain headers at all; the user specifies the location of the data in the container and is responsible for ensuring that this location is separated from the container.
 5. Resist [coercive](https://en.wikipedia.org/wiki/Coercion) attacks (keywords: [key disclosure law](https://en.wikipedia.org/wiki/Key_disclosure_law), [rubber-hose cryptanalysis](https://en.wikipedia.org/wiki/Deniable_encryption), [xkcd 538](https://xkcd.com/538/)). `tird` provides some forms of [plausible deniability](https://en.wikipedia.org/wiki/Plausible_deniability) out of the box, even if you encrypt files without hiding them in containers.
 
----
-
 ## Goals
 
 - **File Protection:** Ensuring protection for individual files, including:
@@ -31,8 +29,6 @@ With `tird`, you can:
   - Hiding encrypted data.
 - **Stable Format:** Ensuring a stable encryption format with no [cryptographic agility](https://en.wikipedia.org/wiki/Cryptographic_agility) for long-term data storage.
 - **Simplicity:** Ensuring simplicity and avoiding [feature creep](https://en.wikipedia.org/wiki/Feature_creep): refusal to implement features that are not directly related to primary security goals.
-
----
 
 ## Cryptographic Primitives
 
@@ -48,15 +44,11 @@ The following cryptographic primitives are utilized by `tird`:
 
 For more details, refer to the [specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md).
 
----
-
 ## Encrypted File Format
 
 Files encrypted with `tird` (cryptoblobs) cannot be distinguished from random data without knowledge of the keys and have no identifiable headers. `tird` produces cryptoblobs that contain bilateral [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with uniform random data (PURBs). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data.
 
 For more details, refer to the [specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md).
-
----
 
 ## Hidden User-Driven File System and Container Format
 
@@ -97,21 +89,25 @@ Any file, disk, or partition larger than ~1 KiB can be a valid container. Crypto
 +—————————+—————————————+
 ```
 
----
-
 ## Usage
 
 You don’t need to memorize command-line options to use `tird`.
 
 Just start `tird`, select a menu option, and then answer the questions that `tird` will ask:
 
-```bash
-$ tird
 ```
+$ tird
 
-![screenshot: MENU](https://i.imgur.com/h2KG9iy.png)
-
----
+                       MENU
+    ———————————————————————————————————————————
+    0. Exit              1. Info & Warnings
+    2. Encrypt           3. Decrypt
+    4. Embed             5. Extract
+    6. Encrypt & Embed   7. Extract & Decrypt
+    8. Create w/ random  9. Overwrite w/ random
+    ———————————————————————————————————————————
+[01] Select an option [0-9]:
+```
 
 ## Input Options
 
@@ -136,8 +132,6 @@ $ tird
 
 A detailed description of these options with examples can be found [here](https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md).
 
----
-
 ## Debug Mode
 
 Start `tird` with the option `--debug` or `-d` to look under the hood while the program is running:
@@ -154,16 +148,12 @@ Enabling debug messages additionally shows:
 - Salts, passphrases, digests, keys, nonces, tags.
 - Some other information.
 
----
-
 ## Documentation
 
 - [man page](https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md)
 - [Input options](https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md)
 - [Specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md)
 - [Tutorial](https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md)
-
----
 
 ## Tradeoffs and Limitations
 
@@ -176,11 +166,9 @@ Enabling debug messages additionally shows:
 - `tird` does not support low-level device reading and writing when used on MS Windows (devices cannot be used as keyfiles, cannot be overwritten, and cannot be encrypted or hidden).
 - `tird` does not provide a graphical user interface.
 - `tird` does not provide a password generator.
-- `tird` can handle (encrypt/embed) only one file in one pass. Encryption of directories and multiple files is not supported.
+- `tird` cannot handle (encrypt/embed) more than one file in one pass. Encryption of directories and multiple files is not supported.
 - `tird` does not fake file access, modification, and creation timestamps (atime, mtime, ctime).
 - `tird`'s encryption speed is not very fast (up to 180 MiB/s in my tests).
-
----
 
 ## Warnings
 
@@ -203,15 +191,11 @@ Enabling debug messages additionally shows:
 ![Strong encryption, weak password](https://i.imgur.com/onTA8IX.jpeg)
 </details>
 
----
-
 ## Requirements
 
 - Python >= 3.9
 - [PyCryptodomex](https://pypi.org/project/pycryptodomex/) >= 3.6.2 (provides `ChaCha20`)
 - [PyNaCl](https://pypi.org/project/PyNaCl/) >= 1.2.0 (provides `BLAKE2` and `Argon2`)
-
----
 
 ## Installation
 
@@ -271,8 +255,6 @@ $ minisign -Vm  tird-v0.16.0-linux-amd64.zip -P RWQLYkPbRQ8b56zEe8QdbjLFqC9UrjOa
 This requires the signature `tird-v0.16.0-linux-amd64.zip.minisig` to be present in the same directory.
 </details>
 
----
-
 ## TODO
 
 Write or improve the documentation:
@@ -281,8 +263,6 @@ Write or improve the documentation:
 - User Guide
 - Specification
 - Design Rationale
-
----
 
 ## Feedback
 
