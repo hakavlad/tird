@@ -23,7 +23,7 @@ This can be used to prepare containers and to destroy residual data.
 Encrypt file contents and comments with modern cryptographic primitives.
 The encrypted file format (cryptoblob) is a padded uniform random blob
 (PURB): it looks like random data and has a randomized size.
-This reduces metadata leakage through file format and length, and also
+This reduces metadata leakage from file format and length, and also
 allows cryptoblobs to be hidden among random data.
 You can use keyfiles and passphrases at your choice to enhance security.
 .IP "4." 3
@@ -134,8 +134,7 @@ by the user.
 The starting position of the cryptoblob in the container is
 \f[B]user-defined\f[R], and the \f[B]user must\f[R] store both the
 starting and ending positions separately from the container.
-This is why this \[lq]file system\[rq] is called a \f[B]user-driven file
-system\f[R].
+This is why it is called a \f[B]user-driven file system\f[R].
 .PP
 Any file, disk, or partition larger than \[ti]1 KiB can be a valid
 container.
