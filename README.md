@@ -34,13 +34,9 @@ With `tird`, you can:
 
 The following cryptographic primitives are utilized by `tird`:
 
-- ❤️ `ChaCha20` cipher ([RFC 7539](https://www.rfc-editor.org/rfc/rfc7539.html)) for data encryption.
-- ❤️ `Argon2` memory-hard function ([RFC 9106](https://www.rfc-editor.org/rfc/rfc9106.html)) for key stretching and key derivation.
-- ❤️ `BLAKE2` ([RFC 7693](https://www.rfc-editor.org/rfc/rfc7693.html)):
-  - Salted and personalized `BLAKE2b-512` for hashing keyfiles and passphrases.
-  - Salted `BLAKE2b-512` for hashing digest lists.
-  - Keyed `BLAKE2b-512` for creating message authentication codes.
-  - `BLAKE2b-256` for creating message checksums.
+- `ChaCha20` cipher ([RFC 7539](https://www.rfc-editor.org/rfc/rfc7539.html)) for data encryption.
+- `BLAKE2` ([RFC 7693](https://www.rfc-editor.org/rfc/rfc7693.html)) for hashing and authentication.
+- `Argon2` memory-hard function ([RFC 9106](https://www.rfc-editor.org/rfc/rfc9106.html)) for key stretching and key derivation.
 
 For more details, refer to the [specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md).
 
