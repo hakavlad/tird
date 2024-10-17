@@ -113,8 +113,8 @@ $ tird
 [01] Select an option
 [02] Use custom settings?
 [03] Argon2 time cost
-[04] Max padding size
-[05] Set a fake MAC tag?
+[04] Max rand padding size
+[05] Set fake MAC tag?
 [06] Input file path
 [07] Output file path
 [08] Output file size
@@ -245,10 +245,10 @@ Use [Minisign](https://jedisct1.github.io/minisign/) to verify signatures. You c
 For example:
 
 ```
-$ minisign -Vm  tird-v0.16.0-linux-amd64.zip -P RWQLYkPbRQ8b56zEe8QdbjLFqC9UrjOaYxW5JxwsWV7v0ct/F/XfJlel
+$ minisign -Vm  tird-v0.17.0-linux-amd64.zip -P RWQLYkPbRQ8b56zEe8QdbjLFqC9UrjOaYxW5JxwsWV7v0ct/F/XfJlel
 ```
 
-This requires the signature `tird-v0.16.0-linux-amd64.zip.minisig` to be present in the same directory.
+This requires the signature `tird-v0.17.0-linux-amd64.zip.minisig` to be present in the same directory.
 </details>
 
 ## TODO
