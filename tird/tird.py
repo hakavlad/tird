@@ -394,7 +394,7 @@ def get_max_pad_size_percent() -> int:
         try:
             # Get user input and remove any leading/trailing whitespace
             user_input: str = input(
-                f'    {BOL}[04] Max padding size, % (default'
+                f'    {BOL}[04] Max rand padding size, % (default'
                 f'={DEFAULT_MAX_PAD_SIZE_PERCENT}):{RES} ').strip()
         except EOFError:
             print()
@@ -1188,7 +1188,8 @@ def set_custom_settings(action: int) -> None:
     if is_custom_enabled:
         # Log a warning if the action requires specific custom values
         if action in (2, 6):
-            log_w('decryption will require the same custom values!')
+            log_w('decryption will require the same [03] and [04] '
+                  'custom values!')
 
         # Retrieve custom Argon2 time cost and maximum padding size percentage
         argon2_time_cost = get_argon2_time_cost()
@@ -1201,7 +1202,7 @@ def set_custom_settings(action: int) -> None:
     # Log the settings if custom settings is enabled
     if is_custom_enabled:
         log_i(f'Argon2 time cost: {argon2_time_cost}')
-        log_i(f'max padding size, %: {max_pad_size_percent}')
+        log_i(f'max rand padding size, %: {max_pad_size_percent}')
 
         if action in (2, 6):
             log_i(f'set fake MAC tag: {should_set_fake_mac}')
@@ -1209,7 +1210,7 @@ def set_custom_settings(action: int) -> None:
     # Log the settings if debugging is enabled
     if DEBUG and not is_custom_enabled:
         log_d(f'Argon2 time cost: {argon2_time_cost}')
-        log_d(f'max padding size, %: {max_pad_size_percent}')
+        log_d(f'max rand padding size, %: {max_pad_size_percent}')
 
         if action in (2, 6):
             log_d(f'set fake MAC tag: {should_set_fake_mac}')
