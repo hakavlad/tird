@@ -2,12 +2,12 @@
 
 # tird
 
-[![Releases](https://img.shields.io/github/v/release/hakavlad/tird?color=def&label=Release)](https://github.com/hakavlad/tird/releases)
-[![PyPI](https://img.shields.io/pypi/v/tird?color=fed&label=PyPI)](https://pypi.org/project/tird/)
-[![man page](https://img.shields.io/badge/tird(1)-man%20page-dfd)](https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md)
-[![Specification](https://img.shields.io/badge/%F0%9F%93%84-Specification-fdc)](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md)
-[![Tutorial](https://img.shields.io/badge/%F0%9F%93%96-Tutorial-edf)](https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md)
-[![FAQ](https://img.shields.io/badge/❔-FAQ-ffe)](https://github.com/hakavlad/tird/blob/main/docs/FAQ.md)
+[![Releases](https://img.shields.io/github/v/release/hakavlad/tird?color=48c&label=Release)](https://github.com/hakavlad/tird/releases)
+[![PyPI](https://img.shields.io/pypi/v/tird?color=48c&label=PyPI)](https://pypi.org/project/tird/)
+[![FAQ](https://img.shields.io/badge/❔-FAQ-808)](https://github.com/hakavlad/tird/blob/main/docs/FAQ.md)
+[![man page](https://img.shields.io/badge/tird(1)-man%20page-999)](https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md)
+[![Specification](https://img.shields.io/badge/%F0%9F%93%84-Specification-90f)](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md)
+[![Tutorial](https://img.shields.io/badge/%F0%9F%93%96-Tutorial-797)](https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md)
 
 `tird` *(an acronym for "this is random data")* is a tool for encrypting files and hiding encrypted data.
 
