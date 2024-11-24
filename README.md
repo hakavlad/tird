@@ -87,9 +87,7 @@ Any file, disk, or partition larger than ~1 KiB can be a valid container. Crypto
 
 ## Usage
 
-You don’t need to memorize command-line options to use `tird`.
-
-Just start `tird`, select a menu option, and then answer the questions that `tird` will ask:
+You don't need to memorize command-line options to use `tird`. This tool features a prompt-based CLI: simply start it, select a menu option, and answer the questions that will follow.
 
 ```
 $ tird
@@ -130,10 +128,10 @@ A detailed description of these options with examples can be found [here](https:
 
 ## Debug Mode
 
-Start `tird` with the option `--debug` or `-d` to look under the hood while the program is running:
+Start `tird` with the `--debug` option to look under the hood while the program is running:
 
 ```bash
-$ tird -d
+$ tird --debug
 ```
 
 Enabling debug messages additionally shows:
@@ -150,6 +148,7 @@ Enabling debug messages additionally shows:
 - [Input options](https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md)
 - [Specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md)
 - [Tutorial](https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md)
+- [FAQ](https://github.com/hakavlad/tird/blob/main/docs/FAQ.md)
 
 ## Tradeoffs and Limitations
 
@@ -191,7 +190,7 @@ Enabling debug messages additionally shows:
 
 - Python >= 3.9
 - [PyCryptodomex](https://pypi.org/project/pycryptodomex/) >= 3.6.2 (provides `ChaCha20`)
-- [PyNaCl](https://pypi.org/project/PyNaCl/) >= 1.2.0 (provides `BLAKE2` and `Argon2`)
+- [PyNaCl](https://pypi.org/project/PyNaCl/) >= 1.2.0 (provides `Argon2` and `BLAKE2`)
 
 ## Installation
 
