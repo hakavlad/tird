@@ -2,12 +2,9 @@
 
 # tird
 
-[![Releases](https://img.shields.io/github/v/release/hakavlad/tird?color=999&label=Release)](https://github.com/hakavlad/tird/releases)
-[![PyPI](https://img.shields.io/pypi/v/tird?color=888&label=PyPI)](https://pypi.org/project/tird/)
-[![FAQ](https://img.shields.io/badge/❔-FAQ-777)](https://github.com/hakavlad/tird/blob/main/docs/FAQ.md)
-[![man page](https://img.shields.io/badge/tird(1)-man%20page-666)](https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md)
-[![Specification](https://img.shields.io/badge/%F0%9F%93%84-Specification-555)](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md)
-[![Tutorial](https://img.shields.io/badge/%F0%9F%93%96-Tutorial-444)](https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md)
+[![releases](https://img.shields.io/github/v/release/hakavlad/tird?label=release)](https://github.com/hakavlad/tird/releases)
+[![pypi](https://img.shields.io/pypi/v/tird?label=pypi)](https://pypi.org/project/tird/)
+[![docs](https://img.shields.io/badge/§-docs-808)](https://github.com/hakavlad/tird/blob/main/docs)
 
 `tird` *(an acronym for "this is random data")* is a tool for encrypting files and hiding encrypted data.
 
