@@ -2,9 +2,9 @@
 
 # tird
 
-[![releases](https://img.shields.io/github/v/release/hakavlad/tird?label=release)](https://github.com/hakavlad/tird/releases)
-[![pypi](https://img.shields.io/pypi/v/tird?label=pypi)](https://pypi.org/project/tird/)
-[![docs](https://img.shields.io/badge/§-docs-808)](https://github.com/hakavlad/tird/blob/main/docs)
+[![releases](https://img.shields.io/github/v/release/hakavlad/tird?color=0969da&label=release)](https://github.com/hakavlad/tird/releases)
+[![pypi](https://img.shields.io/pypi/v/tird?color=0969da&label=pypi)](https://pypi.org/project/tird/)
+[![docs](https://img.shields.io/badge/§-docs-888)](https://github.com/hakavlad/tird/blob/main/docs)
 
 `tird` *(an acronym for "this is random data")* is a tool for encrypting files and hiding encrypted data.
 
