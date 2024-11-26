@@ -141,9 +141,9 @@ Enabling debug messages additionally shows:
 
 ## Documentation
 
+- [Specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md)
 - [man page](https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md)
 - [Input options](https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md)
-- [Specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md)
 - [Tutorial](https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md)
 - [FAQ](https://github.com/hakavlad/tird/blob/main/docs/FAQ.md)
 
@@ -155,7 +155,7 @@ Enabling debug messages additionally shows:
 - `tird` does not support [Reed–Solomon error correction](https://en.wikipedia.org/wiki/Reed%E2%80%93Solomon_error_correction).
 - `tird` does not support splitting the output into chunks.
 - `tird` does not support the use of [standard streams](https://en.wikipedia.org/wiki/Standard_streams) for payload transmission.
-- `tird` does not support low-level block device reading and writing on MS Windows. As a result, it cannot be used as keyfiles, cannot be overwritten, and cannot be encrypted or hidden.
+- `tird` does not support low-level block device reading and writing on MS Windows. As a result, these devices cannot be used as keyfiles, cannot be overwritten, and cannot be encrypted or embedded.
 - `tird` does not provide a graphical user interface.
 - `tird` does not provide a password generator.
 - `tird` cannot handle (encrypt/embed) more than one file in one pass. Encryption of directories and multiple files is not supported.
