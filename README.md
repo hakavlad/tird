@@ -2,18 +2,18 @@
 
 # tird
 
-[![releases](https://img.shields.io/github/v/release/hakavlad/tird?color=0969da&label=release)](https://github.com/hakavlad/tird/releases)
-[![pypi](https://img.shields.io/pypi/v/tird?color=0969da&label=pypi)](https://pypi.org/project/tird/)
-[![docs](https://img.shields.io/badge/§-docs-888)](https://github.com/hakavlad/tird/blob/main/docs)
+[![Releases](https://img.shields.io/github/v/release/hakavlad/tird?color=blue&label=release)](https://github.com/hakavlad/tird/releases)
+[![PyPI](https://img.shields.io/pypi/v/tird?color=blue&label=pypi)](https://pypi.org/project/tird/)
+[![Docs](https://img.shields.io/badge/%23-docs-blueviolet)](https://github.com/hakavlad/tird/blob/main/docs)
 
 `tird` *(an acronym for "this is random data")* is a tool for encrypting files and hiding encrypted data.
 
 With `tird`, you can:
 
 1. Create files filled with random data to use as containers or keyfiles.
-2. Overwrite the contents of devices and regular files with random data. This can be used to prepare containers and to destroy residual data.
+2. Overwrite the contents of block devices and regular files with random data. This can be used to prepare containers and to destroy residual data.
 3. Encrypt file contents and comments with modern cryptographic primitives. The encrypted file format (cryptoblob) is a [padded uniform random blob (PURB)](https://en.wikipedia.org/wiki/PURB_(cryptography)): it looks like random data and has a randomized size. This reduces metadata leakage from file format and length, and also allows cryptoblobs to be hidden among random data. You can use keyfiles and passphrases at your choice to enhance security.
-4. Create [steganographic](https://en.wikipedia.org/wiki/Steganography) (hidden, undetectable) user-driven file systems inside container files and devices. Unlike [VeraCrypt](https://veracrypt.fr) and [Shufflecake](https://shufflecake.net/) containers, `tird` containers do not contain headers at all; the user specifies the location of the data in the container and is responsible for ensuring that this location is separated from the container.
+4. Create [steganographic](https://en.wikipedia.org/wiki/Steganography) (hidden, undetectable) user-driven file systems inside container files and block devices. Unlike [VeraCrypt](https://veracrypt.fr) and [Shufflecake](https://shufflecake.net/) containers, `tird` containers do not contain headers at all; the user specifies the location of the data in the container and is responsible for ensuring that this location is separated from the container.
 5. Resist [coercive](https://en.wikipedia.org/wiki/Coercion) attacks (keywords: [key disclosure law](https://en.wikipedia.org/wiki/Key_disclosure_law), [rubber-hose cryptanalysis](https://en.wikipedia.org/wiki/Deniable_encryption), [xkcd 538](https://xkcd.com/538/)). `tird` provides some forms of [plausible deniability](https://en.wikipedia.org/wiki/Plausible_deniability) out of the box, even if you encrypt files without hiding them in containers.
 
 ## Goals
@@ -51,7 +51,7 @@ You can encrypt files and embed cryptoblobs into containers starting at arbitrar
 - It is **headerless** because containers do not contain any headers; all data about cryptoblob locations must be stored separately by the user.
 - The starting position of the cryptoblob in the container is **user-defined**, and the **user must** store both the starting and ending positions separately from the container. This is why it is called a **user-driven file system**.
 
-Any file, disk, or partition larger than ~1 KiB can be a valid container. Cryptoblobs can be embedded into any area.
+Any file, disk, or partition larger than the minimum cryptonlob size (608 B) can be a valid container. Cryptoblobs can be embedded into any area.
 
 **Examples of valid containers include:**
 
@@ -155,7 +155,7 @@ Enabling debug messages additionally shows:
 - `tird` does not support [Reed–Solomon error correction](https://en.wikipedia.org/wiki/Reed%E2%80%93Solomon_error_correction).
 - `tird` does not support splitting the output into chunks.
 - `tird` does not support the use of [standard streams](https://en.wikipedia.org/wiki/Standard_streams) for payload transmission.
-- `tird` does not support low-level device reading and writing when used on MS Windows (devices cannot be used as keyfiles, cannot be overwritten, and cannot be encrypted or hidden).
+- `tird` does not support low-level block device reading and writing on MS Windows. As a result, it cannot be used as keyfiles, cannot be overwritten, and cannot be encrypted or hidden.
 - `tird` does not provide a graphical user interface.
 - `tird` does not provide a password generator.
 - `tird` cannot handle (encrypt/embed) more than one file in one pass. Encryption of directories and multiple files is not supported.
