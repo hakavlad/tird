@@ -133,11 +133,12 @@ $ tird --debug
 
 Enabling debug messages additionally shows:
 
-- Opening and closing file descriptors.
-- Real paths to opened files.
-- Moving file pointers using the `seek()` method.
-- Salts, passphrases, digests, keys, nonces, tags.
-- Some other information.
+- File operations:
+  - Opening and closing of file descriptors.
+  - Real paths to opened files.
+  - Movement of file pointers.
+- Byte strings related to cryptographic operations: salts, passphrases, digests, keys, nonces, and tags.
+- Some other information, including various sizes.
 
 ## Documentation
 
@@ -154,7 +155,7 @@ Enabling debug messages additionally shows:
 - `tird` does not support ASCII armored output.
 - `tird` does not support [Reed–Solomon error correction](https://en.wikipedia.org/wiki/Reed%E2%80%93Solomon_error_correction).
 - `tird` does not support splitting the output into chunks.
-- `tird` does not support the use of [standard streams](https://en.wikipedia.org/wiki/Standard_streams) for payload transmission.
+- `tird` does not support the use of [standard streams](https://en.wikipedia.org/wiki/Standard_streams) for processing files.
 - `tird` does not support low-level block device reading and writing on MS Windows. As a result, these devices cannot be used as keyfiles, cannot be overwritten, and cannot be encrypted or embedded.
 - `tird` does not provide a graphical user interface.
 - `tird` does not provide a password generator.
@@ -165,17 +166,20 @@ Enabling debug messages additionally shows:
 ## Warnings
 
 - ⚠️ The author does not have a background in cryptography.
+- ⚠️ The code has 0% test coverage.
 - ⚠️ `tird` has not been independently audited.
-- ⚠️ `tird` is unlikely to be effective when used in a compromised environment.
+- ⚠️ `tird` is ineffective in a compromised environment; executing it in such cases may cause disastrous data leaks.
 - ⚠️ `tird` is unlikely to be effective when used with short and predictable keys.
 - ⚠️ Sensitive data may leak into swap space.
-- ⚠️ `tird` does not erase sensitive data from memory after use.
+- ⚠️ `tird` does not erase its sensitive data from memory after use.
 - ⚠️ `tird` always releases unverified plaintext, violating [The Cryptographic Doom Principle](https://moxie.org/2011/12/13/the-cryptographic-doom-principle.html).
-- ⚠️ Padding is not used to create a MAC tag (only ciphertext and salt will be authenticated).
-- ⚠️ `tird` does not sort digests of keyfiles and passphrases in constant-time.
-- ⚠️ Overwriting file contents does not guarantee secure destruction of the data on the media.
-- ⚠️ You cannot prove to an adversary that your random-looking data does not contain encrypted data.
-- ⚠️ Development is not complete; there may be backward compatibility issues in the future.
+- ⚠️ `tird` doesn't sort digests of keyfiles and passphrases in constant-time.
+- ⚠️ Padding sizes depend on secret values.
+- ⚠️ Padding contents are never authenticated; authentication only applies to the ciphertext, salts, and certain sizes.
+- ⚠️ Overwriting file contents does not guarantee secure destruction of data on the media.
+- ⚠️ You cannot prove to an adversary that your random data does not contain encrypted information.
+- ⚠️ `tird` protects data, not the user; it cannot prevent torture if you are under suspicion.
+- ⚠️ Development is not complete, and there may be backward compatibility issues.
 
 <details>
 <summary>Image</summary>
