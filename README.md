@@ -39,6 +39,29 @@ For more details, refer to the [specification](https://github.com/hakavlad/tird/
 
 ## Encrypted File Format
 
+```python
++————————————————————————————————————————+—————————+
+| Salt for key stretching (Argon2): 16 B |         |
++————————————————————————————————————————+ Random  |
+| Randomized padding: 0-20% of the       | data    |
+| unpadded cryptoblob size by default    |         |
++————————————————————————————————————————+—————————+
+| Ciphertext (ChaCha20): 512+ B,         |         |
+| consists of:                           |         |
+| - Encrypted padded/truncated           | Random- |
+|   comments, always 512 B               | looking |
+| - Encrypted payload file               | data    |
+|   contents, 0+ B                       |         |
++————————————————————————————————————————+         |
+| Optional MAC tag (BLAKE2/random): 64 B |         |
++————————————————————————————————————————+—————————+
+| Randomized padding: 0-20% of the       |         |
+| unpadded cryptoblob size by default    | Random  |
++————————————————————————————————————————+ data    |
+| Salt for prehashing (BLAKE2): 16 B     |         |
++————————————————————————————————————————+—————————+
+```
+
 Files encrypted with `tird` (cryptoblobs) cannot be distinguished from random data without knowledge of the keys and have no identifiable headers. `tird` produces cryptoblobs that contain bilateral [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with uniform random data (PURBs). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data.
 
 For more details, refer to the [specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md).
@@ -62,7 +85,7 @@ Any file, disk, or partition larger than the minimum cryptonlob size (608 B) can
 
 **Example of Container Structure:**
 
-```
+```python
 +—————————+—————————————+— Position 0
 |         |             |
 |         | Random data |
@@ -86,7 +109,7 @@ Any file, disk, or partition larger than the minimum cryptonlob size (608 B) can
 
 You don't need to memorize command-line options to use `tird`. This tool features a prompt-based CLI: simply start it, select a menu option, and answer the questions that will follow.
 
-```
+```lol
 $ tird
 
                        MENU
@@ -104,7 +127,7 @@ $ tird
 
 `tird` has the following input options:
 
-```
+```lol
 [01] Select an option
 [02] Use custom settings?
 [03] Argon2 time cost
@@ -150,15 +173,18 @@ Enabling debug messages additionally shows:
 
 ## Tradeoffs and Limitations
 
-- `tird` does not support [public-key cryptography](https://en.wikipedia.org/wiki/Public-key_cryptography).
-- `tird` does not support file compression.
-- `tird` does not support ASCII armored output.
-- `tird` does not support [Reed–Solomon error correction](https://en.wikipedia.org/wiki/Reed%E2%80%93Solomon_error_correction).
-- `tird` does not support splitting the output into chunks.
-- `tird` does not support the use of [standard streams](https://en.wikipedia.org/wiki/Standard_streams) for processing files.
-- `tird` does not support low-level block device reading and writing on MS Windows. As a result, these devices cannot be used as keyfiles, cannot be overwritten, and cannot be encrypted or embedded.
-- `tird` does not provide a graphical user interface.
-- `tird` does not provide a password generator.
+
+- `tird` does not support:
+  - [Public-key cryptography](https://en.wikipedia.org/wiki/Public-key_cryptography).
+  - File compression.
+  - ASCII armored output.
+  - [Reed–Solomon error correction](https://en.wikipedia.org/wiki/Reed%E2%80%93Solomon_error_correction).
+  - Splitting the output into chunks.
+  - The use of [standard streams](https://en.wikipedia.org/wiki/Standard_streams) for processing files.
+  - Low-level block device reading and writing on MS Windows. As a result, these devices cannot be used as keyfiles, cannot be overwritten, and cannot be encrypted or embedded.
+- `tird` does not provide:
+  - A graphical user interface.
+  - A password generator.
 - `tird` cannot handle (encrypt/embed) more than one file in one pass. Encryption of directories and multiple files is not supported.
 - `tird` does not fake file access, modification, and creation timestamps (atime, mtime, ctime).
 - `tird`'s encryption speed is not very fast (up to 180 MiB/s in my tests).
