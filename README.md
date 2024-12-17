@@ -62,9 +62,7 @@ For more details, refer to the [specification](https://github.com/hakavlad/tird/
 +————————————————————————————————————————+—————————+
 ```
 
-Files encrypted with `tird` (cryptoblobs) cannot be distinguished from random data without knowledge of the keys and have no identifiable headers. `tird` produces cryptoblobs that contain bilateral [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with uniform random data (PURBs). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data.
-
-For more details, refer to the [specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md).
+Files encrypted with `tird` cannot be distinguished from random data without knowledge of the keys and have no identifiable headers. `tird` produces cryptoblobs that contain bilateral [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with uniform random data (PURBs). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data.
 
 ## Hidden User-Driven File System and Container Format
 
@@ -187,7 +185,7 @@ Enabling debug messages additionally shows:
   - A password generator.
 - `tird` cannot handle (encrypt/embed) more than one file in one pass. Encryption of directories and multiple files is not supported.
 - `tird` does not fake file access, modification, and creation timestamps (atime, mtime, ctime).
-- `tird`'s encryption speed is not very fast (up to 180 MiB/s in my tests).
+- `tird`'s encryption speed is not very high (up to 180 MiB/s in my tests).
 
 ## Warnings
 
