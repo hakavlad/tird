@@ -37,7 +37,7 @@ The following cryptographic primitives are utilized by `tird`:
 
 For more details, refer to the [specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md).
 
-## Encrypted File Format
+## Encrypted Data Format
 
 ```python
 +————————————————————————————————————————+—————————+
@@ -64,7 +64,7 @@ For more details, refer to the [specification](https://github.com/hakavlad/tird/
 
 Files encrypted with `tird` cannot be distinguished from random data without knowledge of the keys and have no identifiable headers. `tird` produces cryptoblobs that contain bilateral [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with uniform random data (PURBs). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data.
 
-## Hidden User-Driven File System and Container Format
+## Hidden File System and Container Format
 
 You can encrypt files and embed cryptoblobs into containers starting at arbitrary positions. After writing the cryptoblob, you will need to remember its location in the container (the starting and ending positions), which will be used later to extract the cryptoblobs. In this way, you can create a **hidden, headerless, user-driven file system** inside a container:
 
@@ -83,22 +83,22 @@ Any file, disk, or partition larger than the minimum cryptonlob size (608 B) can
 
 **Example of Container Structure:**
 
-```python
-+—————————+—————————————+— Position 0
+```go
++—————————+—————————————+ <— Position 0 of the container
 |         |             |
 |         | Random data |
 |         |             |
-|         +—————————————+— Cryptoblob1 start position
+|         +—————————————+ <— Cryptoblob1 start position
 | Header- |             |
 | less    | Cryptoblob1 |
 |         |             |
-| Layer   +—————————————+— Cryptoblob1 end position
+| Layer   +—————————————+ <— Cryptoblob1 end position
 |         | Random data |
-| Cake    +—————————————+— Cryptoblob2 start position
+| Cake    +—————————————+ <— Cryptoblob2 start position
 |         |             |
 |         | Cryptoblob2 |
 |         |             |
-|         +—————————————+— Cryptoblob2 end position
+|         +—————————————+ <— Cryptoblob2 end position
 |         | Random data |
 +—————————+—————————————+
 ```
@@ -107,7 +107,7 @@ Any file, disk, or partition larger than the minimum cryptonlob size (608 B) can
 
 You don't need to memorize command-line options to use `tird`. This tool features a prompt-based CLI: simply start it, select a menu option, and answer the questions that will follow.
 
-```lol
+```go
 $ tird
 
                        MENU
@@ -116,30 +116,36 @@ $ tird
     2. Encrypt           3. Decrypt
     4. Embed             5. Extract
     6. Encrypt & Embed   7. Extract & Decrypt
-    8. Create w/ random  9. Overwrite w/ random
+    8. Create w/ Random  9. Overwrite w/ Random
     ———————————————————————————————————————————
-[01] Select an option [0-9]:
+[00] Select an option [0-9]:
 ```
 
 ## Input Options
 
-`tird` has the following input options:
+There are 5 groups of input options. They are numbered for ease of description.
 
-```lol
-[01] Select an option
-[02] Use custom settings?
-[03] Argon2 time cost
-[04] Max rand padding size
-[05] Set fake MAC tag?
-[06] Input file path
-[07] Output file path
-[08] Output file size
-[09] Start position
-[10] End position
-[11] Comments
-[12] Keyfile path
-[13] Passphrase
-[14] Proceed?
+```go
++———————————————————————————+——————————————————————————+
+| [00] Select an option     | [00] Select an action    |
++———————————————————————————+——————————————————————————+
+| [10] Use custom settings? |                          |
+| [11] Time cost            | [1x] Set custom settings |
+| [12] Max padding size     |                          |
+| [13] Set fake MAC tag?    |                          |
++———————————————————————————+——————————————————————————+
+| [21] Input file path      |                          |
+| [22] Comments             | [2x] Enter data,         |
+| [23] Output file path     |      data location,      |
+| [24] Output file size     |      data size           |
+| [25] Start position       |                          |
+| [26] End position         |                          |
++———————————————————————————+——————————————————————————+
+| [31] Keyfile path         | [3x] Specify input       |
+| [32] Passphrase           |      keying material     |
++———————————————————————————+——————————————————————————+
+| [40] Proceed?             | [40] Confirm to continue |
++———————————————————————————+——————————————————————————+
 ```
 
 A detailed description of these options with examples can be found [here](https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md).
@@ -170,7 +176,6 @@ Enabling debug messages additionally shows:
 - [FAQ](https://github.com/hakavlad/tird/blob/main/docs/FAQ.md)
 
 ## Tradeoffs and Limitations
-
 
 - `tird` does not support:
   - [Public-key cryptography](https://en.wikipedia.org/wiki/Public-key_cryptography).
