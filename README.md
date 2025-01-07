@@ -167,14 +167,6 @@ Enabling debug messages additionally shows:
 - Byte strings related to cryptographic operations: salts, passphrases, digests, keys, nonces, and tags.
 - Some other information, including various sizes.
 
-## Documentation
-
-- [Specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md)
-- [man page](https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md)
-- [Input options](https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md)
-- [Tutorial](https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md)
-- [FAQ](https://github.com/hakavlad/tird/blob/main/docs/FAQ.md)
-
 ## Tradeoffs and Limitations
 
 - `tird` does not support:
@@ -279,6 +271,14 @@ $ minisign -Vm  tird-v0.17.0-linux-amd64.zip -P RWQLYkPbRQ8b56zEe8QdbjLFqC9UrjOa
 
 This requires the signature `tird-v0.17.0-linux-amd64.zip.minisig` to be present in the same directory.
 </details>
+
+## Documentation
+
+- [Specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md)
+- [man page](https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md)
+- [Input options](https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md)
+- [Tutorial](https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md)
+- [FAQ](https://github.com/hakavlad/tird/blob/main/docs/FAQ.md)
 
 ## TODO
 
