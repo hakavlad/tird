@@ -37,10 +37,10 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "pycryptodomex>=3.6.2",
+    "cryptography>=2.1",
     "pynacl>=1.2.0",
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.9.2"
 
 [project.urls]
 "Bug Tracker" = "https://github.com/hakavlad/tird/issues"

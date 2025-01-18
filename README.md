@@ -210,8 +210,8 @@ Enabling debug messages additionally shows:
 
 ## Requirements
 
-- Python >= 3.9
-- [PyCryptodomex](https://pypi.org/project/pycryptodomex/) >= 3.6.2 (provides `ChaCha20`)
+- Python >= 3.9.2
+- [cryptography](https://pypi.org/project/cryptography/) >= 2.1 (provides `ChaCha20`)
 - [PyNaCl](https://pypi.org/project/PyNaCl/) >= 1.2.0 (provides `Argon2` and `BLAKE2`)
 
 ## Installation

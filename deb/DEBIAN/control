@@ -2,7 +2,7 @@ Package: tird
 Version: 0.17.0
 Section: utils
 Architecture: all
-Depends: python3 (>= 3.9.0), python3-nacl (>= 1.2.0), python3-pycryptodome (>= 3.6.2)
+Depends: python3 (>= 3.9.2), python3-cryptography (>= 2.1), python3-nacl (>= 1.2.0)
 Maintainer: Alexey Avramov <hakavlad@gmail.com>
 Priority: optional
 Homepage: https://github.com/hakavlad/tird
