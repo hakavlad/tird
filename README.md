@@ -182,7 +182,7 @@ Enabling debug messages additionally shows:
   - A password generator.
 - `tird` cannot handle (encrypt/embed) more than one file in one pass. Encryption of directories and multiple files is not supported.
 - `tird` does not fake file access, modification, and creation timestamps (atime, mtime, ctime).
-- `tird`'s encryption speed is not very high (up to 180 MiB/s in my tests).
+- `tird`'s encryption speed is not very high (up to 550 MiB/s in my tests).
 
 ## Warnings
 
