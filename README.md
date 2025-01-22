@@ -1,10 +1,13 @@
 ![Logo: random data visualization](https://raw.githubusercontent.com/hakavlad/tird/main/images/logo.png)
 
+### [man page](https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md) | [Specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md) | [Input Options](https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md) | [Tutorial](https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md) | [FAQ](https://github.com/hakavlad/tird/blob/main/docs/FAQ.md)
+
+---
+
 # tird
 
 [![Releases](https://img.shields.io/github/v/release/hakavlad/tird?color=blue&label=release)](https://github.com/hakavlad/tird/releases)
 [![PyPI](https://img.shields.io/pypi/v/tird?color=blue&label=pypi)](https://pypi.org/project/tird/)
-[![Docs](https://img.shields.io/badge/%23-docs-blueviolet)](https://github.com/hakavlad/tird/blob/main/docs)
 
 `tird` *(an acronym for "this is random data")* is a tool for encrypting files and hiding encrypted data.
 
@@ -39,7 +42,7 @@ For more details, refer to the [specification](https://github.com/hakavlad/tird/
 
 ## Encrypted Data Format
 
-```python
+```
 +————————————————————————————————————————+—————————+
 | Salt for key stretching (Argon2): 16 B |         |
 +————————————————————————————————————————+ Random  |
@@ -66,6 +69,10 @@ Files encrypted with `tird` cannot be distinguished from random data without kno
 
 ## Hidden File System and Container Format
 
+`tird` employs a technique that is [described](https://en.wikipedia.org/wiki/List_of_steganography_techniques#Digital) as follows:
+
+> Concealing data within encrypted data or within random data. The message to conceal is encrypted, then used to overwrite part of a much larger block of encrypted data or a block of random data (an unbreakable cipher like the one-time pad generates ciphertexts that look perfectly random without the private key).
+
 You can encrypt files and embed cryptoblobs into containers starting at arbitrary positions. After writing the cryptoblob, you will need to remember its location in the container (the starting and ending positions), which will be used later to extract the cryptoblobs. In this way, you can create a **hidden, headerless, user-driven file system** inside a container:
 
 - It is **hidden** because it is impossible to distinguish between random container data and cryptoblob data, as well as to determine the location of written cryptoblobs without knowing the positions and keys.
@@ -83,7 +90,7 @@ Any file, disk, or partition larger than the minimum cryptonlob size (608 B) can
 
 **Example of Container Structure:**
 
-```go
+```
 +—————————+—————————————+ <— Position 0 of the container
 |         |             |
 |         | Random data |
@@ -107,7 +114,7 @@ Any file, disk, or partition larger than the minimum cryptonlob size (608 B) can
 
 You don't need to memorize command-line options to use `tird`. This tool features a prompt-based CLI: simply start it, select a menu option, and answer the questions that will follow.
 
-```go
+```
 $ tird
 
                        MENU
@@ -125,7 +132,7 @@ $ tird
 
 There are 5 groups of input options. They are numbered for ease of description.
 
-```go
+```
 +———————————————————————————+——————————————————————————+
 | [00] Select an option     | [00] Select an action    |
 +———————————————————————————+——————————————————————————+
@@ -186,6 +193,8 @@ Enabling debug messages additionally shows:
 
 ## Warnings
 
+![ACHTUNG MINEN](https://i.imgur.com/1Cdy7ER.jpeg)
+
 - ⚠️ The author does not have a background in cryptography.
 - ⚠️ The code has 0% test coverage.
 - ⚠️ `tird` has not been independently audited.
@@ -201,12 +210,6 @@ Enabling debug messages additionally shows:
 - ⚠️ You cannot prove to an adversary that your random data does not contain encrypted information.
 - ⚠️ `tird` protects data, not the user; it cannot prevent torture if you are under suspicion.
 - ⚠️ Development is not complete, and there may be backward compatibility issues.
-
-<details>
-<summary>Image</summary>
-
-![Strong encryption, weak password](https://i.imgur.com/onTA8IX.jpeg)
-</details>
 
 ## Requirements
 
@@ -256,7 +259,7 @@ $ sudo make install-deb
 
 Standalone executables (made with [PyInstaller](https://pyinstaller.org/en/stable/)) are also available (see [Releases](https://github.com/hakavlad/tird/releases)) for Windows and Linux (amd64). Please use at your own risk.
 
-![tird.exe](https://i.imgur.com/hjnarbH.png)
+![tird.exe](https://i.imgur.com/yaUKt6X.png)
 
 <details>
 <summary>How to verify signatures</summary>
@@ -266,19 +269,11 @@ Use [Minisign](https://jedisct1.github.io/minisign/) to verify signatures. You c
 For example:
 
 ```
-$ minisign -Vm  tird-v0.17.0-linux-amd64.zip -P RWQLYkPbRQ8b56zEe8QdbjLFqC9UrjOaYxW5JxwsWV7v0ct/F/XfJlel
+$ minisign -Vm  tird-v0.18.0-linux-amd64.zip -P RWQLYkPbRQ8b56zEe8QdbjLFqC9UrjOaYxW5JxwsWV7v0ct/F/XfJlel
 ```
 
-This requires the signature `tird-v0.17.0-linux-amd64.zip.minisig` to be present in the same directory.
+This requires the signature `tird-v0.18.0-linux-amd64.zip.minisig` to be present in the same directory.
 </details>
-
-## Documentation
-
-- [Specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md)
-- [man page](https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md)
-- [Input options](https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md)
-- [Tutorial](https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md)
-- [FAQ](https://github.com/hakavlad/tird/blob/main/docs/FAQ.md)
 
 ## TODO
 
