@@ -1,6 +1,6 @@
 ![Logo: random data visualization](https://raw.githubusercontent.com/hakavlad/tird/main/images/logo.png)
 
-### [📝man page](https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md) | [📄Specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md) | [📑Input Options</div>](https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md) | [📖 Tutorial](https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md) | [❓FAQ](https://github.com/hakavlad/tird/blob/main/docs/FAQ.md)
+### [📝&nbsp;man&nbsp;page](https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md) | [📄&nbsp;Specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md) | [📑&nbsp;Input&nbsp;Options</div>](https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md) | [📖&nbsp;Tutorial](https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md) | [❓&nbsp;FAQ](https://github.com/hakavlad/tird/blob/main/docs/FAQ.md)
 
 ---
 
@@ -11,9 +11,6 @@
 [![CodeQL](https://github.com/hakavlad/tird/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/hakavlad/tird/actions/workflows/github-code-scanning/codeql)
 [![Semgrep](https://github.com/hakavlad/tird/actions/workflows/semgrep.yml/badge.svg)](https://github.com/hakavlad/tird/actions/workflows/semgrep.yml)
 [![Codacy Security Scan](https://github.com/hakavlad/tird/actions/workflows/codacy.yml/badge.svg)](https://github.com/hakavlad/tird/actions/workflows/codacy.yml)
-
-
-
 
 `tird` *(an acronym for "this is random data")* is a tool for encrypting files and hiding encrypted data.
 
