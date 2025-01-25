@@ -1,6 +1,6 @@
 ![Logo: random data visualization](https://raw.githubusercontent.com/hakavlad/tird/main/images/logo.png)
 
-### [📝&nbsp;man&nbsp;page](https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md) | [📄&nbsp;Specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md) | [📑&nbsp;Input&nbsp;Options</div>](https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md) | [📖&nbsp;Tutorial](https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md) | [❓&nbsp;FAQ](https://github.com/hakavlad/tird/blob/main/docs/FAQ.md)
+### [📜&nbsp;man&nbsp;page](https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md) | [📑&nbsp;Specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md) | [📄&nbsp;Input&nbsp;Options</div>](https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md) | [📖&nbsp;Tutorial](https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md) | [❓&nbsp;FAQ](https://github.com/hakavlad/tird/blob/main/docs/FAQ.md)
 
 ---
 
