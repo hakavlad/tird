@@ -1,8 +1,6 @@
-![Logo: random data visualization](https://raw.githubusercontent.com/hakavlad/tird/main/images/logo.png)
+![Logo](https://raw.githubusercontent.com/hakavlad/tird/main/images/logo2.png)
 
 ### [📜&nbsp;man&nbsp;page](https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md) | [📑&nbsp;Specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md) | [📄&nbsp;Input&nbsp;Options</div>](https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md) | [📖&nbsp;Tutorial](https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md) | [❓&nbsp;FAQ](https://github.com/hakavlad/tird/blob/main/docs/FAQ.md)
-
----
 
 # tird
 
@@ -206,7 +204,7 @@ Enabling debug messages additionally shows:
 - ⚠️ Sensitive data may leak into swap space.
 - ⚠️ `tird` does not erase its sensitive data from memory after use.
 - ⚠️ `tird` always releases unverified plaintext, violating [The Cryptographic Doom Principle](https://moxie.org/2011/12/13/the-cryptographic-doom-principle.html).
-- ⚠️ `tird` doesn't sort digests of keyfiles and passphrases in constant-time.
+- ⚠️ `tird` does not sort digests of keyfiles and passphrases in constant-time.
 - ⚠️ Padding sizes depend on secret values.
 - ⚠️ Padding contents are never authenticated; authentication only applies to the ciphertext, salts, and certain sizes.
 - ⚠️ Overwriting file contents does not guarantee secure destruction of data on the media.
