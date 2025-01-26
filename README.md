@@ -1,8 +1,16 @@
-![Logo](https://raw.githubusercontent.com/hakavlad/tird/main/images/logo2.png)
+<p align="left">
+  <img src="https://raw.githubusercontent.com/hakavlad/tird/main/images/logo2.png" width="800" alt="Logo">
+</p>
 
-### [📜&nbsp;man&nbsp;page](https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md) | [📑&nbsp;Specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md) | [📄&nbsp;Input&nbsp;Options</div>](https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md) | [📖&nbsp;Tutorial](https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md) | [❓&nbsp;FAQ](https://github.com/hakavlad/tird/blob/main/docs/FAQ.md)
+<h3 align="left">
+  <a href="https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md">📜&nbsp;man&nbsp;page</a> &nbsp;
+  <a href="https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md">📑&nbsp;Specification</a> &nbsp;
+  <a href="https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md">📄&nbsp;Input&nbsp;Options</a> &nbsp;
+  <a href="https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md">📖&nbsp;Tutorial</a> &nbsp;
+  <a href="https://github.com/hakavlad/tird/blob/main/docs/FAQ.md">❓&nbsp;FAQ</a>
+</h2>
 
-# tird
+<br>
 
 [![Releases](https://img.shields.io/github/v/release/hakavlad/tird?color=blue&label=release)](https://github.com/hakavlad/tird/releases)
 [![PyPI](https://img.shields.io/pypi/v/tird?color=blue&label=pypi)](https://pypi.org/project/tird/)
