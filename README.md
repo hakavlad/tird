@@ -1,8 +1,8 @@
-<p align="center">
+<p align="left">
   <img src="https://raw.githubusercontent.com/hakavlad/tird/main/images/logo2.png" width="1200" alt="Logo">
 </p>
 
-<h3 align="center">
+<h3 align="left">
   <a href="https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md">📜&nbsp;man&nbsp;page</a> &nbsp;
   <a href="https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md">📑&nbsp;Specification</a> &nbsp;
   <a href="https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md">📄&nbsp;Input&nbsp;Options</a> &nbsp;
