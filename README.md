@@ -119,6 +119,12 @@ Any file, disk, or partition larger than the minimum cryptonlob size (608 B) can
 +—————————+—————————————+
 ```
 
+## Storing and Carrying Concealed Encrypted Data
+
+<img src="https://i.imgur.com/2tpEhTw.png">
+
+It looks like this volume (on a thumb drive) contains only one file. Are you sure? Maybe yes, maybe no. It could contain 15 GiB of hidden data. We cannot disprove this, but we also cannot prove the existence of the data without knowledge of the keys and the locations of that data.
+
 ## Usage
 
 You don't need to memorize command-line options to use `tird`. This tool features a prompt-based CLI: simply start it, select a menu option, and answer the questions that will follow.
