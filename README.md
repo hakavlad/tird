@@ -121,7 +121,9 @@ Any file, disk, or partition larger than the minimum cryptonlob size (608 B) can
 
 ## Storing and Carrying Concealed Encrypted Data
 
-<img src="https://i.imgur.com/2tpEhTw.png" width="839">
+Look at at the following screenshot.
+
+<img src="https://i.imgur.com/2tpEhTw.png" width="839" alt="Screenshot">
 
 It looks like this volume contains only one 8.7 MiB file. Is it really true? Maybe yes, maybe no.
 
