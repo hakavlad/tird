@@ -121,13 +121,13 @@ Any file, disk, or partition larger than the minimum cryptonlob size (608 B) can
 
 ## Storing and Carrying Concealed Encrypted Data
 
-Look at at the following screenshot.
+Please look at at the following screenshot.
 
 <img src="https://i.imgur.com/2tpEhTw.png" width="839" alt="Screenshot">
 
-It looks like this volume contains only one 8.7 MiB file. Is it really true? Maybe yes, maybe no.
+It looks like this 16 GB volume contains only one 8.7 MiB file. Is it really true? Maybe yes, maybe no.
 
-The file system tells us that there is only one file here. But is there really only one file on the device? We cannot find this out using the file system. In fact, data may be located outside the file system and be undetectable by file system tools. 15.2 GiB of space marked as free may be occupied by a hidden file system. This "free" space may be taken up by hidden encrypted data.
+The file system tells us that there is only one file here. But is there really only one file on the volume? We cannot find this out using the file system. In fact, data may be located outside the file system and be undetectable by file system tools. 15.2 GiB of space marked as free may be occupied by a hidden file system. This "free" space may be taken up by hidden encrypted data.
 
 Can the existence of this data be disproven? Yes, for example, by examining the entropy level of this free space using `binwalk`. Low entropy indicates a probable absence of hidden data. High entropy *does not*, by itself, prove the presence of encrypted hidden data. Areas with high entropy can be either just residual data or hidden encrypted data.
 
