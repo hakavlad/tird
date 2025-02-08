@@ -247,9 +247,9 @@ Enabling debug messages additionally shows:
 - ⚠️ Sensitive data may leak into swap space.
 - ⚠️ `tird` does not erase its sensitive data from memory after use.
 - ⚠️ `tird` always releases unverified plaintext, violating [The Cryptographic Doom Principle](https://moxie.org/2011/12/13/the-cryptographic-doom-principle.html).
-- ⚠️ `tird` does not sort digests of keyfiles and passphrases in constant-time.
-- ⚠️ Padding sizes depend on secret values.
 - ⚠️ Padding contents are never authenticated; authentication only applies to the ciphertext, salts, and certain sizes.
+- ⚠️ Padding sizes depend on secret values.
+- ⚠️ `tird` does not sort digests of keyfiles and passphrases in constant-time.
 - ⚠️ Overwriting file contents does not guarantee secure destruction of data on the media.
 - ⚠️ You cannot prove to an adversary that your random data does not contain encrypted information.
 - ⚠️ `tird` protects data, not the user; it cannot prevent torture if you are under suspicion.
