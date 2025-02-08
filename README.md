@@ -237,7 +237,7 @@ Enabling debug messages additionally shows:
 
 ## Warnings
 
-![ACHTUNG MINEN](https://i.imgur.com/1Cdy7ER.jpeg)
+![DANGER MINES](https://i.imgur.com/JaMXwNV.jpeg)
 
 - ⚠️ The author does not have a background in cryptography.
 - ⚠️ The code has 0% test coverage.
