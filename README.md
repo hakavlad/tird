@@ -14,19 +14,35 @@
 
 [![Releases](https://img.shields.io/github/v/release/hakavlad/tird?color=blue&label=Release)](https://github.com/hakavlad/tird/releases)
 [![PyPI](https://img.shields.io/pypi/v/tird?color=blue&label=PyPI)](https://pypi.org/project/tird/)
-[![CodeQL](https://github.com/hakavlad/tird/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/hakavlad/tird/actions/workflows/github-code-scanning/codeql)
-[![Semgrep](https://github.com/hakavlad/tird/actions/workflows/semgrep.yml/badge.svg)](https://github.com/hakavlad/tird/actions/workflows/semgrep.yml)
-[![Codacy Security Scan](https://github.com/hakavlad/tird/actions/workflows/codacy.yml/badge.svg)](https://github.com/hakavlad/tird/actions/workflows/codacy.yml)
 
-`tird` *(an acronym for "this is random data")* is a tool for encrypting files and hiding encrypted data.
+`tird` *(an acronym for "this is random data")* is a **file encryption tool** focused on
+- **minimizing metadata** and
+- **hiding encrypted data**.
 
 With `tird`, you can:
 
 1. Create files filled with random data to use as containers or keyfiles.
 2. Overwrite the contents of block devices and regular files with random data. This can be used to prepare containers and to destroy residual data.
-3. Encrypt file contents and comments with modern cryptographic primitives. The encrypted file format (cryptoblob) is a [padded uniform random blob (PURB)](https://en.wikipedia.org/wiki/PURB_(cryptography)): it looks like random data and has a randomized size. This reduces metadata leakage from file format and length, and also allows cryptoblobs to be hidden among random data. You can use keyfiles and passphrases at your choice to enhance security.
+3. Encrypt file contents and comments with modern cryptographic primitives. The encrypted data format (called cryptoblob) is a [padded uniform random blob (PURB)](https://en.wikipedia.org/wiki/PURB_(cryptography)): it looks like random data and has a randomized size. This reduces metadata leakage from file format and length, and also allows cryptoblobs to be hidden among random data. You can use keyfiles and passphrases at your choice to enhance security.
 4. Create [steganographic](https://en.wikipedia.org/wiki/Steganography) (hidden, undetectable) user-driven file systems inside container files and block devices. Unlike [VeraCrypt](https://veracrypt.fr) and [Shufflecake](https://shufflecake.net/) containers, `tird` containers do not contain headers at all; the user specifies the location of the data in the container and is responsible for ensuring that this location is separated from the container.
 5. Resist [coercive](https://en.wikipedia.org/wiki/Coercion) attacks (keywords: [key disclosure law](https://en.wikipedia.org/wiki/Key_disclosure_law), [rubber-hose cryptanalysis](https://en.wikipedia.org/wiki/Deniable_encryption), [xkcd 538](https://xkcd.com/538/)). `tird` provides some forms of [plausible deniability](https://en.wikipedia.org/wiki/Plausible_deniability) out of the box, even if you encrypt files without hiding them in containers.
+
+## Contents
+
+- [Goals](#goals)
+- [Cryptographic Primitives](#cryptographic-primitives)
+- [Encrypted Data Format](#encrypted-data-format)
+- [Hidden File System and Container Format](#hidden-file-system-and-container-format)
+- [Storing and Carrying Concealed Encrypted Data](#storing-and-carrying-concealed-encrypted-data)
+- [Usage](#usage)
+- [Input Options](#input-options)
+- [Debug Mode](#debug-mode)
+- [Tradeoffs and Limitations](#tradeoffs-and-limitations)
+- [Warnings](#warnings)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [TODO](#todo)
+- [Feedback](#feedback)
 
 ## Goals
 
@@ -212,7 +228,7 @@ Enabling debug messages additionally shows:
   - A password generator.
 - `tird` cannot handle (encrypt/embed) more than one file in one pass. Encryption of directories and multiple files is not supported.
 - `tird` does not fake file access, modification, and creation timestamps (atime, mtime, ctime).
-- `tird`'s encryption speed is not very high (up to 550 MiB/s in my tests).
+- `tird`'s encryption speed is not very high (up to 420 MiB/s in my tests).
 
 ## Warnings
 
