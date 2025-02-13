@@ -14,11 +14,11 @@ where = ["src"]
 [project]
 name = "tird"
 version = "0.18.0"
-license = { text = "CC0-1.0", url = "https://creativecommons.org/publicdomain/zero/1.0/" }
+license = { text = "0BSD", url = "https://spdx.org/licenses/0BSD.html" }
 maintainers = [
     { name = "Alexey Avramov", email = "hakavlad@gmail.com" },
 ]
-description = "A tool for encrypting files and hiding encrypted data"
+description = "A file encryption tool focused on minimizing metadata and hiding encrypted data"
 readme = { file = "README.md", content-type = "text/markdown" }
 keywords = [
     "encryption",
@@ -28,7 +28,7 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
     "Intended Audience :: End Users/Desktop",
-    "License :: CC0 1.0 Universal (CC0 1.0) Public Domain Dedication",
+    "License :: OSI Approved :: Zero-Clause BSD (0BSD)",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Topic :: Security",
