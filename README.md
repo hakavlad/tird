@@ -1,35 +1,21 @@
 <p align="left">
-  <img src="https://raw.githubusercontent.com/hakavlad/tird/main/images/logo2.png" width="800" alt="Logo">
+  <img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/logo3.png" width="1000" alt="Logo">
 </p>
 
-<h4 align="left">
+# tird [![Releases](https://img.shields.io/github/v/release/hakavlad/tird?color=blue&label=Release)](https://github.com/hakavlad/tird/releases)&nbsp;[![PyPI](https://img.shields.io/pypi/v/tird?color=blue&label=PyPI)](https://pypi.org/project/tird/)
+
+<h3 align="left">
   <a href="https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md">📜&nbsp;man&nbsp;page</a> &nbsp;
   <a href="https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md">📑&nbsp;Specification</a> &nbsp;
   <a href="https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md">📄&nbsp;Input&nbsp;Options</a> &nbsp;
   <a href="https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md">📖&nbsp;Tutorial</a> &nbsp;
   <a href="https://github.com/hakavlad/tird/blob/main/docs/FAQ.md">❓&nbsp;FAQ</a>
-</h4>
-
-<br>
-
-[![Releases](https://img.shields.io/github/v/release/hakavlad/tird?color=blue&label=Release)](https://github.com/hakavlad/tird/releases)
-[![PyPI](https://img.shields.io/pypi/v/tird?color=blue&label=PyPI)](https://pypi.org/project/tird/)
-
-`tird` *(an acronym for "this is random data")* is a **file encryption tool** focused on
-- **minimizing metadata** and
-- **hiding encrypted data**.
-
-With `tird`, you can:
-
-1. Create files filled with random data to use as containers or keyfiles.
-2. Overwrite the contents of block devices and regular files with random data. This can be used to prepare containers and to destroy residual data.
-3. Encrypt file contents and comments with modern cryptographic primitives. The encrypted data format (called cryptoblob) is a [padded uniform random blob (PURB)](https://en.wikipedia.org/wiki/PURB_(cryptography)): it looks like random data and has a randomized size. This reduces metadata leakage from file format and length, and also allows cryptoblobs to be hidden among random data. You can use keyfiles and passphrases at your choice to enhance security.
-4. Create [steganographic](https://en.wikipedia.org/wiki/Steganography) (hidden, undetectable) user-driven file systems inside container files and block devices. Unlike [VeraCrypt](https://veracrypt.fr) and [Shufflecake](https://shufflecake.net/) containers, `tird` containers do not contain headers at all; the user specifies the location of the data in the container and is responsible for ensuring that this location is separated from the container.
-5. Resist [coercive](https://en.wikipedia.org/wiki/Coercion) attacks (keywords: [key disclosure law](https://en.wikipedia.org/wiki/Key_disclosure_law), [rubber-hose cryptanalysis](https://en.wikipedia.org/wiki/Deniable_encryption), [xkcd 538](https://xkcd.com/538/)). `tird` provides some forms of [plausible deniability](https://en.wikipedia.org/wiki/Plausible_deniability) out of the box, even if you encrypt files without hiding them in containers.
+</h3>
 
 <details>
-  <summary><b>Contents</b></summary>
+  <summary> <b>Contents</b></summary>
 
+> - [About](#about)
 > - [Goals](#goals)
 > - [Cryptographic Primitives](#cryptographic-primitives)
 > - [Encrypted Data Format](#encrypted-data-format)
@@ -47,7 +33,19 @@ With `tird`, you can:
 
 </details>
 
----
+## About
+
+`tird` *(an acronym for "this is random data")* is a **file encryption tool** focused on
+- **minimizing metadata** and
+- **hiding encrypted data**.
+
+With `tird`, you can:
+
+1. Create files filled with random data to use as containers or keyfiles.
+2. Overwrite the contents of block devices and regular files with random data. This can be used to prepare containers and to destroy residual data.
+3. Encrypt file contents and comments with modern cryptographic primitives. The encrypted data format (called cryptoblob) is a [padded uniform random blob (PURB)](https://en.wikipedia.org/wiki/PURB_(cryptography)): it looks like random data and has a randomized size. This reduces metadata leakage from file format and length, and also allows cryptoblobs to be hidden among random data. You can use keyfiles and passphrases at your choice to enhance security.
+4. Create [steganographic](https://en.wikipedia.org/wiki/Steganography) (hidden, undetectable) user-driven file systems inside container files and block devices. Unlike [VeraCrypt](https://veracrypt.fr) and [Shufflecake](https://shufflecake.net/) containers, `tird` containers do not contain headers at all; the user specifies the location of the data in the container and is responsible for ensuring that this location is separated from the container.
+5. Resist [coercive](https://en.wikipedia.org/wiki/Coercion) attacks (keywords: [key disclosure law](https://en.wikipedia.org/wiki/Key_disclosure_law), [rubber-hose cryptanalysis](https://en.wikipedia.org/wiki/Deniable_encryption), [xkcd 538](https://xkcd.com/538/)). `tird` provides some forms of [plausible deniability](https://en.wikipedia.org/wiki/Plausible_deniability) out of the box, even if you encrypt files without hiding them in containers.
 
 ## Goals
 
@@ -306,7 +304,7 @@ Standalone executables (made with [PyInstaller](https://pyinstaller.org/en/stabl
 ![tird.exe](https://i.imgur.com/yaUKt6X.png)
 
 <details>
-  <summary>How to verify signatures</summary>
+  <summary> How to verify signatures</summary>
 
 Use [Minisign](https://jedisct1.github.io/minisign/) to verify signatures. You can find my public key [here](https://github.com/hakavlad/hakavlad).
 
