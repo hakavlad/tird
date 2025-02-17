@@ -153,7 +153,7 @@ One cryptoblob embedded in the container:
 
 <img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embed1.png" width="850" alt="Embedded1">
 
-Two cryptoblobs mbedded in the container:
+Two cryptoblobs embedded in the container:
 
 <img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embed2.png" width="850" alt="Embedded2">
 
