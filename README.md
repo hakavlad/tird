@@ -143,7 +143,7 @@ Any file, disk, or partition larger than the minimum cryptonlob size (608 B) can
 The next image visualizes how hard it is to distinguish one random data entry from another and the process of embedding cryptoblobs in a container.
 
 <details>
-  <summary>&nbsp;<b>Show images</b></summary>
+  <summary>&nbsp;<b>Show Images</b></summary>
 
 Container with random data:
 
@@ -333,7 +333,7 @@ Standalone executables (made with [PyInstaller](https://pyinstaller.org/en/stabl
 ![tird.exe](https://i.imgur.com/yaUKt6X.png)
 
 <details>
-  <summary>&nbsp;How to verify signatures</summary>
+  <summary>&nbsp;<b>How to Verify Signatures</b></summary>
 
 Use [Minisign](https://jedisct1.github.io/minisign/) to verify signatures. You can find my public key [here](https://github.com/hakavlad/hakavlad).
 
