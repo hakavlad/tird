@@ -1,5 +1,5 @@
 <p align="left">
-  <img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/logo3.png" width="1000" alt="Logo">
+  <img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embedding.gif" width="850" alt="Logo: visualization of embedding">
 </p>
 
 # tird [![Releases](https://img.shields.io/github/v/release/hakavlad/tird?color=blue&label=Release)](https://github.com/hakavlad/tird/releases)&nbsp;[![PyPI](https://img.shields.io/pypi/v/tird?color=blue&label=PyPI)](https://pypi.org/project/tird/)
@@ -137,6 +137,14 @@ Any file, disk, or partition larger than the minimum cryptonlob size (608 B) can
 |         | Random data |
 +—————————+—————————————+
 ```
+
+**Visualization of embedding**
+
+The next image visualizes how hard it is to distinguish one random data entry from another and the process of embedding cryptoblobs in a container.
+
+
+<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embedding.gif" width="850" alt="Logo: visualization of embedding">
+
 
 ## Storing and Carrying Concealed Encrypted Data
 
