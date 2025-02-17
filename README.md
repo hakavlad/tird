@@ -109,7 +109,7 @@ You can encrypt files and embed cryptoblobs into containers starting at arbitrar
 
 Any file, disk, or partition larger than the minimum cryptonlob size (608 B) can be a valid container. Cryptoblobs can be embedded into any area.
 
-**Examples of valid containers include:**
+**Examples of Valid Containers Include:**
 
 1. Specially generated files with random data.
 2. Disk areas containing random data. For example, you can overwrite a disk with random data, format it in FAT32 or exFAT, and use a large portion of the disk, leaving a few dozen MB from the beginning. The disk will appear empty unless you add some files to it.
@@ -138,13 +138,34 @@ Any file, disk, or partition larger than the minimum cryptonlob size (608 B) can
 +—————————+—————————————+
 ```
 
-**Visualization of embedding**
+**Visualization of Embedding**
 
 The next image visualizes how hard it is to distinguish one random data entry from another and the process of embedding cryptoblobs in a container.
 
+<details>
+  <summary>&nbsp;<b>Show images</b></summary>
 
-<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embedding.gif" width="850" alt="Logo: visualization of embedding">
+Container with random data:
 
+<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/container.png" width="850" alt="Container">
+
+One cryptoblob embedded in the container:
+
+<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embed1.png" width="850" alt="Embedded1">
+
+Two cryptoblobs mbedded in the container:
+
+<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embed2.png" width="850" alt="Embedded2">
+
+Three cryptoblobs embedded in the container:
+
+<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embed3.png" width="850" alt="Embedded3">
+
+Animation:
+
+<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embedding.gif" width="850" alt="GIF: visualization of embedding">
+
+</details>
 
 ## Storing and Carrying Concealed Encrypted Data
 
