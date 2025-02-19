@@ -6,15 +6,17 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-package-dir = {"" = "src"}
+package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = [
+    "src",
+]
 
 [project]
 name = "tird"
 version = "0.18.0"
-license = { text = "0BSD", url = "https://spdx.org/licenses/0BSD.html" }
+license = { file = "LICENSE" }
 maintainers = [
     { name = "Alexey Avramov", email = "hakavlad@gmail.com" },
 ]
@@ -22,7 +24,16 @@ description = "A file encryption tool focused on minimizing metadata and hiding 
 readme = { file = "README.md", content-type = "text/markdown" }
 keywords = [
     "encryption",
+    "file-encryption",
     "hiding",
+    "data-hiding",
+    "plausible-deniability",
+    "deniable-encryption",
+    "purb",
+    "time-lock",
+    "undetectable",
+    "stealth",
+    "steganography",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
