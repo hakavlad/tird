@@ -1,5 +1,5 @@
 <p align="left">
-  <img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embedding.gif" width="850" alt="Logo: visualization of embedding">
+  <img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/container.png" width="850" alt="Logo: visualization of embedding">
 </p>
 
 # tird [![Releases](https://img.shields.io/github/v/release/hakavlad/tird?color=blue&label=Release)](https://github.com/hakavlad/tird/releases)&nbsp;[![PyPI](https://img.shields.io/pypi/v/tird?color=blue&label=PyPI)](https://pypi.org/project/tird/)
@@ -177,7 +177,7 @@ It looks like this 16 GB volume contains only one 8.7 MiB file. Is it really tru
 
 The file system tells us that there is only one file here. But is there really only one file on the volume? We cannot find this out using the file system. In fact, data may be located outside the file system and be undetectable by file system tools. 15.2 GiB of space marked as free may be occupied by a hidden file system. This "free" space may be taken up by hidden encrypted data.
 
-Can the existence of this data be disproven? Yes, for example, by examining the entropy level of this free space using `binwalk`. Low entropy indicates a probable absence of hidden data. High entropy *does not*, by itself, prove the presence of encrypted hidden data. Areas with high entropy can be either just residual data or hidden encrypted data.
+Can the existence of this data be disproven? Yes, for example, by examining the entropy level of this free space using `binwalk`. Low entropy indicates a probable absence of hidden data. High entropy *does not*, *by itself*, prove the presence of encrypted hidden data. Areas with high entropy can be either just residual data or hidden encrypted data.
 
 If you are interested in hiding data outside the visible file system, then `tird` is at your service.
 
