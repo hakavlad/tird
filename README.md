@@ -145,25 +145,19 @@ The next image visualizes how hard it is to distinguish one random data entry fr
 <details>
   <summary>&nbsp;<b>Show Images</b></summary>
 
-<br>
-Empty container with random data:
+- Empty container with random data:
 <img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/container.png" width="850" alt="Container">
-<br><br>
 
-
-One cryptoblob embedded in the container:
+- One cryptoblob embedded in the container:
 <img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embed1.png" width="850" alt="Embedded1">
-<br><br>
 
-Two cryptoblobs embedded in the container:
+- Two cryptoblobs embedded in the container:
 <img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embed2.png" width="850" alt="Embedded2">
-<br><br>
 
-Three cryptoblobs embedded in the container:
+- Three cryptoblobs embedded in the container:
 <img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embed3.png" width="850" alt="Embedded3">
-<br><br>
 
-Animation: visualization of embedding:
+- Animation: visualization of embedding:
 <img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embedding.gif" width="850" alt="GIF: visualization of embedding">
 
 </details>
@@ -336,7 +330,6 @@ Standalone executables (made with [PyInstaller](https://pyinstaller.org/en/stabl
 <details>
   <summary>&nbsp;<b>How to Verify Signatures</b></summary>
 
-<br>
 Use [Minisign](https://jedisct1.github.io/minisign/) to verify signatures. You can find my public key [here](https://github.com/hakavlad/hakavlad).
 
 For example:
