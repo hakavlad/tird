@@ -20,6 +20,7 @@
 > - [Cryptographic Primitives](#cryptographic-primitives)
 > - [Encrypted Data Format](#encrypted-data-format)
 > - [Hidden File System and Container Format](#hidden-file-system-and-container-format)
+> - [Visualization of Embedding](#visualization-of-embedding)
 > - [Storing and Carrying Concealed Encrypted Data](#storing-and-carrying-concealed-encrypted-data)
 > - [Usage](#usage)
 > - [Input Options](#input-options)
