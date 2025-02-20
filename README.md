@@ -138,7 +138,7 @@ Any file, disk, or partition larger than the minimum cryptonlob size (608 B) can
 +—————————+—————————————+
 ```
 
-**Visualization of Embedding**
+## Visualization of Embedding
 
 The next image visualizes how hard it is to distinguish one random data entry from another and the process of embedding cryptoblobs in a container.
 
