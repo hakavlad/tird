@@ -145,19 +145,19 @@ The next image visualizes how hard it is to distinguish one random data entry fr
 <details>
   <summary>&nbsp;<b>Show Images</b></summary>
 
-- Empty container with random data:
+Empty container with random data:
 <img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/container.png" width="850" alt="Container">
 
-- One cryptoblob embedded in the container:
+One cryptoblob embedded in the container:
 <img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embed1.png" width="850" alt="Embedded1">
 
-- Two cryptoblobs embedded in the container:
+Two cryptoblobs embedded in the container:
 <img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embed2.png" width="850" alt="Embedded2">
 
-- Three cryptoblobs embedded in the container:
+Three cryptoblobs embedded in the container:
 <img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embed3.png" width="850" alt="Embedded3">
 
-- Animation: visualization of embedding:
+Animation: visualization of embedding:
 <img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embedding.gif" width="850" alt="GIF: visualization of embedding">
 
 </details>
