@@ -146,6 +146,7 @@ The next image visualizes how hard it is to distinguish one random data entry fr
   <summary>&nbsp;<b>Show Images</b></summary>
 
 <br>
+
 *Empty container with random data:*
 <img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/container.png" width="850" alt="Container">
 
