@@ -8,6 +8,8 @@
   <a href="https://github.com/hakavlad/tird/blob/main/docs/FAQ.md">❓&nbsp;FAQ</a>
 </h4>
 
+---
+
 # Tutorial
 
 <table>
