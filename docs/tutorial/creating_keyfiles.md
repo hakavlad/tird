@@ -8,6 +8,8 @@
   <a href="https://github.com/hakavlad/tird/blob/main/docs/FAQ.md">❓&nbsp;FAQ</a>
 </h4>
 
+---
+
 # Creating Keyfiles with Random Data
 
 Answer 3 questions to create a keyfile:
