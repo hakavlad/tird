@@ -63,7 +63,7 @@ With `tird`, you can:
 
 The following cryptographic primitives are utilized by `tird`:
 
-- `ChaCha20` cipher ([RFC 7539](https://www.rfc-editor.org/rfc/rfc7539.html)) for data encryption.
+- `ChaCha20` cipher ([RFC 8439](https://www.rfc-editor.org/rfc/rfc8439.html)) for data encryption.
 - `BLAKE2` ([RFC 7693](https://www.rfc-editor.org/rfc/rfc7693.html)) for hashing and authentication.
 - `Argon2` memory-hard function ([RFC 9106](https://www.rfc-editor.org/rfc/rfc9106.html)) for key stretching and key derivation.
 
@@ -271,7 +271,7 @@ Enabling debug messages additionally shows:
 - ⚠️ `tird` is unlikely to be effective when used with short and predictable keys.
 - ⚠️ Sensitive data may leak into swap space.
 - ⚠️ `tird` does not erase its sensitive data from memory after use.
-- ⚠️ `tird` always releases unverified plaintext, violating [The Cryptographic Doom Principle](https://moxie.org/2011/12/13/the-cryptographic-doom-principle.html); decrypted output is untrusted by default.
+- ⚠️ `tird` always releases unverified plaintext, violating [the Cryptographic Doom Principle](https://moxie.org/2011/12/13/the-cryptographic-doom-principle.html); decrypted output is untrusted by default.
 - ⚠️ Padding contents are never authenticated; authentication only applies to the ciphertext, salts, and certain sizes.
 - ⚠️ Padding sizes depend on secret values.
 - ⚠️ `tird` does not sort digests of keyfiles and passphrases in constant-time.
