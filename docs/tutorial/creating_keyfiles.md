@@ -1,7 +1,7 @@
 
 # Creating Keyfiles with Random Data
 
-Easy! Just answer 3 questions:
+Answer 3 questions to create a keyfile:
 
 ```
 [00] Select an option [0-9]:
@@ -9,7 +9,7 @@ Easy! Just answer 3 questions:
 [24] Output file size in bytes:
 ```
 
-1. Select option (action) 8:
+#### 1. Select option (action) 8
 
 ```
                        MENU
@@ -25,21 +25,23 @@ I: action #8:
     create file of specified size with random data
 ```
 
-2. Enter output path:
+#### 2. Enter output path
 
 ```
 [23] Output file: key
 I: new file 'key' created
 ```
 
-3. Enter size in bytes. 32 or larger may be OK.
+#### 3. Enter size in bytes
+
+32 or larger may be OK.
 
 ```
 [24] Output file size in bytes: 32
 I: size: 32 B
 ```
 
-Then action will be completed:
+#### Then action will be completed
 
 ```
 I: writing random data
@@ -47,5 +49,4 @@ I: written 100.0%; 32 B in 0.0s; avg 0.4 MiB/s
 I: action completed
 ```
 
-Keep keyfiles secret!
-
+**Keep keyfiles secret!**
