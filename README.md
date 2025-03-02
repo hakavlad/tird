@@ -71,7 +71,7 @@ For more details, refer to the [specification](https://github.com/hakavlad/tird/
 
 ## Encrypted Data Format
 
-The format of the encrypted data is quite simple and consists of ciphertext with a MAC tag, located *somewhere* between the surrounding random data:
+The format of the encrypted data is quite simple and consists of ciphertext with a MAC tag, located *somewhere* among the surrounding random data:
 
 ```
 +—————————————+————————————+—————————+—————————————+
@@ -79,7 +79,8 @@ The format of the encrypted data is quite simple and consists of ciphertext with
 +—————————————+————————————+—————————+—————————————+
 ```
 
-More detailed:
+<details>
+  <summary>&nbsp;<b>Show more detailed scheme</b></summary>
 
 ```
 +————————————————————————————————————————+—————————+
@@ -104,7 +105,9 @@ More detailed:
 +————————————————————————————————————————+—————————+
 ```
 
-Data encrypted with `tird` cannot be distinguished from random data without knowledge of the keys and does not contain identifiable headers. `tird` produces cryptoblobs that contain bilateral [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with uniform random data (PURBs). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data. Bilateral padding also conceals the exact location of the ciphertext and MAC tag within the cryptoblob.
+</details>
+
+Data encrypted with `tird` cannot be distinguished from random data without knowledge of the keys. It also does not contain identifiable headers. `tird` produces cryptoblobs that contain bilateral [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with uniform random data (PURBs). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data. Bilateral padding also conceals the exact location of the ciphertext and MAC tag within the cryptoblob.
 
 ## Hidden File System and Container Format
 
@@ -178,17 +181,17 @@ The next image visualizes how hard it is to distinguish one random data entry fr
 
 ## Storing and Carrying Concealed Encrypted Data
 
-Please look at at the following screenshot.
+Please look at the following screenshot.
 
 <img src="https://i.imgur.com/2tpEhTw.png" width="839" alt="Screenshot">
 
 It looks like this 16 GB volume contains only one 8.7 MiB file. Is it really true? Maybe yes, maybe no.
 
-The file system tells us that there is only one file here. But is there really only one file on the volume? We cannot find this out using the file system. In fact, data may be located outside the file system and be undetectable by file system tools. 15.2 GiB of space marked as free may be occupied by a hidden file system. This "free" space may be taken up by hidden encrypted data.
+The file system tells us that there is only one file here. But is there really only one file on the volume? We cannot determine this using the file system. In fact, data may be located outside the file system and be undetectable by file system tools. The 15.2 GiB of space marked as free may be occupied by a hidden file system. This "free" space may be taken up by hidden encrypted data.
 
-Can the existence of this data be disproven? Yes, for example, by examining the entropy level of this free space using `binwalk`. Low entropy indicates a probable absence of hidden data. High entropy *does not*, *by itself*, prove the presence of encrypted hidden data. Areas with high entropy can be either just residual data or hidden encrypted data.
+Can we disprove the existence of this data? Yes, for example, by examining the entropy level of this free space using `binwalk`. Low entropy indicates a likely absence of hidden data. High entropy *does not*, *by itself*, prove the presence of encrypted hidden data. Areas with high entropy can be either just residual data or hidden encrypted data.
 
-If you are interested in hiding data outside the visible file system, then `tird` is at your service.
+If you are interested in hiding data outside the visible file system, then `tird` is at your service to provide an Invisibility Cloak for your files.
 
 ## Usage
 
