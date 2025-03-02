@@ -71,6 +71,16 @@ For more details, refer to the [specification](https://github.com/hakavlad/tird/
 
 ## Encrypted Data Format
 
+The format of the encrypted data is quite simple and consists of ciphertext with a MAC tag, located *somewhere* between the surrounding random data:
+
+```
++—————————————+————————————+—————————+—————————————+
+| Random data | Ciphertext | MAC tag | Random data |
++—————————————+————————————+—————————+—————————————+
+```
+
+More detailed:
+
 ```
 +————————————————————————————————————————+—————————+
 | Salt for key stretching (Argon2): 16 B |         |
@@ -94,7 +104,7 @@ For more details, refer to the [specification](https://github.com/hakavlad/tird/
 +————————————————————————————————————————+—————————+
 ```
 
-Files encrypted with `tird` cannot be distinguished from random data without knowledge of the keys and have no identifiable headers. `tird` produces cryptoblobs that contain bilateral [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with uniform random data (PURBs). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data.
+Data encrypted with `tird` cannot be distinguished from random data without knowledge of the keys and does not contain identifiable headers. `tird` produces cryptoblobs that contain bilateral [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with uniform random data (PURBs). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data. Bilateral padding also conceals the exact location of the ciphertext and MAC tag within the cryptoblob.
 
 ## Hidden File System and Container Format
 
