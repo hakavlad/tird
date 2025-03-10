@@ -285,7 +285,7 @@ Enabling debug messages additionally shows:
 - ⚠️ `tird` is unlikely to be effective when used with short and predictable keys.
 - ⚠️ Sensitive data may leak into swap space.
 - ⚠️ `tird` does not erase its sensitive data from memory after use.
-- ⚠️ `tird` always releases unverified plaintext, violating [the Cryptographic Doom Principle](https://moxie.org/2011/12/13/the-cryptographic-doom-principle.html); decrypted output is untrusted by default.
+- ⚠️ `tird` always releases unverified plaintext, violating [the Cryptographic Doom Principle](https://moxie.org/2011/12/13/the-cryptographic-doom-principle.html); decrypted output is untrusted until the MAC tag is verified.
 - ⚠️ Padding contents are never authenticated; authentication only applies to the ciphertext, salts, and certain sizes.
 - ⚠️ Padding sizes depend on secret values.
 - ⚠️ `tird` does not sort digests of keyfiles and passphrases in constant-time.
