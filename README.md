@@ -214,7 +214,7 @@ $ tird
     6. Encrypt & Embed   7. Extract & Decrypt
     8. Create w/ Random  9. Overwrite w/ Random
     ———————————————————————————————————————————
-[00] Select an option [0-9]:
+A0. Select an option [0-9]:
 ```
 
 ## Input Options
@@ -222,26 +222,26 @@ $ tird
 There are 5 groups of input options. They are numbered for ease of description.
 
 ```
-+———————————————————————————+——————————————————————————+
-| [00] Select an option     | [00] Select an action    |
-+———————————————————————————+——————————————————————————+
-| [10] Use custom settings? |                          |
-| [11] Time cost            | [1x] Set custom settings |
-| [12] Max padding size     |                          |
-| [13] Set fake MAC tag?    |                          |
-+———————————————————————————+——————————————————————————+
-| [21] Input file path      |                          |
-| [22] Comments             | [2x] Enter data,         |
-| [23] Output file path     |      data location,      |
-| [24] Output file size     |      data size           |
-| [25] Start position       |                          |
-| [26] End position         |                          |
-+———————————————————————————+——————————————————————————+
-| [31] Keyfile path         | [3x] Specify input       |
-| [32] Passphrase           |      keying material     |
-+———————————————————————————+——————————————————————————+
-| [40] Proceed?             | [40] Confirm to continue |
-+———————————————————————————+——————————————————————————+
++——————————————————————————+————————————————————————+
+| A0. Select an option     | A. Select an action    |
++——————————————————————————+————————————————————————+
+| C0. Use custom settings? |                        |
+| C1. Time cost            | C. Set custom settings |
+| C2. Max padding size     |                        |
+| C3. Set fake MAC tag?    |                        |
++——————————————————————————+————————————————————————+
+| D1. Input file path      |                        |
+| D2. Comments             | D. Enter data,         |
+| D3. Output file path     |    data location,      |
+| D4. Output file size     |    data size           |
+| D5. Start position       |                        |
+| D6. End position         |                        |
++——————————————————————————+————————————————————————+
+| K1. Keyfile path         | K. Specify input       |
+| K2. Passphrase           |    keying material     |
++——————————————————————————+————————————————————————+
+| P0. Proceed?             | P. Confirm to continue |
++——————————————————————————+————————————————————————+
 ```
 
 A detailed description of these options with examples can be found [here](https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md).
