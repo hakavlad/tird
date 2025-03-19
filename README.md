@@ -42,9 +42,9 @@
 
 ## About
 
-`tird` *(an acronym for "this is random data")* is a **file encryption tool** focused on
-- **minimizing metadata** and
-- **hiding encrypted data**.
+`tird` *(an acronym for "this is random data")* is a file encryption tool focused on
+- minimizing metadata and
+- hiding encrypted data.
 
 With `tird`, you can:
 
@@ -127,7 +127,7 @@ You can encrypt files and embed cryptoblobs into containers starting at arbitrar
 - It is **headerless** because containers do not contain any headers; all data about cryptoblob locations must be stored separately by the user.
 - The starting position of the cryptoblob in the container is **user-defined**, and the **user must** store both the starting and ending positions separately from the container. This is why it is called a **user-driven file system**.
 
-Any file, disk, or partition larger than the minimum cryptonlob size (608 B) can be a valid container. Cryptoblobs can be embedded into any area.
+Any file, disk, or partition larger than the minimum cryptonlob size (863 B) can be a valid container. Cryptoblobs can be embedded into any area.
 
 **Examples of Valid Containers Include:**
 
@@ -281,6 +281,10 @@ Enabling debug messages additionally shows:
 - `tird`'s encryption speed is not very high (up to 420 MiB/s in my tests).
 
 ## Warnings
+
+> Crypto can help, but it won’t save you from misuse, vulnerabilities, social engineering, or physical threats.
+
+<p align="right"><i>— <a href="https://loup-vaillant.fr/articles/rolling-your-own-crypto">Loup Vaillant</a></i></p>
 
 ![DANGER MINES](https://i.imgur.com/JaMXwNV.jpeg)
 
