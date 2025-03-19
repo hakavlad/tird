@@ -1,5 +1,5 @@
 <p align="left">
-  <img src="https://raw.githubusercontent.com/hakavlad/tird/main/images/logo2.png" width="1000" alt="Logo">
+  <img src="https://raw.githubusercontent.com/hakavlad/tird/main/images/logo2.png" width="800" alt="Logo">
 </p>
 
 <h3 align="left">
