@@ -7,8 +7,8 @@ Maintainer: Alexey Avramov <hakavlad@gmail.com>
 Priority: optional
 Homepage: https://github.com/hakavlad/tird
 Description: tool for encrypting files and hiding encrypted data
- tird (an acronym for "this is random data") is a tool for encrypting
- files and hiding encrypted data.
+ tird (an acronym for "this is random data") is a file encryption tool
+ focused on minimizing metadata and hiding encrypted data.
  .
  With tird, you can:
  1. Create files filled with random data to use as containers or
@@ -17,11 +17,12 @@ Description: tool for encrypting files and hiding encrypted data
  data. This can be used to prepare containers and to destroy residual
  data.
  3. Encrypt file contents and comments with modern cryptographic
- primitives. The encrypted file format (cryptoblob) is a padded uniform
- random blob (PURB): it looks like random data and has a randomized
- size. This reduces metadata leakage from file format and length, and
- also allows cryptoblobs to be hidden among random data. You can use
- keyfiles and passphrases at your choice to enhance security.
+ primitives. The encrypted file format (called cryptoblob) is a padded
+ uniform random blob (PURB): it looks like random data and has a
+ randomized size. This reduces metadata leakage from file format and
+ length, and also allows cryptoblobs to be hidden among random data.
+ You can use keyfiles and passphrases at your choice to enhance
+ security.
  4. Create steganographic (hidden, undetectable) user-driven file
  systems inside container files and devices. Unlike VeraCrypt and
  Shufflecake containers, tird containers do not contain headers at all;
