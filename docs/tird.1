@@ -7,11 +7,12 @@
 tird - encrypt files and hide encrypted data
 .SH SYNOPSIS
 .PP
-\f[B]tird\f[R] [\f[B]-d\f[R] | \f[B]\[en]debug\f[R]]
+\f[B]tird\f[R] [\f[B]--debug\f[R]]
 .SH DESCRIPTION
 .PP
 \f[B]tird\f[R] \f[I](an acronym for \[lq]this is random data\[rq])\f[R]
-is a tool for encrypting files and hiding encrypted data.
+is a file encryption tool focused on minimizing metadata and hiding
+encrypted data.
 .PP
 With \f[B]tird\f[R], you can:
 .IP "1." 3
@@ -21,8 +22,8 @@ Overwrite the contents of devices and regular files with random data.
 This can be used to prepare containers and to destroy residual data.
 .IP "3." 3
 Encrypt file contents and comments with modern cryptographic primitives.
-The encrypted file format (cryptoblob) is a padded uniform random blob
-(PURB): it looks like random data and has a randomized size.
+The encrypted file format (called cryptoblob) is a padded uniform random
+blob (PURB): it looks like random data and has a randomized size.
 This reduces metadata leakage from file format and length, and also
 allows cryptoblobs to be hidden among random data.
 You can use keyfiles and passphrases at your choice to enhance security.
@@ -39,33 +40,40 @@ cryptanalysis, xkcd 538).
 \f[B]tird\f[R] provides some forms of plausible deniability out of the
 box, even if you encrypt files without hiding them in containers.
 .SH COMMAND-LINE OPTIONS
-.SS -d, \[en]debug
+.SS --debug
 .PP
 print debug messages
 .SH INPUT OPTIONS
 .PP
-\f[B]tird\f[R] has the following input options:
+There are 5 groups of input options: A (Action), C (Custom), D (Data), K
+(Keys), P (Proceed).
 .IP
 .nf
 \f[C]
-[01] Select an option
-[02] Use custom settings?
-[03] Argon2 time cost
-[04] Max rand padding size
-[05] Set fake MAC tag?
-[06] Input file path
-[07] Output file path
-[08] Output file size
-[09] Start position
-[10] End position
-[11] Comments
-[12] Keyfile path
-[13] Passphrase
-[14] Proceed?
++\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+
+| A0. Select an option     | A. Select an action    |
++\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+
+| C0. Use custom settings? |                        |
+| C1. Time cost            | C. Set custom settings |
+| C2. Max padding size     |                        |
+| C3. Set fake MAC tag?    |                        |
++\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+
+| D1. Input file path      |                        |
+| D2. Comments             | D. Enter data,         |
+| D3. Output file path     |    data location,      |
+| D4. Output file size     |    data size           |
+| D5. Start position       |                        |
+| D6. End position         |                        |
++\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+
+| K1. Keyfile path         | K. Specify input       |
+| K2. Passphrase           |    keying material     |
++\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+
+| P0. Proceed?             | P. Confirm to continue |
++\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+
 \f[R]
 .fi
 .PP
-For a detailed description of these options, see
+A detailed description of these options with examples can be found here:
 <https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md>.
 .SH GOALS
 .IP \[bu] 2
@@ -92,11 +100,9 @@ refusal to implement features that are not directly related to primary
 security goals.
 .SH USAGE
 .PP
-You don\[cq]t need to memorize command-line options to use
-\f[B]tird\f[R].
-.PP
-Just start \f[B]tird\f[R], select a menu option, and then answer the
-questions that \f[B]tird\f[R] will ask:
+You don\[cq]t need to memorize command-line options to use tird.
+This tool features a prompt-based CLI: simply start it, select a menu
+option, and answer the questions that will follow.
 .IP
 .nf
 \f[C]
@@ -108,12 +114,12 @@ $ tird
     2. Encrypt           3. Decrypt
     4. Embed             5. Extract
     6. Encrypt & Embed   7. Extract & Decrypt
-    8. Create w/ random  9. Overwrite w/ random
+    8. Create w/ Random  9. Overwrite w/ Random
     \[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]
-[01] Select an option [0-9]:
+A0. Select an option [0-9]:
 \f[R]
 .fi
-.SH HIDDEN USER-DRIVEN FILE SYSTEM AND CONTAINER FORMAT
+.SH HIDDEN FILE SYSTEM AND CONTAINER FORMAT
 .PP
 You can encrypt files and embed cryptoblobs into containers starting at
 arbitrary positions.
@@ -136,92 +142,106 @@ The starting position of the cryptoblob in the container is
 starting and ending positions separately from the container.
 This is why it is called a \f[B]user-driven file system\f[R].
 .PP
-Any file, disk, or partition larger than \[ti]1 KiB can be a valid
-container.
+Any file, disk, or partition larger than the minimum cryptonlob size
+(863 B) can be a valid container.
 Cryptoblobs can be embedded into any area.
 .PP
-Examples of valid containers include:
+\f[B]Examples of valid containers include:\f[R]
 .IP "1." 3
 Specially generated files with random data.
 .IP "2." 3
+\f[B]tird\f[R] cryptoblobs, as they contain unauthenticated padding of
+random data by default, which can be used to embed smaller cryptoblobs.
+.IP "3." 3
 Disk areas containing random data.
 For example, you can overwrite a disk with random data, format it in
 FAT32 or exFAT, and use a large portion of the disk, leaving a few dozen
 MB from the beginning.
 The disk will appear empty unless you add some files to it.
-.IP "3." 3
-\f[B]tird\f[R] cryptoblobs, as they contain unauthenticated padding of
-random data by default, which can be used to embed smaller cryptoblobs.
 .IP "4." 3
+LUKS encrypted volumes.
+.IP "5." 3
 VeraCrypt containers, even those that already contain hidden volumes.
 .PP
-\f[B]Example of Container Structure:\f[R]
+\f[B]Example of container structure:\f[R]
 .IP
 .nf
 \f[C]
-+\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+\[em] Position 0
++\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+ <\[em] Position 0 of the container
 |         |             |
 |         | Random data |
 |         |             |
-|         +\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+\[em] Cryptoblob1 start position
+|         +\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+ <\[em] Cryptoblob1 start position
 | Header- |             |
 | less    | Cryptoblob1 |
 |         |             |
-| Layer   +\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+\[em] Cryptoblob1 end position
+| Layer   +\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+ <\[em] Cryptoblob1 end position
 |         | Random data |
-| Cake    +\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+\[em] Cryptoblob2 start position
+| Cake    +\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+ <\[em] Cryptoblob2 start position
 |         |             |
 |         | Cryptoblob2 |
 |         |             |
-|         +\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+\[em] Cryptoblob2 end position
+|         +\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+ <\[em] Cryptoblob2 end position
 |         | Random data |
 +\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]\[em]+
 \f[R]
 .fi
 .SH DEBUG MODE
 .PP
-Start \f[B]tird\f[R] with the option \f[B]\[en]debug\f[R] or
-\f[B]-d\f[R] to look under the hood while the program is running:
+Start \f[B]tird\f[R] with the option \f[B]--debug\f[R] to look under the
+hood while the program is running:
 .IP
 .nf
 \f[C]
-$ tird -d
+$ tird --debug
 \f[R]
 .fi
 .PP
 Enabling debug messages additionally shows:
 .IP \[bu] 2
-Opening and closing file descriptors.
+File operations:
+.RS 2
+.IP \[bu] 2
+Opening and closing of file descriptors.
 .IP \[bu] 2
 Real paths to opened files.
 .IP \[bu] 2
-Moving file pointers using the seek() method.
+Movement of file pointers.
+.RE
 .IP \[bu] 2
-Salts, passphrases, digests, keys, nonces, tags.
+Byte strings related to cryptographic operations: salts, passphrases,
+digests, keys, nonces, and tags.
 .IP \[bu] 2
-Some other information.
+Some other information, including various sizes.
 .SH TRADEOFFS AND LIMITATIONS
 .IP \[bu] 2
-\f[B]tird\f[R] does not support public-key cryptography.
+\f[B]tird\f[R] does not support:
+.RS 2
 .IP \[bu] 2
-\f[B]tird\f[R] does not support file compression.
+Public-key cryptography.
 .IP \[bu] 2
-\f[B]tird\f[R] does not support ASCII armored output.
+File compression.
 .IP \[bu] 2
-\f[B]tird\f[R] does not support Reed\[en]Solomon error correction.
+ASCII armored output.
 .IP \[bu] 2
-\f[B]tird\f[R] does not support splitting the output into chunks.
+Reed\[en]Solomon error correction.
 .IP \[bu] 2
-\f[B]tird\f[R] does not support the use of standard streams for payload
-transmission.
+Splitting the output into chunks.
 .IP \[bu] 2
-\f[B]tird\f[R] does not support low-level device reading and writing
-when used on MS Windows (devices cannot be used as keyfiles, cannot be
-overwritten, and cannot be encrypted or hidden).
+The use of standard streams for processing files.
 .IP \[bu] 2
-\f[B]tird\f[R] does not provide a graphical user interface.
+Low-level block device reading and writing on MS Windows.
+As a result, these devices cannot be used as keyfiles, cannot be
+overwritten, and cannot be encrypted or embedded.
+.RE
 .IP \[bu] 2
-\f[B]tird\f[R] does not provide a password generator.
+\f[B]tird\f[R] does not provide:
+.RS 2
+.IP \[bu] 2
+A graphical user interface.
+.IP \[bu] 2
+A password generator.
+.RE
 .IP \[bu] 2
 \f[B]tird\f[R] cannot handle (encrypt/embed) more than one file in one
 pass.
@@ -230,51 +250,59 @@ Encryption of directories and multiple files is not supported.
 \f[B]tird\f[R] does not fake file access, modification, and creation
 timestamps (atime, mtime, ctime).
 .IP \[bu] 2
-\f[B]tird\f[R]\[cq]s encryption speed is not very fast (up to 180 MiB/s
+\f[B]tird\f[R]\[cq]s encryption speed is not very high (up to 420 MiB/s
 in my tests).
 .SH WARNINGS
 .IP \[bu] 2
 The author does not have a background in cryptography.
 .IP \[bu] 2
+The code has 0% test coverage.
+.IP \[bu] 2
 \f[B]tird\f[R] has not been independently audited.
 .IP \[bu] 2
-\f[B]tird\f[R] is unlikely to be effective when used in a compromised
-environment.
+\f[B]tird\f[R] is ineffective in a compromised environment; executing it
+in such cases may cause disastrous data leaks.
 .IP \[bu] 2
 \f[B]tird\f[R] is unlikely to be effective when used with short and
 predictable keys.
 .IP \[bu] 2
 Sensitive data may leak into swap space.
 .IP \[bu] 2
-\f[B]tird\f[R] does not erase sensitive data from memory after use.
+\f[B]tird\f[R] does not erase its sensitive data from memory after use.
 .IP \[bu] 2
-\f[B]tird\f[R] always releases unverified plaintext, violating The
-Cryptographic Doom Principle.
+\f[B]tird\f[R] always releases unverified plaintext, violating the
+Cryptographic Doom Principle; decrypted output is untrusted until the
+MAC tag is verified.
 .IP \[bu] 2
-Padding is not used to create a MAC tag (only ciphertext and salt will
-be authenticated).
+Padding contents are never authenticated; authentication only applies to
+the ciphertext, salts, and certain sizes.
+.IP \[bu] 2
+Padding sizes depend on secret values.
 .IP \[bu] 2
 \f[B]tird\f[R] does not sort digests of keyfiles and passphrases in
 constant-time.
 .IP \[bu] 2
-Overwriting file contents does not guarantee secure destruction of the
-data on the media.
+Overwriting file contents does not guarantee secure destruction of data
+on the media.
 .IP \[bu] 2
-You cannot prove to an adversary that your random-looking data does not
-contain encrypted data.
+You cannot prove to an adversary that your random data does not contain
+encrypted information.
 .IP \[bu] 2
-Development is not complete; there may be backward compatibility issues
-in the future.
+\f[B]tird\f[R] protects data, not the user; it cannot prevent torture if
+you are under suspicion.
+.IP \[bu] 2
+Development is not complete, and there may be backward compatibility
+issues.
 .SH REQUIREMENTS
 .IP \[bu] 2
-Python >= 3.9
+Python >= 3.9.2
 .IP \[bu] 2
-PyCryptodomex >= 3.6.2
+cryptography >= 2.1
 .IP \[bu] 2
 PyNaCl >= 1.2.0
 .SH TUTORAL
 .PP
-Step-by-step guides and examples you can find here
+Step-by-step guides and examples can be found here:
 <https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md>.
 .SH SPECIFICATION
 .PP
@@ -285,14 +313,30 @@ Please report bugs at <https://github.com/hakavlad/tird/issues>.
 .SH FEEDBACK
 .PP
 Please feel free to ask questions, leave feedback, or provide critiques
-at <https://github.com/hakavlad/tird/discussions>.
+in the Discussions <https://github.com/hakavlad/tird/discussions>
+section.
 .SH AUTHOR
 .PP
 Alexey Avramov <hakavlad@gmail.com>
 .SH COPYRIGHT
 .PP
-This project is licensed under the terms of the Creative Commons Zero
-v1.0 Universal License (Public Domain Dedication).
+This project is licensed under the terms of the BSD Zero Clause License
+(0BSD):
+.IP
+.nf
+\f[C]
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted.
+
+THE SOFTWARE IS PROVIDED \[dq]AS IS\[dq] AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+\f[R]
+.fi
 .SH HOMEPAGE
 .PP
 Homepage is <https://github.com/hakavlad/tird>.
