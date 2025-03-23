@@ -22,26 +22,26 @@ uninstall:
 	rm -fv $(DESTDIR)$(MANDIR)/man1/$(NAME).1.gz
 
 build-deb:
-	install -p -d deb/$(NAME)/usr/bin
-	install -p -m0755 src/$(NAME)/$(NAME).py deb/$(NAME)/usr/bin/$(NAME)
+	install -p -d dist/build/$(NAME)/usr/bin
+	install -p -m0755 src/$(NAME)/$(NAME).py dist/build/$(NAME)/usr/bin/$(NAME)
 
-	install -p -d deb/$(NAME)/usr/share/man/man1
-	gzip -9cn docs/$(NAME).1 > deb/$(NAME)/usr/share/man/man1/$(NAME).1.gz
+	install -p -d dist/build/$(NAME)/usr/share/man/man1
+	gzip -9cn docs/$(NAME).1 > dist/build/$(NAME)/usr/share/man/man1/$(NAME).1.gz
 
-	install -p -d deb/$(NAME)/usr/share/doc/$(NAME)
-	install -p -m0644 README.md deb/$(NAME)/usr/share/doc/$(NAME)/README.md
-	install -p -m0644 SECURITY.md deb/$(NAME)/usr/share/doc/$(NAME)/SECURITY.md
-	install -p -m0644 docs/MANPAGE.md deb/$(NAME)/usr/share/doc/$(NAME)/MANPAGE.md
-	install -p -m0644 docs/SPECIFICATION.md deb/$(NAME)/usr/share/doc/$(NAME)/SPECIFICATION.md
-	install -p -m0644 images/$(NAME).ico deb/$(NAME)/usr/share/doc/$(NAME)/$(NAME).ico
+	install -p -d dist/build/$(NAME)/usr/share/doc/$(NAME)
+	install -p -m0644 README.md dist/build/$(NAME)/usr/share/doc/$(NAME)/README.md
+	install -p -m0644 SECURITY.md dist/build/$(NAME)/usr/share/doc/$(NAME)/SECURITY.md
+	install -p -m0644 docs/MANPAGE.md dist/build/$(NAME)/usr/share/doc/$(NAME)/MANPAGE.md
+	install -p -m0644 docs/SPECIFICATION.md dist/build/$(NAME)/usr/share/doc/$(NAME)/SPECIFICATION.md
+	install -p -m0644 images/$(NAME).ico dist/build/$(NAME)/usr/share/doc/$(NAME)/$(NAME).ico
 
-	cp -r deb/DEBIAN deb/$(NAME)/
-	fakeroot dpkg-deb --build deb/$(NAME)
+	cp -r dist/DEBIAN dist/build/$(NAME)/
+	fakeroot dpkg-deb --build dist/build/$(NAME)
 	##  Now you can run
 	##  sudo make install-deb
 
 install-deb:
-	apt install -o Acquire::AllowUnsizedPackages=1 --reinstall ./deb/$(NAME).deb
+	apt install -o Acquire::AllowUnsizedPackages=1 --reinstall ./dist/build/$(NAME).deb
 
 manpage:
 ifdef PANDOC
