@@ -36,7 +36,7 @@ build-deb:
 	install -p -d dist/build/$(NAME)/usr/share/doc/$(NAME)
 	install -p -m0644 README.md dist/build/$(NAME)/usr/share/doc/$(NAME)/README.md
 	install -p -m0644 SECURITY.md dist/build/$(NAME)/usr/share/doc/$(NAME)/SECURITY.md
-	tar -czf dist/build/$(NAME)/usr/share/doc/$(NAME)/docs.tar.gz -C docs .
+	tar -czf dist/build/$(NAME)/usr/share/doc/$(NAME)/docs.tar.gz docs
 
 	cp -r dist/DEBIAN dist/build/$(NAME)/
 	fakeroot dpkg-deb --build dist/build/$(NAME)
