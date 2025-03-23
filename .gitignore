@@ -10,7 +10,7 @@ __pycache__/
 .Python
 build/
 develop-eggs/
-dist/
+dist/build/
 downloads/
 eggs/
 .eggs/
@@ -127,7 +127,3 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-
-# deb
-/deb/tird/
-/deb/tird.deb
