@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
 """
-A tool for encrypting files and hiding encrypted data.
+A file encryption tool focused on
+- minimizing metadata and
+- hiding encrypted data.
 
 Dependencies:
 - cryptography: for data encryption.
 - PyNaCl: for hashing and authentication.
 
-SPDX-License-Identifier: CC0-1.0
+SPDX-License-Identifier: 0BSD
 """
 
 from collections.abc import Callable
 from gc import collect
 from getpass import getpass
+from io import BytesIO
 from os import SEEK_CUR, SEEK_END, SEEK_SET, fsync, path, remove, walk
 from secrets import compare_digest, token_bytes
 from signal import SIGINT, signal
@@ -49,22 +52,22 @@ ActionID = Literal[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 def log_e(error_message: str) -> None:
     """Logs a message at the Error level."""
-    print(f'{ERR}E: {error_message}{RES}')
+    print(f'    {ERR}E: {error_message}{RES}')
 
 
 def log_w(warning_message: str) -> None:
     """Logs a message at the Warning level."""
-    print(f'{WAR}W: {warning_message}{RES}')
+    print(f'    {WAR}W: {warning_message}{RES}')
 
 
 def log_i(info_message: str) -> None:
     """Logs a message at the Info level."""
-    print(f'I: {info_message}')
+    print(f'    I: {info_message}')
 
 
 def log_d(debug_message: str) -> None:
     """Logs a message at the Debug level."""
-    print(f'D: {debug_message}')
+    print(f'    D: {debug_message}')
 
 
 def format_size(size: int) -> str:
@@ -224,15 +227,17 @@ def get_file_size(file_path: str) -> Optional[int]:
     This function opens a file in binary read mode and seeks to the end
     of the file to determine its size. If the file cannot be opened or
     an error occurs, it returns None. This function is used instead of
-    os.path.getsize() to also determine the size of block devices.
+    os.path.getsize() to also determine the size of block devices on
+    Unix systems.
 
     Args:
         file_path (str): The path to the file whose size is to be
                          retrieved.
 
     Returns:
-        Optional[int]: The size of the file in bytes if successful, None
-                       otherwise.
+        Optional[int]: The size of the file in bytes if successful;
+                       None if the file cannot be opened or an error
+                       occurs.
     """
     try:
         with open(file_path, 'rb') as file_obj:
@@ -262,7 +267,7 @@ def seek_position(
             opened in a mode that allows seeking.
         offset (int): The number of bytes to move the file pointer from
             the position specified by whence.
-        whence (int): The reference point for the offset. It can be one
+        whence (int): The reference point for the offset. It must be one
             of the following:
             - SEEK_SET: Beginning of the file (default)
             - SEEK_CUR: Current file position
@@ -391,7 +396,7 @@ def fsync_written_data() -> bool:
     return True
 
 
-def remove_output_path() -> None:
+def remove_output_path(action: ActionID) -> None:
     """
     Removes the output file path specified in the global `BIO_D`
     dictionary if the user confirms the action.
@@ -402,17 +407,21 @@ def remove_output_path() -> None:
     outcome of the operation, including any errors that may occur during
     the removal process.
 
+    Args:
+        action (ActionID): The action identifier used to log the context
+                           of the operation and may influence user prompts.
+
     Returns:
         None
     """
 
     # Check if the user confirms the action to proceed with removal
-    if proceed_request(PROCEED_REMOVE):
+    if proceed_request(PROCEED_REMOVE, action):
         # Get the name of the output file
         out_file_name: str = BIO_D['OUT'].name
 
+        # Attempt to remove the output file path
         try:
-            # Attempt to remove the output file path
             remove(out_file_name)
             log_i(f'path {out_file_name!r} removed')
         except Exception as error:
@@ -479,108 +488,124 @@ def select_action() -> ActionID:
     """
     Prompts the user to select an action from a predefined menu.
 
-    Displays the menu and descriptions for each action, using global
-    ACTIONS dictionary. Returns the selected action ID if
-    a valid option is chosen.
+    Displays a menu of available actions and their descriptions, as
+    defined in the global ACTIONS dictionary. The function uses a loop
+    to continuously ask for input until a valid response is given. If
+    the user enters an invalid value, an error message is displayed and
+    the user is prompted again.
 
     Returns:
-        ActionID: Selected action number (0-9).
+        ActionID: The selected action number (0-9), which corresponds to
+                  a valid action in the ACTIONS dictionary.
     """
+    error_message: str = 'invalid value; please select a valid option [0-9]'
+
+    # Start an infinite loop to get user input
     while True:
         # Prompt the user to input an action number and remove any
         # leading/trailing whitespace
-        user_input = no_eof_input(APP_MENU).strip()
+        input_value: str = no_eof_input(APP_MENU).strip()
 
         # Check if the entered action is valid
-        if user_input in ACTIONS:
+        if input_value in ACTIONS:
             # Get the description of the action
-            action_description: str = ACTIONS[user_input][1]
+            action_description: str = ACTIONS[input_value][1]
 
             # Log the action description
             log_i(action_description)
 
             # Retrieve the action number associated with the user input
-            action: ActionID = ACTIONS[user_input][0]
+            action: ActionID = ACTIONS[input_value][0]
 
             return action  # Return the valid action number
 
         # If an invalid value is entered, log an error message
-        log_e('invalid value; please select a valid option (0-9)')
+        log_e(error_message)
 
 
 def is_custom_settings() -> bool:
     """
     Prompts the user to specify whether to use custom settings.
 
-    Asks the user if they want to use custom settings, using global
-    formatting variables. Returns True for 'Y', 'y', or '1', and False
-    for 'N', 'n', '0', or blank input.
+    Asks the user if they want to use custom settings and processes
+    their response. The function uses a loop to continuously ask for
+    input until a valid response is given. If the user enters an invalid
+    value, an error message is displayed and the user is prompted again.
 
     Returns:
         bool: True if custom settings are to be used, False otherwise.
     """
 
     # Define the prompt message with formatting variables
-    prompt: str = f'{BOL}[10] Use custom settings? (Y/N, default=N):{RES} '
+    prompt_message: str = \
+        f'{BOL}C0. Use custom settings? (Y/N, default=N):{RES} '
+
+    error_message: str = \
+        f'invalid value; valid values are: ' \
+        f'{VALID_BOOL_ANSWERS}, or press Enter for default (N)'
 
     # Start an infinite loop to get user input
     while True:
         # Get user input and remove any leading/trailing whitespace
-        user_input: str = no_eof_input(prompt).strip()
+        input_value: str = no_eof_input(prompt_message).strip()
 
         # Check if the input indicates not to use custom settings
-        if user_input in DEFAULT_FALSE_BOOL_ANSWERS:
+        if input_value in DEFAULT_FALSE_ANSWERS:
             # Return False if the user chooses not to use custom settings
             return False
 
         # Check if the input indicates to use custom settings
-        if user_input in TRUE_BOOL_ANSWERS:
+        if input_value in TRUE_ANSWERS:
             # Return True if the user chooses to use custom settings
             return True
 
-        log_e(f'invalid value; valid values are: {VALID_BOOL_ANSWERS}, '
-              f'or press Enter for default (N)')
+        log_e(error_message)
 
 
 def get_argon2_time_cost() -> int:
     """
     Prompts the user to input the Argon2 time cost.
 
-    Asks the user for the Argon2 time cost value, using global
-    formatting variables. The function will continue to prompt the user
-    until a valid integer is provided. Returns the default value if the
-    user provides an empty input or the default value. Ensures the input
-    is a valid integer within the specified range (1 to OPSLIMIT_MAX).
+    Prompts the user to enter the Argon2 time cost value, with a default
+    value provided. The function will continue to prompt the user until
+    a valid integer is provided. If the user enters an empty string or
+    the default value, the function returns the default value. Ensures
+    the input is a valid integer within the specified range
+    (1 to OPSLIMIT_MAX).
 
     Returns:
         int: The Argon2 time cost value provided by the user or the
              default.
     """
+    prompt_message: str = \
+        f'{BOL}C1. Time cost (default={DEFAULT_ARGON2_TIME_COST}):{RES} '
+
+    error_message: str = \
+        f'invalid value; must be an integer from ' \
+        f'the range [1; {argon2id.OPSLIMIT_MAX}]'
+
+    # Start an infinite loop to get user input
     while True:
         # Get user input and remove any leading/trailing whitespace
-        user_input: str = no_eof_input(
-            f'    {BOL}[11] Time cost (default'
-            f'={DEFAULT_ARGON2_TIME_COST}):{RES} ').strip()
+        input_value: str = no_eof_input(prompt_message).strip()
 
         # Return default value if input is empty or matches the default
-        if user_input in ('', str(DEFAULT_ARGON2_TIME_COST)):
+        if input_value in ('', str(DEFAULT_ARGON2_TIME_COST)):
             return DEFAULT_ARGON2_TIME_COST
 
         try:
             # Convert input to integer
-            time_cost_value: int = int(user_input)
+            time_cost: int = int(input_value)
         except ValueError:
-            log_e(f'invalid value; must be an integer from '
-                  f'the range [1; {argon2id.OPSLIMIT_MAX}]')
+            log_e(error_message)
             continue
 
         # Check if the value is within the valid range
-        if time_cost_value < 1 or time_cost_value > argon2id.OPSLIMIT_MAX:
-            log_e(f'invalid value; must be an integer from '
-                  f'the range [1; {argon2id.OPSLIMIT_MAX}]')
+        if time_cost < 1 or time_cost > argon2id.OPSLIMIT_MAX:
+            log_e(error_message)
             continue
 
-        return time_cost_value
+        return time_cost
 
 
 def get_max_pad_size_percent() -> int:
@@ -598,29 +623,33 @@ def get_max_pad_size_percent() -> int:
         int: The maximum padding size percentage provided by the user
              or the default.
     """
+    prompt_message: str = \
+        f'{BOL}C2. Max padding size, % (default' \
+        f'={DEFAULT_MAX_PAD_SIZE_PERCENT}):{RES} '
+
+    error_message: str = f'invalid value; must be an integer from the ' \
+                         f'range [0; {MAX_PAD_SIZE_PERCENT_LIMIT}]'
+
+    # Start an infinite loop to get user input
     while True:
         # Get user input and remove any leading/trailing whitespace
-        user_input: str = no_eof_input(
-            f'    {BOL}[12] Max padding size, % (default'
-            f'={DEFAULT_MAX_PAD_SIZE_PERCENT}):{RES} ').strip()
+        input_value: str = no_eof_input(prompt_message).strip()
 
         # Return default value if input is empty or matches the default
-        if user_input in ('', str(DEFAULT_MAX_PAD_SIZE_PERCENT)):
+        if input_value in ('', str(DEFAULT_MAX_PAD_SIZE_PERCENT)):
             return DEFAULT_MAX_PAD_SIZE_PERCENT
 
         try:
             # Convert input to integer
-            max_pad_size_percent: int = int(user_input)
+            max_pad_size_percent: int = int(input_value)
         except ValueError:
-            log_e(f'invalid value; must be an integer from the '
-                  f'range [0; {MAX_PAD_SIZE_PERCENT_LIMIT}]')
+            log_e(error_message)
             continue
 
         # Check if the value is within the valid range
         if (max_pad_size_percent < 0 or
                 max_pad_size_percent > MAX_PAD_SIZE_PERCENT_LIMIT):
-            log_e(f'invalid value; must be an integer from the '
-                  f'range [0; {MAX_PAD_SIZE_PERCENT_LIMIT}]')
+            log_e(error_message)
             continue
 
         return max_pad_size_percent
@@ -631,34 +660,37 @@ def is_fake_mac() -> bool:
     Prompts the user to specify whether to set a fake MAC tag.
 
     Asks the user if they want to set a fake MAC tag, using global
-    formatting variables. Returns True for 'Y', 'y', or '1', and False
-    for 'N', 'n', '0', or blank input.
+    formatting variables.
 
     Returns:
         bool: True if a fake MAC tag is to be set, False otherwise.
     """
 
     # Define the prompt message with formatting variables
-    prompt: str = f'    {BOL}[13] Set fake MAC tag? (Y/N, default=N):{RES} '
+    prompt_message: str = \
+        f'{BOL}C3. Set fake MAC tag? (Y/N, default=N):{RES} '
+
+    error_message: str = \
+        f'invalid value; valid values are: {VALID_BOOL_ANSWERS}, ' \
+        f'or press Enter for default (N)'
 
     # Start an infinite loop to get user input
     while True:
         # Get user input and remove any leading/trailing whitespace
-        user_input: str = no_eof_input(prompt).strip()
+        input_value: str = no_eof_input(prompt_message).strip()
 
         # Check if the input indicates not to set a fake MAC tag
-        if user_input in DEFAULT_FALSE_BOOL_ANSWERS:
+        if input_value in DEFAULT_FALSE_ANSWERS:
             # Return False if the user chooses not to set a fake MAC tag
             return False
 
         # Check if the input indicates to set a fake MAC tag
-        if user_input in TRUE_BOOL_ANSWERS:
+        if input_value in TRUE_ANSWERS:
             # Return True if the user chooses to set a fake MAC tag
             return True
 
         # Log an error message for invalid input
-        log_e(f'invalid value; valid values are: {VALID_BOOL_ANSWERS}, '
-              f'or press Enter for default (N)')
+        log_e(error_message)
 
 
 def get_input_file(action: ActionID) -> tuple[str, int, BinaryIO]:
@@ -693,7 +725,7 @@ def get_input_file(action: ActionID) -> tuple[str, int, BinaryIO]:
     # Start an infinite loop to get a valid input file path
     while True:
         # Prompt the user for the input file path
-        in_file_path: str = no_eof_input(f'{BOL}[21] {prompt_message}:{RES} ')
+        in_file_path: str = no_eof_input(f'{BOL}D1. {prompt_message}:{RES} ')
 
         # Check if the input file path is empty
         if not in_file_path:
@@ -727,7 +759,7 @@ def get_raw_comments() -> str:
     Returns:
         str: The comments entered by the user. May be an empty string.
     """
-    return no_eof_input(f'{BOL}[22] Comments (optional, up to '
+    return no_eof_input(f'{BOL}D2. Comments (optional, up to '
                         f'{PROCESSED_COMMENTS_SIZE} B):{RES} ')
 
 
@@ -758,7 +790,7 @@ def get_output_file_new(action: ActionID) -> tuple[str, BinaryIO]:
     # Start an infinite loop to get a valid output file path
     while True:
         # Prompt the user for the output file path
-        out_file_path: str = no_eof_input(f'{BOL}[23] {prompt_message}:{RES} ')
+        out_file_path: str = no_eof_input(f'{BOL}D3. {prompt_message}:{RES} ')
 
         # Check if the input file path is empty
         if not out_file_path:
@@ -816,9 +848,9 @@ def get_output_file_exist(
     # Start an infinite loop to get a valid output file path
     while True:
         # Prompt the user for the output file path
-        out_file_path: str = no_eof_input(f'{BOL}[23] {prompt_message}:{RES} ')
+        out_file_path: str = no_eof_input(f'{BOL}D3. {prompt_message}:{RES} ')
 
-        # Check if the input file path is empty
+        # Check if the user input is empty
         if not out_file_path:
             log_e('output file path not specified')
             continue
@@ -862,43 +894,44 @@ def get_output_file_size() -> int:
 
     The function repeatedly prompts the user until a valid input is
     provided. A valid input is defined as a non-empty string that can be
-    converted to a non-negative integer. If the user enters an empty
-    string, a negative value, or a non-integer value, the function logs
-    an error message and prompts the user again. The valid range for the
-    output file size is from 0 to RAND_OUT_FILE_SIZE_LIMIT.
+    converted to a non-negative integer within the valid range. If the user
+    enters an empty string, a negative value, a non-integer value, or a
+    value that exceeds the upper limit, the function logs an error message
+    and prompts the user again. The valid range for the output file size
+    is from 0 to RAND_OUT_FILE_SIZE_LIMIT (inclusive).
 
     Returns:
-        int: The output file size in bytes, as a non-negative integer.
+        int: The output file size in bytes, as a non-negative integer
+        within the range [0; RAND_OUT_FILE_SIZE_LIMIT].
     """
+    prompt_message: str = f'{BOL}D4. Output file size in bytes:{RES} '
 
-    # Define the prompt message for user input
-    prompt_message: str = f'{BOL}[24] Output file size in bytes:{RES} '
+    error_message: str = f'invalid value; must be an integer from ' \
+                         f'the range [0; {RAND_OUT_FILE_SIZE_LIMIT}]'
 
     while True:
         # Get user input and remove any leading/trailing whitespace
-        user_input: str = no_eof_input(prompt_message).strip()
+        input_value: str = no_eof_input(prompt_message).strip()
 
         # Check if the user input is empty
-        if not user_input:
+        if not input_value:
             # Log error for empty input
-            log_e('output file size not specified')
+            log_e(error_message)
             continue
 
         try:
             # Attempt to convert the user input to an integer
-            out_size = int(user_input)
+            out_size = int(input_value)
 
             # Check if the value is within the valid range
             if out_size < 0 or out_size > RAND_OUT_FILE_SIZE_LIMIT:
-                log_e(f'invalid value; must be an integer from '
-                      f'the range [0; {RAND_OUT_FILE_SIZE_LIMIT}]')
+                log_e(error_message)
                 continue
 
             return out_size  # Return the valid output size
         except ValueError:
             # Log an error if the input cannot be converted to an integer
-            log_e(f'invalid value; must be an integer from '
-                  f'the range [0; {RAND_OUT_FILE_SIZE_LIMIT}]')
+            log_e(error_message)
             continue
 
 
@@ -920,39 +953,40 @@ def get_start_position(max_start_pos: int, no_default: bool) -> int:
     Returns:
         int: A valid start position within the specified range.
     """
-    while True:
-        # Prompt the user for the start position and remove any
-        # leading/trailing whitespace
-        if no_default:
-            user_input: str = no_eof_input(
-                f'{BOL}[25] Start position [0; '
-                f'{max_start_pos}]:{RES} ').strip()
+    prompt_message_no_default: str = \
+        f'{BOL}D5. Start position [0; {max_start_pos}]:{RES} '
 
-            # Check if the input is empty
-            if not user_input:
-                log_e('start position not specified')
+    prompt_message_default: str = \
+        f'{BOL}D5. Start position [0; {max_start_pos}], default=0:{RES} '
+
+    error_message: str = f'invalid value; must be an integer ' \
+                         f'from the range [0; {max_start_pos}]'
+
+    while True:
+        if no_default:
+            input_value: str = \
+                no_eof_input(prompt_message_no_default).strip()
+
+            if not input_value:
+                log_e(error_message)
                 continue
         else:
-            user_input = no_eof_input(
-                f'{BOL}[25] Start position [0; '
-                f'{max_start_pos}], default=0:{RES} ').strip()
+            input_value = no_eof_input(prompt_message_default).strip()
 
             # If input is empty, set default value to 0
-            if not user_input:
-                user_input = '0'
+            if not input_value:
+                input_value = '0'
 
         # Try to convert the input to an integer
         try:
-            start_pos: int = int(user_input)
+            start_pos: int = int(input_value)
         except ValueError:
-            log_e(f'invalid value; must be an integer '
-                  f'from the range [0; {max_start_pos}]')
+            log_e(error_message)
             continue
 
         # Check if the start position is within the valid range
         if start_pos < 0 or start_pos > max_start_pos:
-            log_e(f'invalid value; must be an integer '
-                  f'from the range [0; {max_start_pos}]')
+            log_e(error_message)
             continue
 
         # Return the valid start position
@@ -978,41 +1012,43 @@ def get_end_position(min_pos: int, max_pos: int, no_default: bool) -> int:
     Returns:
         int: A valid end position within the specified range.
     """
-    while True:
-        # Prompt the user for the end position and remove any
-        # leading/trailing whitespace
-        if no_default:
-            user_input: str = no_eof_input(
-                f'{BOL}[26] End position [{min_pos}; '
-                f'{max_pos}]:{RES} ').strip()
-        else:
-            user_input = no_eof_input(
-                f'{BOL}[26] End position [{min_pos}; '
-                f'{max_pos}], default={max_pos}:{RES} ').strip()
+    prompt_message_no_default: str = f'{BOL}D6. End position [{min_pos}; ' \
+                                     f'{max_pos}]:{RES} '
 
-            # If input is empty, set default value to max_pos
-            if not user_input:
-                user_input = str(max_pos)
+    prompt_message_default: str = f'{BOL}D6. End position [{min_pos}; ' \
+                                  f'{max_pos}], default={max_pos}:{RES} '
+
+    error_message: str = f'invalid value; must be an integer from ' \
+                         f'the range [{min_pos}; {max_pos}]'
+
+    input_value: str
+
+    while True:
+        if no_default:
+            input_value = no_eof_input(prompt_message_no_default).strip()
+        else:
+            input_value = no_eof_input(prompt_message_default).strip()
+
+            if not input_value:
+                input_value = str(max_pos)
 
         # Try to convert the input to an integer
         try:
-            end_pos: int = int(user_input)
+            end_pos: int = int(input_value)
         except ValueError:
-            log_e(f'invalid value; must be an integer from '
-                  f'the range [{min_pos}; {max_pos}]')
+            log_e(error_message)
             continue
 
         # Check if the end position is within the valid range
         if end_pos < min_pos or end_pos > max_pos:
-            log_e(f'invalid value; must be an integer from '
-                  f'the range [{min_pos}; {max_pos}]')
+            log_e(error_message)
             continue
 
         # Return the valid end position
         return end_pos
 
 
-def collect_and_handle_ikm() -> list[bytes]:
+def collect_and_handle_ikm(action: ActionID) -> list[bytes]:
     """
     Collects input keying material (keyfiles and passphrases) and
     returns a list of their digests.
@@ -1031,6 +1067,25 @@ def collect_and_handle_ikm() -> list[bytes]:
     If it is impossible to handle at least one file from the directory,
     then all files from the specified keyfile path are ignored.
 
+    Passphrase handling involves the following steps:
+    1. The user is prompted to enter a passphrase. This input is
+       optional.
+    2. If a passphrase is provided, the user is required to confirm it
+       by entering it a second time.
+    3. Both the original and confirmed passphrases are normalized,
+       encoded, and truncated as necessary to ensure consistency and
+       security.
+    4. The function compares the two passphrases using a secure
+       comparison method to prevent timing attacks.
+    5. If the passphrases match, a digest of the passphrase is computed
+       and added to the list of digests. If they do not match, an error
+       message is logged, and the passphrase is not accepted.
+
+    Args:
+        action (ActionID): The action identifier that determines the
+                           context in which the keying material is being
+                           collected.
+
     Returns:
         list: A list of digests (bytes) corresponding to the accepted
               keyfiles and passphrases. The list may be empty if no
@@ -1042,29 +1097,27 @@ def collect_and_handle_ikm() -> list[bytes]:
     # List to store the digests of keying material
     ikm_digest_list: list[bytes] = []
 
-    # Handle keyfiles
+    # Handle keyfile paths
     # ----------------------------------------------------------------------- #
 
     while True:
         # Prompt for the keyfile path
         keyfile_path: str = \
-            no_eof_input(f'{BOL}[31] Keyfile path (optional):{RES} ')
+            no_eof_input(f'{BOL}K1. Keyfile path (optional):{RES} ')
 
         if not keyfile_path:
-            # Exit the loop if the user does not enter a path
-            break
+            break  # Exit the loop if the user does not enter a path
 
         if not path.exists(keyfile_path):
             # Log error if the keyfile path does not exist
             log_e(f'file {keyfile_path!r} not found')
             log_e('keyfile NOT accepted')
-            # Move to the next iteration of the loop
             continue
 
         if DEBUG:
-            # Log the real path of the file
             log_d(f'real path: {path.realpath(keyfile_path)!r}')
 
+        # Handle existing path (directory or individual file)
         # ------------------------------------------------------------------- #
 
         if path.isdir(keyfile_path):
@@ -1074,22 +1127,15 @@ def collect_and_handle_ikm() -> list[bytes]:
                 get_keyfile_digest_list(keyfile_path)
 
             if digest_list is None:
-                # Log error if keyfiles are not accepted
                 log_e('keyfiles NOT accepted')
                 continue
 
-            if not digest_list:
-                # Warning if no files are found in the directory
-                log_w('directory is empty; no keyfiles to accept!')
-            else:
-                # Add the digests to the main list
+            if digest_list:
                 ikm_digest_list.extend(digest_list)
 
-                # Log the number of accepted files
                 log_i(f'{len(digest_list)} keyfiles accepted')
-
-                del keyfile_path, digest_list  # Clear variables
-                collect()  # Garbage collection
+            else:
+                log_w('directory is empty; no keyfiles to accept!')
         else:
             # If the path is a file, get its digest
             file_digest: Optional[bytes] = get_keyfile_digest(keyfile_path)
@@ -1110,7 +1156,7 @@ def collect_and_handle_ikm() -> list[bytes]:
 
     while True:
         raw_passphrase_1: str = \
-            no_eof_getpass(f'{BOL}[32] Passphrase (optional):{RES} ')
+            no_eof_getpass(f'{BOL}K2. Passphrase (optional):{RES} ')
 
         if not raw_passphrase_1:
             break  # Exit the loop if the user does not enter a passphrase
@@ -1120,31 +1166,27 @@ def collect_and_handle_ikm() -> list[bytes]:
 
         # Prompt for confirming the passphrase
         raw_passphrase_2: str = \
-            no_eof_getpass(f'{BOL}[32] Confirm passphrase:{RES} ')
+            no_eof_getpass(f'{BOL}K2. Confirm passphrase:{RES} ')
 
         encoded_passphrase_2: bytes = handle_raw_passphrase(raw_passphrase_2)
 
         if compare_digest(encoded_passphrase_1, encoded_passphrase_2):
-            # Get the digest of the passphrase
             passphrase_digest: bytes = \
                 get_passphrase_digest(encoded_passphrase_1)
 
-            # Add the digest to the list
             ikm_digest_list.append(passphrase_digest)
 
-            # Log acceptance of the passphrase
             log_i('passphrase accepted')
         else:
-            # Log error if confirmation fails
             log_e('passphrase NOT accepted: confirmation failed')
 
+    # Log results
     # ----------------------------------------------------------------------- #
 
     if DEBUG:
         log_d(f'{len(ikm_digest_list)} IKM digests collected')
 
-    # Check if any digests were retrieved and log a warning if not
-    if not ikm_digest_list:
+    if not ikm_digest_list and action in (ENCRYPT, ENCRYPT_EMBED):
         log_w('no keyfile or passphrase specified!')
 
     if DEBUG:
@@ -1153,7 +1195,7 @@ def collect_and_handle_ikm() -> list[bytes]:
     return ikm_digest_list
 
 
-def proceed_request(proceed_type: Literal[1, 2]) -> bool:
+def proceed_request(proceed_type: bool, action: ActionID) -> bool:
     """
     Prompts the user to confirm whether to proceed with an action.
 
@@ -1167,43 +1209,52 @@ def proceed_request(proceed_type: Literal[1, 2]) -> bool:
       proceed.
 
     Args:
-        proceed_type (Literal[1, 2]): An integer value that determines
-                                      the prompt message and default
-                                      behavior.
+        proceed_type (bool): An boolean value that determines the prompt
+                             message and default behavior.
+        action (ActionID): The action identifier that triggered the
+                           confirmation request. This may affect the
+                           prompt message and logging.
 
     Returns:
         bool: True if the user confirms to proceed, False otherwise.
     """
 
     # Check the action type to determine the appropriate prompt message
-    if proceed_type == PROCEED_OVERWRITE:
-        log_w('output file contents will be partially overwritten!')
+    if proceed_type is PROCEED_OVERWRITE:
+        if action == ENCRYPT_EMBED:
+            start_pos: int = INT_D['start_pos']
+            max_end_pos: int = INT_D['max_end_pos']
 
-        prompt_message: str = f'{BOL}[40] Proceed? (Y/N):{RES} '
+            log_w(f'output file will be overwritten from '
+                  f'{start_pos} to maximum {max_end_pos}!')
+        else:
+            log_w('output file will be partially overwritten!')
+
+        prompt_message: str = f'{BOL}P0. Proceed overwriting? (Y/N):{RES} '
     else:
         log_i('removing output file path')
 
-        prompt_message = f'{BOL}[40] Proceed? (Y/N, default=Y):{RES} '
+        prompt_message = f'{BOL}P0. Proceed removing? (Y/N, default=Y):{RES} '
 
     while True:
         # Get user input and remove any leading/trailing whitespace
-        user_input: str = no_eof_input(prompt_message).strip()
+        input_value: str = no_eof_input(prompt_message).strip()
 
         # Check if the user wants to proceed (affirmative response)
-        if user_input in TRUE_BOOL_ANSWERS:
+        if input_value in TRUE_ANSWERS:
             return True
 
         # If no input is given and proceed_type is PROCEED_REMOVE,
         # default to proceeding
-        if not user_input and proceed_type == PROCEED_REMOVE:
+        if not input_value and proceed_type is PROCEED_REMOVE:
             return True
 
         # Check if the user wants to cancel (negative response)
-        if user_input in FALSE_BOOL_ANSWERS:
+        if input_value in FALSE_ANSWERS:
             return False
 
         # Log an error message for invalid input
-        if proceed_type == PROCEED_OVERWRITE:
+        if proceed_type is PROCEED_OVERWRITE:
             log_e(f'invalid value; valid values are: {VALID_BOOL_ANSWERS}')
         else:
             log_e(f'invalid value; valid values are: {VALID_BOOL_ANSWERS}, '
@@ -1216,27 +1267,46 @@ def proceed_request(proceed_type: Literal[1, 2]) -> bool:
 
 def get_processed_comments() -> bytes:
     """
-    Retrieve and process user comments according to specified rules.
+    Retrieve and process user comments to generate a fixed-size byte
+    sequence for encryption.
 
-    This function requests raw comments from the user and processes them
-    to generate a standardized byte representation. The processing rules
-    are as follows:
+    The function first retrieves raw user comments (as a UTF-8 string)
+    via get_raw_comments() and then:
 
-    - If the raw comments are empty, the function generates random bytes
-      of size PROCESSED_COMMENTS_SIZE.
-    - If the raw comments are not empty and their length is less than or
-      equal to PROCESSED_COMMENTS_SIZE, a special separator byte is
-      appended, and the remaining space is filled with random bytes to
-      reach the specified size.
-    - If the raw comments exceed PROCESSED_COMMENTS_SIZE, they are
-      truncated to fit within the size limit after encoding.
+    1. If raw comments are provided (non-empty):
+       a. Encodes the comments into bytes (UTF-8).
+       b. If the resulting bytes exceed the fixed size
+          (PROCESSED_COMMENTS_SIZE), they are truncated, and a warning
+          is logged.
+       c. The truncated bytes are sanitized by decoding (ignoring any
+          decoding errors) and then re-encoding, thus ensuring that no
+          invalid UTF-8 sequences remain.
+       d. A COMMENTS_SEPARATOR byte is appended to the sanitized bytes,
+          followed by random bytes generated by token_bytes(). The
+          concatenation is finally truncated or padded to exactly
+          PROCESSED_COMMENTS_SIZE bytes.
 
-    Processed comments of a fixed length are required for subsequent
-    encryption, as they form part of the plaintext.
+    2. If raw comments are not provided (empty string):
+       a. If the option 'set_fake_mac' is enabled
+          (BOOL_D['set_fake_mac'] is True):
+          - Generate and return random bytes of length
+            PROCESSED_COMMENTS_SIZE.
+       b. Otherwise, continuously generate random bytes
+          (from token_bytes()) until the generated bytes, when passed to
+          decode_processed_comments(), do not decode into a meaningful
+          (non-None) UTF-8 string. This ensures that the generated bytes
+          satisfy a specific criterion (i.e. they cannot be interpreted
+          as valid UTF-8 text).
+
+    Throughout processing, various log functions (log_w, log_d, and
+    log_i) are used for warning, debugging, and information messages
+    respectively. After processing, the final processed comments are
+    returned as bytes.
 
     Returns:
-        bytes: A byte representation of the processed comments, ensuring
-        compliance with the specified size.
+        bytes: A byte sequence of exactly PROCESSED_COMMENTS_SIZE bytes
+               that represents the processed user comments, complying
+               with the rules for subsequent encryption.
     """
     raw_comments: str = get_raw_comments()
     raw_comments_bytes: bytes = raw_comments.encode('utf-8')
@@ -1388,7 +1458,7 @@ def get_salts(input_size: int, end_pos: int, action: ActionID) -> bool:
         # Read the salts from the cryptoblob for actions DECRYPT and
         # EXTRACT_DECRYPT
         if DEBUG:
-            log_d('reading argon2_salt from the start of the cryptoblob')
+            log_d('reading argon2_salt from start of cryptoblob')
 
         read_data_result: Optional[bytes] = read_data(
             BIO_D['IN'], ONE_SALT_SIZE)
@@ -1418,7 +1488,7 @@ def get_salts(input_size: int, end_pos: int, action: ActionID) -> bool:
             return False
 
         if DEBUG:
-            log_d('reading blake2_salt from the end of the cryptoblob')
+            log_d('reading blake2_salt from end of cryptoblob')
 
         # Read blake2_salt from the cryptoblob
         read_data_result = read_data(BIO_D['IN'], ONE_SALT_SIZE)
@@ -1445,8 +1515,8 @@ def get_salts(input_size: int, end_pos: int, action: ActionID) -> bool:
     # Log the salts if debugging is enabled
     if DEBUG:
         log_d(f'salts:\n'
-              f'    argon2_salt:  {argon2_salt.hex()}\n'
-              f'    blake2_salt:  {blake2_salt.hex()}')
+              f'        argon2_salt:  {argon2_salt.hex()}\n'
+              f'        blake2_salt:  {blake2_salt.hex()}')
         log_d('getting salts completed')
 
     return True
@@ -1462,7 +1532,8 @@ def hash_keyfile_contents(
     This function reads the contents of the provided file-like object in
     chunks and updates the BLAKE2 hash object with the data read. The
     final digest is returned as a byte string. The file should be opened
-    in binary mode.
+    in binary mode. The digest is computed using a specific salt and
+    personalization string
 
     Args:
         file_obj (BinaryIO): A file-like object to read data from,
@@ -1519,14 +1590,14 @@ def hash_keyfile_contents(
 
 def get_keyfile_digest(file_path: str) -> Optional[bytes]:
     """
-    Calculates the BLAKE2 digest of the keyfile at the given file path.
+    Calculates the digest of the keyfile at the given file path.
 
     Args:
         file_path (str): The path to the keyfile.
 
     Returns:
-        Optional[bytes]: The BLAKE2 digest of the keyfile, or None if
-                         an error occurs.
+        Optional[bytes]: The digest of the keyfile, or None if an error
+                         occurs.
     """
 
     # Get the size of the file at the specified path
@@ -1547,7 +1618,7 @@ def get_keyfile_digest(file_path: str) -> Optional[bytes]:
     if file_obj is None:
         return None
 
-    # Calculate the BLAKE2 digest of the keyfile
+    # Calculate the digest of the keyfile
     file_digest: Optional[bytes] = hash_keyfile_contents(file_obj, file_size)
 
     # Close the file after reading
@@ -1558,7 +1629,8 @@ def get_keyfile_digest(file_path: str) -> Optional[bytes]:
         return None
 
     if DEBUG:
-        log_d(f'digest of {file_path!r} contents:\n    {file_digest.hex()}')
+        log_d(f'digest of {file_path!r} contents:'
+              f'\n        {file_digest.hex()}')
 
     return file_digest
 
@@ -1650,6 +1722,8 @@ def get_keyfile_digest_list(directory_path: str) -> Optional[list[bytes]]:
 
         # Create a tuple of the file path and size, and add it to the list
         file_info: tuple[str, int] = (full_file_path, file_size)
+
+        # Add a tuple to the list
         file_info_list.append(file_info)
 
     log_i('list of these files:')
@@ -1657,7 +1731,7 @@ def get_keyfile_digest_list(directory_path: str) -> Optional[list[bytes]]:
     # Log the details of each found file
     for file_info in file_info_list:
         full_file_path, file_size = file_info
-        log_i(f'\r  '
+        log_i(f'\r      '
               f'- path: {full_file_path!r}; size: {format_size(file_size)}')
 
     log_i(f'total size: {format_size(total_size)}')
@@ -1697,7 +1771,7 @@ def get_keyfile_digest_list(directory_path: str) -> Optional[list[bytes]]:
 
         if DEBUG:
             log_d(f'digest of {full_file_path!r} contents:\n'
-                  f'    {file_digest.hex()}')
+                  f'        {file_digest.hex()}')
 
         # Add the computed digest to the list
         digest_list.append(file_digest)
@@ -1733,17 +1807,17 @@ def handle_raw_passphrase(raw_passphrase: str) -> bytes:
     # Log details if debugging is enabled
     if DEBUG:
         log_d(f'passphrase (raw):\n'
-              f'    {raw_passphrase!r}')
+              f'        {raw_passphrase!r}')
         raw_pp_len: int = len(raw_passphrase.encode('utf-8'))
         log_d(f'length: {raw_pp_len} B')
 
         log_d(f'passphrase (normalized):\n'
-              f'    {normalized_passphrase!r}')
+              f'        {normalized_passphrase!r}')
         normalized_pp_len: int = len(normalized_passphrase.encode('utf-8'))
         log_d(f'length: {normalized_pp_len} B')
 
         log_d(f'passphrase (normalized, encoded, truncated):\n'
-              f'    {encoded_passphrase!r}')
+              f'        {encoded_passphrase!r}')
         log_d(f'length: {len(encoded_passphrase)} B')
 
     return encoded_passphrase
@@ -1758,8 +1832,8 @@ def get_passphrase_digest(passphrase: bytes) -> bytes:
     digest is computed using a specific salt and personalization string.
 
     Args:
-        passphrase (bytes): The passphrase to be hashed, provided as
-                            a byte string.
+        passphrase (bytes): The passphrase to be hashed, provided as a
+                            byte string.
 
     Returns:
         bytes: The BLAKE2 digest of the passphrase as a byte string.
@@ -1780,7 +1854,7 @@ def get_passphrase_digest(passphrase: bytes) -> bytes:
     digest: bytes = hash_obj.digest()
 
     if DEBUG:
-        log_d(f'passphrase digest:\n    {digest.hex()}')
+        log_d(f'passphrase digest:\n        {digest.hex()}')
 
     return digest
 
@@ -1804,23 +1878,23 @@ def sort_digest_list(digest_list: list[bytes]) -> list[bytes]:
                      same as the input list after sorting (the same
                      object reference).
     """
-    if not digest_list:  # Check if the list is empty
+    if not digest_list:
         if DEBUG:
             log_d('digest list is empty, nothing to sort')
 
-        return digest_list  # Return the empty list immediately
+        return digest_list
 
     if DEBUG:
         log_d('sorting digests of keying material')
 
-    # Sort the digest list in place
-    digest_list.sort()
+    # Sort the digest list in place in ascending order
+    digest_list.sort(key=None, reverse=False)
 
     # Log sorted digests if debugging is enabled
     if DEBUG:
         log_d('sorted digests of keying material:')
         for digest in digest_list:
-            log_d(f'\r  - {digest.hex()}')
+            log_d(f'\r      - {digest.hex()}')
 
     return digest_list
 
@@ -1828,7 +1902,7 @@ def sort_digest_list(digest_list: list[bytes]) -> list[bytes]:
 def hash_digest_list(digest_list: list[bytes]) -> bytes:
     """
     Computes a hash digest for a list of byte sequences using the
-    BLAKE2 hashing algorithm.
+    BLAKE2 hashing algorithm with a specified salt.
 
     Args:
         digest_list (list[bytes]): A list of byte sequences to be hashed.
@@ -1858,34 +1932,34 @@ def hash_digest_list(digest_list: list[bytes]) -> bytes:
     return digest_list_hash
 
 
-def get_argon2_password() -> None:
+def get_argon2_password(action: ActionID) -> None:
     """
     Computes the Argon2 password from the input keying material.
 
-    This function retrieves a list of keying material digests using the
-    `collect_and_handle_ikm` function. It logs the completion of the
-    keying material entry process and checks if any digests were
-    retrieved. If no digests are available, a warning is logged.
+    This function collects keying material digests by calling the
+    `collect_and_handle_ikm` function, sorts them, and computes the
+    Argon2 password using the BLAKE2 hash function. The resulting digest
+    is stored in the global `BYTES_D` dictionary under the key
+    'argon2_password'.
 
-    The function sorts the digest list and computes the Argon2 password
-    using the BLAKE2 hash function. The resulting digest is stored
-    in the global `BYTES_D` dictionary under the key 'argon2_password'.
+    The function logs debug information throughout the process if the
+    DEBUG flag is set, including the final Argon2 password in
+    hexadecimal format.
 
-    Debug information is logged throughout the process if the DEBUG flag
-    is set, including the sorted digests and the final Argon2 password
-    digest.
+    Args:
+        action (ActionID): The action identifier.
 
     Returns:
         None
     """
-    digest_list: list[bytes] = collect_and_handle_ikm()
+    digest_list: list[bytes] = collect_and_handle_ikm(action)
 
     sorted_digest_list: list[bytes] = sort_digest_list(digest_list)
 
     argon2_password: bytes = hash_digest_list(sorted_digest_list)
 
     if DEBUG:
-        log_d(f'argon2_password:\n    {argon2_password.hex()}')
+        log_d(f'argon2_password:\n        {argon2_password.hex()}')
 
     BYTES_D['argon2_password'] = argon2_password
 
@@ -1894,7 +1968,7 @@ def derive_keys() -> bool:
     """
     Derives cryptographic keys using the Argon2 Memory-Hard Function.
 
-    This function computes the encryption, padding, and MAC keys from
+    This function computes the padding, encryption, and MAC keys from
     the Argon2 password stored in the global `BYTES_D` dictionary. It
     uses the Argon2 key derivation function with specified parameters
     such as salt, time cost, and memory limit. After deriving the Argon2
@@ -1938,16 +2012,16 @@ def split_argon2_tag(argon2_tag: bytes) -> None:
     """
     Extracts and stores cryptographic keys from the provided Argon2 tag.
 
-    This function takes an Argon2 tag, which contains multiple
-    cryptographic keys, and splits it into its constituent parts. The
-    keys include padding keys, an encryption key, and a MAC key. The
-    extracted keys are then stored in the global `BYTES_D` dictionary
-    for later use in cryptographic operations.
+    This function takes an Argon2 tag that contains multiple
+    cryptographic keys and splits it into its components.
+    The extracted keys include a padding keys, an encryption key,
+    and a MAC key. The extracted keys are then stored in a global
+    dictionary `BYTES_D` for later use in cryptographic operations.
 
     The expected structure of the Argon2 tag is as follows:
 
     +————————————————+———————————————+————————————————+
-    |                | pad_key_t:16  | Secret values  |
+    |                | pad_key_rp:16 | Secret values  |
     |                +———————————————+ that define    |
     |                | pad_key_hf:16 | padding sizes  |
     | argon2_tag:128 +———————————————+————————————————+
@@ -1956,220 +2030,203 @@ def split_argon2_tag(argon2_tag: bytes) -> None:
     |                | mac_key:64    | MAC key        |
     +————————————————+———————————————+————————————————+
 
-    Args:
-        argon2_tag (bytes): The Argon2 tag containing the keys to be
-                            extracted. This should be provided as a byte
-                            string.
+    Arguments:
+        argon2_tag (bytes): The Argon2 tag containing the keys to
+                            extract. Must be provided as a byte string.
 
     Returns:
         None
-
-    Note:
-        The function logs the positions of the keys and their values if
-        debugging is enabled, which can be useful for troubleshooting
-        and verification.
     """
 
     # Log the raw Argon2 tag in hexadecimal format if debugging is enabled
     if DEBUG:
-        log_d(f'argon2_tag (size: {len(argon2_tag)} B):\n'
-              f'    {argon2_tag.hex()}')
+        log_d(f'argon2_tag:\n        {argon2_tag.hex()} ({len(argon2_tag)} B)')
         log_d('splitting argon2_tag into separate keys')
 
-    # Define the start and end positions for each key in the Argon2 tag
-    pad_key_t_start_pos: int = 0
-    pad_key_t_end_pos: int = pad_key_t_start_pos + PAD_KEY_SIZE
+    # Create a stream from the Argon2 byte tag for sequential reading
+    argon2_tag_stream: BinaryIO = BytesIO(argon2_tag)
 
-    pad_key_hf_start_pos: int = pad_key_t_end_pos
-    pad_key_hf_end_pos: int = pad_key_hf_start_pos + PAD_KEY_SIZE
+    # Extract keys from the stream using predefined sizes
+    pad_key_rp: bytes = argon2_tag_stream.read(PAD_KEY_SIZE)
+    pad_key_hf: bytes = argon2_tag_stream.read(PAD_KEY_SIZE)
+    enc_key: bytes = argon2_tag_stream.read(ENC_KEY_SIZE)
+    mac_key: bytes = argon2_tag_stream.read(MAC_KEY_SIZE)
 
-    enc_key_start_pos: int = pad_key_hf_end_pos
-    enc_key_end_pos: int = enc_key_start_pos + ENC_KEY_SIZE
+    # Log the extracted keys if debugging is enabled
+    if DEBUG:
+        log_d(
+            f'derived keys:\n'
+            f'        pad_key_rp:  {pad_key_rp.hex()} ({len(pad_key_rp)} B)\n'
+            f'        pad_key_hf:  {pad_key_hf.hex()} ({len(pad_key_hf)} B)\n'
+            f'        enc_key:     {enc_key.hex()} ({len(enc_key)} B)\n'
+            f'        mac_key:     {mac_key.hex()} ({len(mac_key)} B)')
 
-    mac_key_start_pos: int = enc_key_end_pos
-    mac_key_end_pos: int = mac_key_start_pos + MAC_KEY_SIZE
-
-    # Extract the keys from the Argon2 tag using the defined positions
-    pad_key_t: bytes = argon2_tag[
-        pad_key_t_start_pos:pad_key_t_end_pos
-    ]
-    pad_key_hf: bytes = argon2_tag[
-        pad_key_hf_start_pos:pad_key_hf_end_pos
-    ]
-    enc_key: bytes = argon2_tag[
-        enc_key_start_pos:enc_key_end_pos
-    ]
-    mac_key: bytes = argon2_tag[
-        mac_key_start_pos:mac_key_end_pos
-    ]
-
-    # Store the derived keys back into the global `BYTES_D` dictionary
-    BYTES_D['pad_key_t'] = pad_key_t
+    # Store the extracted keys in the global dictionary `BYTES_D`
+    BYTES_D['pad_key_rp'] = pad_key_rp
     BYTES_D['pad_key_hf'] = pad_key_hf
     BYTES_D['enc_key'] = enc_key
     BYTES_D['mac_key'] = mac_key
-
-    if DEBUG:
-        log_d(f'positions of the keys in argon2_tag:\n'
-              f'    pad_key_t:   {pad_key_t_start_pos}:{pad_key_t_end_pos}'
-              f'    (size: {len(pad_key_t)} B)\n'
-              f'    pad_key_hf:  {pad_key_hf_start_pos}:{pad_key_hf_end_pos}'
-              f'   (size: {len(pad_key_hf)} B)\n'
-              f'    enc_key:     {enc_key_start_pos}:{enc_key_end_pos}'
-              f'   (size: {len(enc_key)} B)\n'
-              f'    mac_key:     {mac_key_start_pos}:{mac_key_end_pos}'
-              f'  (size: {len(mac_key)} B)')
-        log_d(f'derived keys:\n'
-              f'    pad_key_t:   {pad_key_t.hex()}\n'
-              f'    pad_key_hf:  {pad_key_hf.hex()}\n'
-              f'    enc_key:     {enc_key.hex()}\n'
-              f'    mac_key:     {mac_key.hex()}')
 
 
 # Handle padding
 # --------------------------------------------------------------------------- #
 
 
-def get_pad_size_from_unpadded(
-    unpadded_size: int,
-    pad_key_t: bytes,
+def randomized_pad_from_constant_padded(
+    constant_padded_size: int,
+    pad_key_rp: bytes,
     max_pad_size_percent: int,
 ) -> int:
     """
-    Calculates the total padding size based on the unpadded size and a
-    padding key.
+    Calculates the randomized part of total padding (RPoTP) size based
+    on the constant-padded size and a padding key.
 
-    This function computes the total padding size to be applied to the
-    unpadded size based on the provided parameters. The padding size is
-    determined by the size of the unpadded size, a padding key converted
-    from bytes to an integer, and a maximum padding size percentage.
+    This function computes the RPoTP size to be applied to the
+    constant-padded size based on the provided parameters. The RPoTP
+    size is determined by the size of the constant-padded size, a
+    padding key converted from bytes to an integer, and a maximum RPoTP
+    size percentage.
 
-    The relationship between the unpadded size and the total padding
-    size is defined as follows:
+    The relationship between constant-padded size and RPoTP size is
+    defined as follows:
 
-    +———————————————+————————————————+
-    | unpadded_size | total_pad_size |
-    +———————————————+————————————————+
-    |         padded_size            |
-    +————————————————————————————————+
+    +——————————————————————+—————————————————————+
+    | constant_padded_size | randomized_pad_size |
+    +——————————————————————+—————————————————————+
+    |              total_padded_size             |
+    +————————————————————————————————————————————+
 
-    `padded_size` represents the total size of the cryptoblob.
+    `total_padded_size` represents the total size of the cryptoblob.
 
     Args:
-        unpadded_size (int): The size of the unpadded data in bytes.
-            This value is used to calculate the total padding size.
+        constant_padded_size (int): The size of the constant-padded data
+            in bytes. This value is used to calculate the RPoTP size.
 
-        pad_key_t (bytes): A byte string that influences the overall
-            padding size. This key is converted to an integer to affect
-            the padding size calculation.
+        pad_key_rp (bytes): A byte string that influences the overall
+            RPoTP size. This key is converted to an integer to affect
+            the RPoTP size calculation.
 
         max_pad_size_percent (int): The maximum percentage of the
-            unpadded size that can be used for padding. This value
-            must not be negative.
+            constant-padded size that can be used for the RPoTP size
+            calculation. This value must not be negative.
 
     Returns:
-        int: The calculated padding size in bytes.
+        int: The calculated RPoTP size in bytes.
     """
 
     # Convert the padding key from bytes to an integer
-    pad_key_t_int: int = int.from_bytes(pad_key_t, BYTEORDER)
+    pad_key_rp_int: int = int.from_bytes(pad_key_rp, BYTEORDER)
 
-    # Calculate the padding size based on the unpadded size,
-    # pad_key_t, and max padding percentage
-    total_pad_size: int = (
-        unpadded_size * pad_key_t_int * max_pad_size_percent //
+    # Calculate the RPoTP size based on the constant-padded size,
+    # pad_key_rp, and max padding percentage
+    randomized_pad_size: int = (
+        constant_padded_size * pad_key_rp_int * max_pad_size_percent //
         (PAD_KEY_SPACE * 100)
     )
 
     # If debugging is enabled, log detailed information
     # about the padding calculation
     if DEBUG:
-        max_total_pad_size: int = (unpadded_size * max_pad_size_percent) // 100
+        # Max RPoTP size
+        max_randomized_pad_size: int = \
+            (constant_padded_size * max_pad_size_percent) // 100
 
-        if max_total_pad_size:
-            percent_of_max_total: float = \
-                (total_pad_size * 100) / max_total_pad_size
+        if max_randomized_pad_size:
+            # RPoTP size in % of max RPoTP size
+            percent_of_max_rp: float = \
+                (randomized_pad_size * 100) / max_randomized_pad_size
 
-        percent_of_unpadded: float = (total_pad_size * 100) / unpadded_size
-        padded_size: int = unpadded_size + total_pad_size
+        # RPoTP size in % of constant-padded size
+        percent_of_constant_padded: float = \
+            (randomized_pad_size * 100) / constant_padded_size
 
-        log_d('getting total_pad_size')
-        log_d(f'pad_key_t_int:                {pad_key_t_int}')
-        log_d(f'pad_key_t_int/PAD_KEY_SPACE:  '
-              f'{pad_key_t_int / PAD_KEY_SPACE}')
-        log_d(f'unpadded_size:       {format_size(unpadded_size)}')
-        log_d(f'max_total_pad_size:  {format_size(max_total_pad_size)}')
+        # Full cryptoblob size
+        total_padded_size: int = constant_padded_size + randomized_pad_size
 
-        if max_total_pad_size:
-            log_d(f'total_pad_size:      {format_size(total_pad_size)}, '
-                  f'{round(percent_of_unpadded, 1)}% of unpadded_size, '
-                  f'{round(percent_of_max_total, 1)}% of max_total_pad_size')
+        log_d('getting randomized_pad_size')
+        log_d(f'pad_key_rp_int:                {pad_key_rp_int}')
+        log_d(f'pad_key_rp_int/PAD_KEY_SPACE:  '
+              f'{pad_key_rp_int / PAD_KEY_SPACE}')
+        log_d(f'constant_padded_size:     {format_size(constant_padded_size)}')
+        log_d(f'max_randomized_pad_size:  '
+              f'{format_size(max_randomized_pad_size)}')
+
+        if max_randomized_pad_size:
+            log_d(f'randomized_pad_size:      '
+                  f'{format_size(randomized_pad_size)}, '
+                  f'{round(percent_of_constant_padded, 1)}% of '
+                  f'constant_padded_size, {round(percent_of_max_rp, 1)}% '
+                  f'of max_randomized_pad_size')
         else:
-            log_d(f'total_pad_size:      {format_size(total_pad_size)}, '
-                  f'{round(percent_of_unpadded, 1)}% of unpadded_size')
+            log_d(f'randomized_pad_size:      '
+                  f'{format_size(randomized_pad_size)}, '
+                  f'{round(percent_of_constant_padded, 1)}% of '
+                  f'constant_padded_size')
 
-        log_d(f'padded_size:         {format_size(padded_size)}')
+        log_d(f'total_padded_size:        {format_size(total_padded_size)}')
 
-    return total_pad_size
+    return randomized_pad_size
 
 
-def get_pad_size_from_padded(
-    padded_size: int,
-    pad_key_t: bytes,
+def randomized_pad_from_total_padded(
+    total_padded_size: int,
+    pad_key_rp: bytes,
     max_pad_size_percent: int,
 ) -> int:
     """
-    Calculates the total padding size based on the padded size and the
-    padding key.
+    Calculates the randomized part of total padding (RPoTP) size based
+    on the total padded size and the padding key.
 
-    This function computes the total padding size that was applied to
-    the unpadded size using the specified padding key and maximum
-    padding percentage. The total padding size is derived from the
-    padded size and the integer value of the padding key.
+    This function computes the RPoTP size that was applied to the
+    constant-padded size using the specified padding key and maximum
+    padding percentage. The RPoTP size is derived from the total padded
+    size and the integer value of the padding key.
 
     Args:
-        padded_size (int): The size of the padded data in bytes. This
-            parameter represents the total size of the cryptoblob and is
-            used to calculate the total padding size.
+        total_padded_size (int): The total size of the padded data in
+            bytes. This parameter represents the total size of the
+            cryptoblob and is used to calculate the total padding size.
 
-        pad_key_t (bytes): A byte string representing a padding key.
+        pad_key_rp (bytes): A byte string representing a padding key.
             This key is converted to an integer to influence the padding
             size calculation.
 
         max_pad_size_percent (int): The maximum percentage of the
-            unpadded size that can be allocated for padding. This value
-            must not be negative.
+            constant-padded size that can be used for the RPoTP size
+            calculation. This value must not be negative.
 
     Returns:
-        int: The calculated padding size in bytes.
+        int: The calculated RPoTP size in bytes.
     """
 
     # Convert the padding key from bytes to an integer
-    pad_key_t_int: int = int.from_bytes(pad_key_t, BYTEORDER)
+    pad_key_rp_int: int = int.from_bytes(pad_key_rp, BYTEORDER)
 
-    # Calculate the padding size based on the padded size, padding key,
+    # Calculate the RPoTP size based on the padded size, padding key,
     # and maximum padding percentage
-    total_pad_size: int = (
-        padded_size * pad_key_t_int * max_pad_size_percent //
-        (pad_key_t_int * max_pad_size_percent + PAD_KEY_SPACE * 100)
+    randomized_pad_size: int = (
+        total_padded_size * pad_key_rp_int * max_pad_size_percent //
+        (pad_key_rp_int * max_pad_size_percent + PAD_KEY_SPACE * 100)
     )
 
     # If debugging is enabled, log detailed information about
     # the padding calculation
     if DEBUG:
-        unpadded_size: int = padded_size - total_pad_size
-        percent_of_unpadded: float = (total_pad_size * 100) / unpadded_size
+        constant_padded_size: int = total_padded_size - randomized_pad_size
+        percent_of_constant_padded: float = \
+            (randomized_pad_size * 100) / constant_padded_size
 
-        log_d('getting total_pad_size')
-        log_d(f'pad_key_t_int:                {pad_key_t_int}')
-        log_d(f'pad_key_t_int/PAD_KEY_SPACE:  '
-              f'{pad_key_t_int / PAD_KEY_SPACE}')
-        log_d(f'padded_size:     {format_size(padded_size)}')
-        log_d(f'total_pad_size:  {format_size(total_pad_size)}, '
-              f'{round(percent_of_unpadded, 1)}% of unpadded_size')
-        log_d(f'unpadded_size:   {format_size(unpadded_size)}')
+        log_d('getting randomized_pad_size')
+        log_d(f'pad_key_rp_int:                {pad_key_rp_int}')
+        log_d(f'pad_key_rp_int/PAD_KEY_SPACE:  '
+              f'{pad_key_rp_int / PAD_KEY_SPACE}')
+        log_d(f'total_padded_size:     {format_size(total_padded_size)}')
+        log_d(f'randomized_pad_size:   {format_size(randomized_pad_size)}, '
+              f'{round(percent_of_constant_padded, 1)}% of '
+              f'constant_padded_size')
+        log_d(f'constant_padded_size:  {format_size(constant_padded_size)}')
 
-    return total_pad_size
+    return randomized_pad_size
 
 
 def get_header_footer_pad_sizes(
@@ -2195,7 +2252,7 @@ def get_header_footer_pad_sizes(
     Args:
         total_pad_size (int): The total size of the pad to be used for
             calculating the header and footer pad sizes. This value
-            must be a positive integer.
+            must not be negative.
         pad_key_hf (bytes): The key in byte format that will be
             converted to an integer for pad size calculations. The
             length of this byte key should be appropriate for the
@@ -2349,13 +2406,12 @@ def init_nonce_counter() -> None:
     Initialize the nonce counter for the ChaCha20 encryption algorithm.
 
     This function sets the nonce counter to its initial value (0)
-    to prepare for encryption operations. The nonce counter is
-    crucial for ensuring the uniqueness of the nonce in the
-    ChaCha20 algorithm, which helps to prevent key and nonce reuse
-    and maintain the security of the encryption process.
+    in preparation for encryption operations.
 
-    This function can be called multiple times, and each time
-    it will reset the nonce counter to 0.
+    The nonce counter is stored in a global dictionary, allowing
+    it to be accessed by other functions involved in the encryption
+    process. This function can be called multiple times, and each
+    invocation will reset the nonce counter to 0.
 
     If the DEBUG flag is enabled, the initialization of the nonce
     counter will be logged for debugging purposes.
@@ -2363,7 +2419,7 @@ def init_nonce_counter() -> None:
     Returns:
         None
     """
-    init_value = 0
+    init_value: int = 0
 
     INT_D['nonce_counter'] = init_value
 
@@ -2453,8 +2509,8 @@ def encrypt_decrypt(input_data: bytes) -> bytes:
         INT_D['enc_sum'] += chunk_size
         INT_D['enc_chunk_count'] += 1
         log_d(f'data chunk encrypted/decrypted:\n'
-              f'    chunk size:  {format_size(chunk_size)} \n'
-              f'    nonce used:  {nonce.hex()}')
+              f'        chunk size:  {format_size(chunk_size)} \n'
+              f'        nonce used:  {nonce.hex()}')
 
     return output_data
 
@@ -2466,11 +2522,16 @@ def encrypt_decrypt(input_data: bytes) -> bytes:
 def init_mac() -> None:
     """
     Initializes the MAC (Message Authentication Code) hash object
-    using the BLAKE2 algorithm.
+    using the BLAKE2 algorithm and stores it in a global dictionary.
 
     This function sets up the hash object with a specified digest size
     and key, and initializes the message sum for MAC calculations.
     It also logs the initialization if the DEBUG flag is set.
+
+    The MAC hash object is stored in the global dictionary `ANY_D`
+    under the key 'mac_hash_obj', and the initial message sum is
+    stored in the global dictionary `INT_D` under the key
+    'mac_message_sum'.
 
     Returns:
         None
@@ -2538,20 +2599,19 @@ def handle_mac_tag(action: ActionID, mac_message_size: int) -> bool:
         BIO_D['IN'] is the input stream for reading data.
     """
 
-    # Handle the MAC tag for integrity verification
     if DEBUG:
         log_d('handling MAC tag')
 
     calculated_mac_tag: bytes = ANY_D['mac_hash_obj'].digest()
 
     if DEBUG:
-        log_d(f'calculated MAC tag:\n    {calculated_mac_tag.hex()}')
+        log_d(f'calculated MAC tag:\n        {calculated_mac_tag.hex()}')
 
     if action in (ENCRYPT, ENCRYPT_EMBED):  # Encryption actions
         fake_mac_tag: bytes = token_bytes(MAC_TAG_SIZE)
 
         if DEBUG:
-            log_d(f'fake MAC tag:\n    {fake_mac_tag.hex()}')
+            log_d(f'fake MAC tag:\n        {fake_mac_tag.hex()}')
 
         # Determine whether to use a fake MAC tag
         if BOOL_D['set_fake_mac']:
@@ -2560,7 +2620,7 @@ def handle_mac_tag(action: ActionID, mac_message_size: int) -> bool:
             mac_tag = calculated_mac_tag
 
         if DEBUG:
-            log_d(f'MAC tag to write:\n    {mac_tag.hex()}')
+            log_d(f'MAC tag to write:\n        {mac_tag.hex()}')
 
         # Write the MAC tag to the output
         if not write_data(mac_tag):
@@ -2570,6 +2630,7 @@ def handle_mac_tag(action: ActionID, mac_message_size: int) -> bool:
             log_d('MAC tag written')
 
         INT_D['written_sum'] += len(mac_tag)
+
     else:  # Decryption actions (DECRYPT, EXTRACT_DECRYPT)
         retrieved_mac_tag: Optional[bytes] = \
             read_data(BIO_D['IN'], MAC_TAG_SIZE)
@@ -2578,19 +2639,19 @@ def handle_mac_tag(action: ActionID, mac_message_size: int) -> bool:
             BOOL_D['auth_fail'] = True
 
             log_w('integrity/authenticity check:')
-            log_w('\r    [FAIL]')
+            log_w('\r        [FAIL]')
             log_w('released plaintext can\'t be trusted!')
             return False
 
         if DEBUG:
-            log_d(f'retrieved MAC tag:\n    {retrieved_mac_tag.hex()}')
+            log_d(f'retrieved MAC tag:\n        {retrieved_mac_tag.hex()}')
 
         # Compare the calculated MAC tag with the retrieved MAC tag
         if compare_digest(calculated_mac_tag, retrieved_mac_tag):
             if DEBUG:
                 log_d('calculated_mac_tag is equal to retrieved_mac_tag')
 
-            log_i('integrity/authenticity check:\n    [ OK ]')
+            log_i('integrity/authenticity check:\n        [ OK ]')
         else:
             BOOL_D['auth_fail'] = True
 
@@ -2598,7 +2659,7 @@ def handle_mac_tag(action: ActionID, mac_message_size: int) -> bool:
                 log_d('calculated_mac_tag is not equal to retrieved_mac_tag')
 
             log_w('integrity/authenticity check:')
-            log_w('\r    [FAIL]')
+            log_w('\r        [FAIL]')
             log_w('released plaintext can\'t be trusted!')
 
     mac_message_sum: int = INT_D['mac_message_sum']
@@ -2667,22 +2728,18 @@ def set_custom_settings(action: ActionID) -> None:
     if is_custom_enabled:
         # Log a warning if the action requires specific custom values
         if action in (ENCRYPT, ENCRYPT_EMBED):
-            log_w('decryption will require the same [11] and [12] values!')
+            log_w('decryption will require the same [C1] and [C2] values!')
 
         # Retrieve custom Argon2 time cost and maximum padding size percentage
         argon2_time_cost = get_argon2_time_cost()
+        log_i(f'time cost: {argon2_time_cost:,}')
+
         max_pad_size_percent = get_max_pad_size_percent()
+        log_i(f'max padding size, %: {max_pad_size_percent:,}')
 
         # Check if a fake MAC tag should be set for specific actions
         if action in (ENCRYPT, ENCRYPT_EMBED):
             should_set_fake_mac = is_fake_mac()
-
-    # Log the settings if custom settings is enabled
-    if is_custom_enabled:
-        log_i(f'time cost: {argon2_time_cost:,}')
-        log_i(f'max padding size, %: {max_pad_size_percent:,}')
-
-        if action in (ENCRYPT, ENCRYPT_EMBED):
             log_i(f'set fake MAC tag: {should_set_fake_mac}')
 
     # Log the settings if debugging is enabled
@@ -2760,9 +2817,8 @@ def encrypt_and_embed(action: ActionID) -> bool:
     Notes:
         - If the input retrieval fails (returns None), the function will
           return False immediately.
-        - The function calls `collect()` to perform any necessary
-          cleanup or memory management before proceeding with the
-          encryption and embedding process.
+        - The function calls `collect()` to perform garbage collection
+          before proceeding with the encryption and embedding process.
     """
 
     # Retrieve input parameters for the encryption and embedding process
@@ -2778,7 +2834,7 @@ def encrypt_and_embed(action: ActionID) -> bool:
     if input_values is None:
         return False
 
-    # Perform cleanup or memory management before proceeding
+    # Perform garbage collection before proceeding
     collect()
 
     # Unpack the retrieved values for further processing
@@ -2791,8 +2847,9 @@ def encrypt_and_embed(action: ActionID) -> bool:
     # Ending position for the operation
     end_pos: Optional[int] = input_values[2]
 
-    # Size of the unpadded cryptoblob, if applicable
-    unpadded_size: Optional[int] = input_values[3]
+    # Size of the cryptoblob, excluding the randomized part of padding,
+    # if applicable
+    constant_padded_size: Optional[int] = input_values[3]
 
     # Processed comments to be encrypted, if applicable
     processed_comments: Optional[bytes] = input_values[4]
@@ -2803,7 +2860,7 @@ def encrypt_and_embed(action: ActionID) -> bool:
         in_file_size,
         start_pos,
         end_pos,
-        unpadded_size,
+        constant_padded_size,
         processed_comments,
     )
 
@@ -2844,8 +2901,9 @@ def encrypt_and_embed_input(
               operation, or None if not applicable.
             - end_pos (Optional[int]): The ending position for the
               operation, or None if not applicable.
-            - unpadded_size (Optional[int]): The size of the unpadded
-              cryptoblob, or None if not applicable.
+            - constant_padded_size (Optional[int]): The size of the
+              cryptoblob, excluding the randomized part of padding, if
+              applicable.
             - processed_comments (Optional[bytes]): The processed
               comments to be encrypted, or None if not applicable.
 
@@ -2864,7 +2922,7 @@ def encrypt_and_embed_input(
 
     start_pos: Optional[int] = None
     end_pos: Optional[int] = None
-    unpadded_size: Optional[int] = None
+    constant_padded_size: Optional[int] = None
     processed_comments: Optional[bytes] = None
 
     # 1. Set custom settings based on the action
@@ -2878,7 +2936,7 @@ def encrypt_and_embed_input(
     in_file_path: str
     in_file_size: int
 
-    # Retrieve the input file path, size, and file descriptor
+    # Retrieve the input file path, size, and file object
     in_file_path, in_file_size, BIO_D['IN'] = get_input_file(action)
 
     # Log the input file path and size
@@ -2889,30 +2947,32 @@ def encrypt_and_embed_input(
 
     # Handle encryption actions (ENCRYPT, ENCRYPT_EMBED)
     if action in (ENCRYPT, ENCRYPT_EMBED):
-        # Calculate the size of unpadded cryptoblob
-        unpadded_size = in_file_size + MIN_VALID_UNPADDED_SIZE
 
-        max_total_pad_size: int = \
-            unpadded_size * INT_D['max_pad_size_percent'] // 100
+        # Calculate the size of the cryptoblob, excluding the
+        # randomized part of padding
+        constant_padded_size = in_file_size + MIN_VALID_PADDED_SIZE
 
-        max_padded_size: int = unpadded_size + max_total_pad_size
+        max_randomized_pad_size: int = \
+            constant_padded_size * INT_D['max_pad_size_percent'] // 100
+
+        max_total_padded_size: int = \
+            constant_padded_size + max_randomized_pad_size
 
         # Debug logging for calculated sizes
         if DEBUG:
-            log_d(f'unpadded_size:       {format_size(unpadded_size)}')
-            log_d(f'max_total_pad_size:  {format_size(max_total_pad_size)}')
-            log_d(f'max_padded_size:     {format_size(max_padded_size)}')
+            log_d(f'constant_padded_size:     '
+                  f'{format_size(constant_padded_size)}')
+            log_d(f'max_randomized_pad_size:  '
+                  f'{format_size(max_randomized_pad_size)}')
+            log_d(f'max_total_padded_size:    '
+                  f'{format_size(max_total_padded_size)}')
 
     # Handle decryption actions (DECRYPT, EXTRACT_DECRYPT) and validate
     # input file size
     else:
-        if in_file_size < MIN_VALID_UNPADDED_SIZE:
-            if action == DECRYPT:
-                log_e(f'input file is too small (min valid cryptoblob size '
-                      f'is {format_size(MIN_VALID_UNPADDED_SIZE)})')
-            else:  # action == EXTRACT_DECRYPT
-                log_e(f'incorrect start/end positions (min valid cryptoblob '
-                      f'size is {format_size(MIN_VALID_UNPADDED_SIZE)})')
+        if in_file_size < MIN_VALID_PADDED_SIZE:
+            log_e(f'input file is too small; size must be '
+                  f'>= {format_size(MIN_VALID_PADDED_SIZE)}')
             return None
 
     # 4. Get processed comments for their further encryption
@@ -2921,7 +2981,7 @@ def encrypt_and_embed_input(
     if action in (ENCRYPT, ENCRYPT_EMBED):
         processed_comments = get_processed_comments()
 
-    # 5. Retrieve the output file path, size, and file descriptor
+    # 5. Retrieve the output file path, size, and file object
     # ----------------------------------------------------------------------- #
 
     out_file_path: str
@@ -2930,22 +2990,22 @@ def encrypt_and_embed_input(
     # Set up output file based on the action
     if action in (ENCRYPT, DECRYPT):  # New file creation
         out_file_path, BIO_D['OUT'] = get_output_file_new(action)
-        log_i(f'new file {out_file_path!r} created')
+        log_i(f'new empty file {out_file_path!r} created')
 
     elif action == ENCRYPT_EMBED:  # Existing file handling for encryption
         out_file_path, out_file_size, BIO_D['OUT'] = \
             get_output_file_exist(
                 in_file_path,
-                max_padded_size,
+                max_total_padded_size,
                 action,
         )
-        max_start_pos: int = out_file_size - max_padded_size
+        max_start_pos: int = out_file_size - max_total_padded_size
         log_i(f'path: {out_file_path!r}')
 
     else:  # action == EXTRACT_DECRYPT, new file creation for decryption
         out_file_path, BIO_D['OUT'] = get_output_file_new(action)
-        max_start_pos = in_file_size - MIN_VALID_UNPADDED_SIZE
-        log_i(f'new file {out_file_path!r} created')
+        max_start_pos = in_file_size - MIN_VALID_PADDED_SIZE
+        log_i(f'new empty file {out_file_path!r} created')
 
     # Log the size of the output file if applicable
     if action == ENCRYPT_EMBED:
@@ -2959,10 +3019,15 @@ def encrypt_and_embed_input(
         start_pos = get_start_position(max_start_pos, no_default=True)
         log_i(f'start position: {start_pos} (offset: {start_pos:,} B)')
 
+        if action == ENCRYPT_EMBED:
+            # These values will be used in proceed_request()
+            INT_D['start_pos'] = start_pos
+            INT_D['max_end_pos'] = start_pos + max_total_padded_size
+
     # Get the ending position for extraction
     if action == EXTRACT_DECRYPT:
         end_pos = get_end_position(
-            min_pos=start_pos + MIN_VALID_UNPADDED_SIZE,
+            min_pos=start_pos + MIN_VALID_PADDED_SIZE,
             max_pos=in_file_size,
             no_default=True,
         )
@@ -2987,32 +3052,28 @@ def encrypt_and_embed_input(
     if not get_salts(in_file_size, end_pos, action):
         return None
 
-    # 9. Get the Argon2 password for key derivation from IKM digests
+    # 9. Collect and handle IKM, and get the Argon2 password for further key
+    # derivation
     # ----------------------------------------------------------------------- #
 
-    get_argon2_password()
+    get_argon2_password(action)
 
-    # 10. Trigger garbage collection to free up memory
-    # ----------------------------------------------------------------------- #
-
-    collect()
-
-    # 11. Ask user confirmation for proceeding
+    # 10. Ask user confirmation for proceeding
     # ----------------------------------------------------------------------- #
 
     if action == ENCRYPT_EMBED:
-        if not proceed_request(PROCEED_OVERWRITE):
+        if not proceed_request(PROCEED_OVERWRITE, action):
             log_i('stopped by user request')
             return None
 
-    # 12. Return the retrieved parameters for further processing
+    # 11. Return the retrieved parameters for further processing
     # ----------------------------------------------------------------------- #
 
     return (
         in_file_size,
         start_pos,
         end_pos,
-        unpadded_size,
+        constant_padded_size,
         processed_comments,
     )
 
@@ -3022,7 +3083,7 @@ def encrypt_and_embed_handler(
     in_file_size: int,
     start_pos: Optional[int],
     end_pos: Optional[int],
-    unpadded_size: Optional[int],
+    constant_padded_size: Optional[int],
     processed_comments: Optional[bytes],
 ) -> bool:
     """
@@ -3034,27 +3095,44 @@ def encrypt_and_embed_handler(
     or reading data to/from files. It also handles processed comments
     and ensures data integrity through MAC verification.
 
-    The function follows these steps:
-    1. Derives cryptographic keys required for the operation.
-    2. Initializes the nonce counter and MAC hash object for the current
-       action.
-    3. Determines the padding size based on the action and input
-       parameters.
-    4. Prepares the header and footer padding sizes.
-    5. Collects unused resources to free memory.
-    6. Calculates the sizes of the cryptoblob and contents based on the
-       action.
-    7. Logs the sizes for debugging purposes if DEBUG mode is enabled.
-    8. Reads and writes Argon2 salt, handling processed comments based
-       on the action.
-    9. Processes the main content in chunks, encrypting or decrypting as
-       necessary.
-    10. Updates the MAC hash with the processed data.
-    11. Handles footer padding and writes BLAKE2 salt if applicable.
-    12. Verifies the integrity/authenticity of the data using the MAC
-        tag.
-    13. Returns True if the operation was successful, or False if any
-        step fails.
+    1. Derive the cryptographic keys necessary for the operation (e.g.,
+       encryption/decryption and MAC authentication keys).
+    2. Initialize the ChaCha20 nonce counter and the MAC hash object
+       based on the current action.
+    3. Compute the appropriate padding size using the action type and
+       provided parameters:
+       - For encryption actions, determine the randomized padding based
+         on the constant-padded size.
+       - For decryption actions, calculate the randomized padding using
+         the total padded size.
+    4. Derive the header and footer padding sizes from the total padding
+       size and a dedicated header/footer pad key.
+    5. Remove sensitive key material from process memory to prevent them
+       from being swapped out.
+    6. Calculate the size of the cryptoblob and the embedded data
+       content according to the action:
+       - For encryption, the cryptoblob size encompasses the main
+         content plus both padding parts.
+       - For decryption, derive the content size by subtracting the
+         padding overhead from the total padded size.
+    7. Log various sizes (e.g., payload, padding, output data) for
+       debugging when DEBUG mode is enabled.
+    8. Read or write the Argon2 salt, and process the user comments:
+       - During encryption, encrypt and embed the processed comments,
+         updating the MAC accordingly.
+       - During decryption, read the encrypted comments, update the MAC,
+         and obtain the plaintext comments after decryption.
+    9. Process the main content in fixed-size chunks, applying
+       encryption or decryption accordingly.
+    10. Continuously update the MAC with all processed data to ensure
+        data integrity.
+    11. Handle footer padding:
+        - For encryption, write the footer padding and subsequently
+          output the BLAKE2 salt.
+    12. Validate data integrity and authenticity by verifying the MAC
+        tag against the constructed MAC message.
+    13. Conclude the operation by returning True if all steps complete
+        successfully or False if any step fails.
 
     Args:
         action (ActionID): An integer indicating the action to perform
@@ -3065,8 +3143,13 @@ def encrypt_and_embed_handler(
             operation (used in embedding and extraction).
         end_pos (Optional[int]): The ending position for the operation
             (used in extraction).
-        unpadded_size (Optional[int]): The size of the cryptoblob,
-            excluding padding, if applicable.
+        constant_padded_size (Optional[int]): The size of the cryptoblob,
+            excluding the randomized part of padding, if applicable.
+            +——————————————————————+—————————————————————+
+            | constant_padded_size | randomized_pad_size |
+            +——————————————————————+—————————————————————+
+            |              total_padded_size             |
+            +————————————————————————————————————————————+
         processed_comments (Optional[bytes]): The processed comments to
             be encrypted/embedded. Can be None for decryption actions,
             if processed_comments as bytes have not yet been obtained
@@ -3125,30 +3208,39 @@ def encrypt_and_embed_handler(
     # Determine padding sizes and padded size
     # ----------------------------------------------------------------------- #
 
+    randomized_pad_size: int
+    total_padded_size: int
     total_pad_size: int
     header_pad_size: int
     footer_pad_size: int
-    padded_size: int
 
     # Determine total padding size based on the action
     if action in (ENCRYPT, ENCRYPT_EMBED):  # Encryption actions
-        total_pad_size = get_pad_size_from_unpadded(
-            unpadded_size,
-            BYTES_D['pad_key_t'],
-            INT_D['max_pad_size_percent'],
-        )
-        padded_size = unpadded_size + total_pad_size
-    else:  # Decryption actions (DECRYPT, EXTRACT_DECRYPT)
-        if action == DECRYPT:
-            padded_size = in_file_size
-        else:  # action == EXTRACT_DECRYPT
-            padded_size = end_pos - start_pos
 
-        total_pad_size = get_pad_size_from_padded(
-            padded_size,
-            BYTES_D['pad_key_t'],
+        # Get randomized pad size from constant-padded size
+        randomized_pad_size = randomized_pad_from_constant_padded(
+            constant_padded_size,
+            BYTES_D['pad_key_rp'],
             INT_D['max_pad_size_percent'],
         )
+
+        total_padded_size = constant_padded_size + randomized_pad_size
+
+    else:  # Decryption actions (DECRYPT, EXTRACT_DECRYPT)
+
+        if action == DECRYPT:
+            total_padded_size = in_file_size
+        else:  # action == EXTRACT_DECRYPT
+            total_padded_size = end_pos - start_pos
+
+        # Get randomized pad size from total padded size
+        randomized_pad_size = randomized_pad_from_total_padded(
+            total_padded_size,
+            BYTES_D['pad_key_rp'],
+            INT_D['max_pad_size_percent'],
+        )
+
+    total_pad_size = CONSTANT_PAD_SIZE + randomized_pad_size
 
     # Calculate header and footer padding sizes
     header_pad_size, footer_pad_size = get_header_footer_pad_sizes(
@@ -3160,30 +3252,22 @@ def encrypt_and_embed_handler(
     # ----------------------------------------------------------------------- #
 
     try:
-        header_pad_size_bytes: bytes = \
-            header_pad_size.to_bytes(SIZE_BYTES_SIZE, BYTEORDER)
+        total_padded_size_bytes: bytes = \
+            total_padded_size.to_bytes(SIZE_BYTES_SIZE, BYTEORDER)
     except OverflowError:
-        log_e(f'header pad size is too big: {format_size(header_pad_size)}')
+        log_e(f'cryptoblob size is too big: {format_size(total_padded_size)}')
         return False
 
-    try:
-        footer_pad_size_bytes: bytes = \
-            footer_pad_size.to_bytes(SIZE_BYTES_SIZE, BYTEORDER)
-    except OverflowError:
-        log_e(f'footer pad size is too big: {format_size(header_pad_size)}')
-        return False
+    header_pad_size_bytes: bytes = \
+        header_pad_size.to_bytes(SIZE_BYTES_SIZE, BYTEORDER)
 
-    try:
-        padded_size_bytes: bytes = \
-            padded_size.to_bytes(SIZE_BYTES_SIZE, BYTEORDER)
-    except OverflowError:
-        log_e(f'cryptoblob size is too big: {format_size(padded_size)}')
-        return False
+    footer_pad_size_bytes: bytes = \
+        footer_pad_size.to_bytes(SIZE_BYTES_SIZE, BYTEORDER)
 
     if DEBUG:
-        log_d(f'header_pad_size_bytes:  {header_pad_size_bytes.hex()}')
-        log_d(f'footer_pad_size_bytes:  {footer_pad_size_bytes.hex()}')
-        log_d(f'padded_size_bytes:      {padded_size_bytes.hex()}')
+        log_d(f'total_padded_size_bytes:  {total_padded_size_bytes.hex()}')
+        log_d(f'header_pad_size_bytes:    {header_pad_size_bytes.hex()}')
+        log_d(f'footer_pad_size_bytes:    {footer_pad_size_bytes.hex()}')
 
     # Update MAC with salts and sizes
     # ----------------------------------------------------------------------- #
@@ -3193,21 +3277,20 @@ def encrypt_and_embed_handler(
     update_mac(BYTES_D['blake2_salt'])
 
     # Update MAC with the sizes as a byte strings
+    update_mac(total_padded_size_bytes)
     update_mac(header_pad_size_bytes)
     update_mac(footer_pad_size_bytes)
-    update_mac(padded_size_bytes)
 
-    # Clean up sensitive data from memory
+    # Clean up sensitive data from memory and trigger garbage collection
     # ----------------------------------------------------------------------- #
 
     del (
         BYTES_D['argon2_password'],
-        BYTES_D['pad_key_t'],
+        BYTES_D['pad_key_rp'],
         BYTES_D['pad_key_hf'],
         BYTES_D['mac_key'],
     )
 
-    # Trigger garbage collection to free up memory
     collect()
 
     # Calculate, log, and validate sizes
@@ -3221,7 +3304,7 @@ def encrypt_and_embed_handler(
         contents_size: int = in_file_size
     else:  # Decryption actions (DECRYPT, EXTRACT_DECRYPT)
         contents_size = \
-            padded_size - total_pad_size - MIN_VALID_UNPADDED_SIZE
+            total_padded_size - total_pad_size - MIN_VALID_UNPADDED_SIZE
 
     # Calculate the MAC message size
     mac_message_size: int = (SALTS_SIZE + SIZE_BYTES_SIZE * 3 +
@@ -3247,9 +3330,9 @@ def encrypt_and_embed_handler(
     # Write argon2_salt if encrypting
     # ----------------------------------------------------------------------- #
 
-    log_i('reading, writing')
-
     if action in (ENCRYPT, ENCRYPT_EMBED):
+        log_i('reading plaintext, writing cryptoblob')
+
         if DEBUG:
             log_d('writing argon2_salt')
 
@@ -3260,6 +3343,8 @@ def encrypt_and_embed_handler(
 
         if DEBUG:
             log_d('argon2_salt written')
+    else:
+        log_i('reading cryptoblob, writing unverified plaintext')
 
     # Handle header padding
     # ----------------------------------------------------------------------- #
@@ -3313,7 +3398,7 @@ def encrypt_and_embed_handler(
         decoded_comments: Optional[str] = \
             decode_processed_comments(processed_comments)
 
-        log_i(f'comments:\n    {[decoded_comments]}')
+        log_i(f'unverified decrypted comments:\n        {[decoded_comments]}')
 
     if DEBUG:
         log_d('handling comments completed')
@@ -3431,7 +3516,7 @@ def encrypt_and_embed_handler(
         end_pos = BIO_D['OUT'].tell()
         log_w('cryptoblob location is important for its further extraction!')
         log_i(f'remember cryptoblob location in container:\n'
-              f'    [{start_pos}:{end_pos}]')
+              f'        [{start_pos}:{end_pos}]')
 
     # Log padding locations if encrypting
     if action in (ENCRYPT, ENCRYPT_EMBED):
@@ -3439,8 +3524,8 @@ def encrypt_and_embed_handler(
         f_pad_size: str = format_size(footer_pad_size)
 
         log_i(f'location of padding in output file (may be ignored):\n'
-              f'    [{h_pad_start_pos}:{h_pad_end_pos}] — {h_pad_size}\n'
-              f'    [{f_pad_start_pos}:{f_pad_end_pos}] — {f_pad_size}')
+              f'        [{h_pad_start_pos}:{h_pad_end_pos}] — {h_pad_size}\n'
+              f'        [{f_pad_start_pos}:{f_pad_end_pos}] — {f_pad_size}')
 
     return True
 
@@ -3491,7 +3576,6 @@ def embed(action: ActionID) -> bool:
     # Call the handler to perform the embedding or extraction operation
     success: bool = embed_handler(action, start_pos, message_size)
 
-    # Return the success status of the operation
     return success
 
 
@@ -3546,19 +3630,15 @@ def embed_input(action: ActionID) -> Optional[tuple[int, int]]:
         out_file_path, out_file_size, BIO_D['OUT'] = get_output_file_exist(
             in_file_path, in_file_size, action)
 
-        # Calculate max start position
         max_start_pos = out_file_size - in_file_size
-
         log_i(f'path: {out_file_path!r}')
 
     else:  # action EXTRACT
         # For extraction, create a new output file
         out_file_path, BIO_D['OUT'] = get_output_file_new(action)
 
-        # Set max start position for extraction
         max_start_pos = in_file_size
-
-        log_i(f'new file {out_file_path!r} created')
+        log_i(f'new empty file {out_file_path!r} created')
 
     if action == EMBED:
         # Log the size of the output file for embedding
@@ -3571,11 +3651,11 @@ def embed_input(action: ActionID) -> Optional[tuple[int, int]]:
     if action == EMBED:
         # For embedding, set message size to input file size
         message_size = in_file_size
-        end_pos = start_pos + message_size  # Calculate end position
+        end_pos = start_pos + message_size
         log_i(f'end position: {end_pos} (offset: {end_pos:,} B)')
 
         # Prompt user for confirmation before proceeding
-        if not proceed_request(PROCEED_OVERWRITE):
+        if not proceed_request(PROCEED_OVERWRITE, action):
             log_i('stopped by user request\n')
             return None
     else:
@@ -3587,9 +3667,8 @@ def embed_input(action: ActionID) -> Optional[tuple[int, int]]:
         )
         log_i(f'end position: {end_pos} (offset: {end_pos:,} B)')
 
-        # Calculate message size to retrieve
         message_size = end_pos - start_pos
-        log_i(f'message size to retrieve: {message_size} B')
+        log_i(f'message size to retrieve: {format_size(message_size)}')
 
     # Return the start position and message size
     return start_pos, message_size
@@ -3636,11 +3715,13 @@ def embed_handler(action: ActionID, start_pos: int, message_size: int) -> bool:
         if not seek_position(BIO_D['OUT'], start_pos):
             return False  # Return False if seeking fails
 
+        log_i('reading message from input and writing it over output')
+
     else:  # action == EXTRACT
         if not seek_position(BIO_D['IN'], start_pos):
             return False
 
-    log_i('reading, writing')
+        log_i('reading message from input and writing it to output')
 
     # Initialize the BLAKE2 hash object for checksum calculation
     hash_obj: Any = blake2b(digest_size=CHECKSUM_SIZE)
@@ -3722,13 +3803,11 @@ def embed_handler(action: ActionID, start_pos: int, message_size: int) -> bool:
 
         # Log the location of the embedded message in the container
         log_i(f'remember message location in container:\n'
-              f'    [{start_pos}:{end_pos}]')
+              f'        [{start_pos}:{end_pos}]')
 
-    # Log the checksum of the message
-    log_i(f'message checksum:\n    {message_checksum}')
+    log_i(f'message checksum:\n        {message_checksum}')
 
-    # Return True if the operation was successful
-    return True
+    return True  # Return True if the operation was successful
 
 
 # Perform action CREATE_W_RANDOM
@@ -3740,8 +3819,7 @@ def create_with_random(action: ActionID) -> bool:
     Creates a file of a specified size with random data.
 
     Args:
-        action (ActionID): An integer representing the action to be
-                           performed.
+        action (ActionID): The action identifier.
 
     Returns:
         bool: True if the operation was successful, False otherwise.
@@ -3779,9 +3857,9 @@ def create_with_random_input(action: ActionID) -> int:
     out_file_path, BIO_D['OUT'] = get_output_file_new(action)
 
     # Log the creation of the new file
-    log_i(f'new file {out_file_path!r} created')
+    log_i(f'new empty file {out_file_path!r} created')
 
-    # Get the size of the newly created output file
+    # Get the desired size of the newly created output file
     out_file_size: int = get_output_file_size()
 
     # Log the size of the new file
@@ -3807,8 +3885,6 @@ def create_with_random_handler(out_file_size: int) -> bool:
         bool: True if all data was written successfully, False
               otherwise.
     """
-
-    # Log the start of the random data writing process
     log_i('writing random data')
 
     # Record the start time for performance measurement
@@ -3826,6 +3902,7 @@ def create_with_random_handler(out_file_size: int) -> bool:
         # Generate a chunk of random data
         chunk: bytes = token_bytes(RW_CHUNK_SIZE)
 
+        # Write the remaining bytes to the output file
         if not write_data(chunk):
             return False
 
@@ -3842,9 +3919,8 @@ def create_with_random_handler(out_file_size: int) -> bool:
         # Generate the last chunk of random data
         chunk = token_bytes(num_remaining_bytes)
 
-        # Write the remaining bytes to the output file
         if not write_data(chunk):
-            return False  # Return False if writing fails
+            return False
 
         INT_D['written_sum'] += len(chunk)
 
@@ -3875,8 +3951,7 @@ def overwrite_with_random(action: ActionID) -> bool:
     specified range of data with random bytes.
 
     Args:
-        action (ActionID): The action code that determines the start
-                           position and data size.
+        action (ActionID): The action identifier.
 
     Returns:
         bool: True if the overwrite operation is successful,
@@ -3931,8 +4006,6 @@ def overwrite_with_random_input(action: ActionID) -> Optional[tuple[int, int]]:
         - The function logs various stages of the process, including the
           output file path, size, start and end positions, and the size
           of the data to be written.
-        - If the output file size is zero or if the calculated data size
-          is zero, the function will log a message and return None.
         - The user is prompted for confirmation before proceeding with
           the overwrite operation.
     """
@@ -3964,10 +4037,10 @@ def overwrite_with_random_input(action: ActionID) -> Optional[tuple[int, int]]:
 
     # Calculate the size of the data to be written
     data_size: int = end_pos - start_pos
-    log_i(f'data size to write: {format_size(data_size)}')  # Log the data size
+    log_i(f'data size to write: {format_size(data_size)}')
 
     # Prompt the user for confirmation before proceeding
-    if not proceed_request(PROCEED_OVERWRITE):
+    if not proceed_request(PROCEED_OVERWRITE, action):
         log_i('stopped by user request')
         return None  # Return None if the user cancels the operation
 
@@ -4029,7 +4102,7 @@ def overwrite_with_random_handler(start_pos: int, data_size: int) -> bool:
         chunk: bytes = token_bytes(RW_CHUNK_SIZE)
 
         if not write_data(chunk):  # Write the chunk to the output file
-            return False  # Return False if writing fails
+            return False
 
         INT_D['written_sum'] += len(chunk)  # Update the total written bytes
 
@@ -4140,19 +4213,22 @@ def file_chunk_handler(
 
 def perform_file_action(action: ActionID) -> None:
     """
-    Executes the specified action based on the provided action
-    identifier.
+    Executes the specified file-related action (2-9) based on the
+    provided action identifier.
 
     This function performs the following tasks:
-        - Sets a flag indicating that an action is currently ongoing.
-        - Executes the action corresponding to the provided action
-          identifier.
-        - Cleans up resources and performs necessary actions after the
-          action is executed.
-        - Logs the completion status of the action.
+    - Sets a flag indicating that a file action is currently ongoing.
+    - Executes the action corresponding to the provided action
+      identifier, including manages file I/O processes including
+      reading from or writing to files, ensuring that the correct
+      file-related functions are invoked.
+    - Cleans up resources and performs necessary post-action operations.
+    - Logs detailed information regarding the progress and the outcome
+      of the action, helping with debugging and auditing.
 
     Args:
-        action (ActionID): The identifier for the action to be performed.
+        action (ActionID): The identifier for the file action to be
+                           performed.
 
     Returns:
         None
@@ -4180,7 +4256,7 @@ def post_action_clean_up(action: ActionID, success: bool) -> None:
        if the provided action is related to creating a *new* output file
        and offers to remove the output file path.
     3. Clears the global dictionaries: `ANY_D`, `BIO_D`, `INT_D`,
-       `BOOL_D`, and `BYTES_D`.
+       `BOOL_D`, `BYTES_D`, and FLOAT_D.
     4. Collects any remaining resources or performs additional cleanup
        by calling the `collect` function.
 
@@ -4201,7 +4277,7 @@ def post_action_clean_up(action: ActionID, success: bool) -> None:
 
         if not success or 'auth_fail' in BOOL_D:
             if action not in (EMBED, ENCRYPT_EMBED, OVERWRITE_W_RANDOM):
-                remove_output_path()
+                remove_output_path(action)
 
     ANY_D.clear()
     BIO_D.clear()
@@ -4221,8 +4297,7 @@ def cli_handler() -> bool:
     This function checks the command line arguments provided to the
     script (from sys.argv):
     - If no arguments are provided, debug mode is set to False.
-    - If the first argument is '--debug', it sets the debug mode to True
-      and logs a warning message.
+    - If the first argument is '--debug', it sets the debug mode to True.
     - If any other arguments are provided, an error is logged, and the
       program exits.
 
@@ -4235,7 +4310,6 @@ def cli_handler() -> bool:
         debug_enabled = False
     elif argv[1:] == ['--debug']:
         debug_enabled = True
-        log_w('debug mode enabled! Sensitive data will be displayed!')
     else:
         log_e(f'invalid command line options: {argv[1:]}')
         exit(1)
@@ -4296,6 +4370,9 @@ def main() -> NoReturn:
     """
     signal(SIGINT, signal_handler)
 
+    if DEBUG:
+        log_w('debug mode enabled! Sensitive data will be displayed!')
+
     while True:
         action: ActionID = select_action()
 
@@ -4327,8 +4404,10 @@ APP_VERSION: Final[str] = '0.18.0'
 
 # Information string for the application
 APP_INFO: Final[str] = f"""tird v{APP_VERSION}
-    A tool for encrypting files and hiding encrypted data.
-    Homepage: https://github.com/hakavlad/tird"""
+        A file encryption tool focused on
+        - minimizing metadata and
+        - hiding encrypted data.
+        Homepage: https://github.com/hakavlad/tird"""
 
 # Debug information string for the Python version
 APP_DEBUG_INFO: Final[str] = f'Python version {version}'
@@ -4344,12 +4423,13 @@ APP_WARNINGS: Final[tuple[str, ...]] = (
     'keys.',
     'Sensitive data may leak into swap space.',
     'tird does not erase its sensitive data from memory after use.',
-    'tird always releases unverified plaintext, violating The Cryptographic '
-    'Doom Principle.',
-    'tird doesn\'t sort digests of keyfiles and passphrases in constant-time.',
-    'Padding sizes depend on secret values.',
+    'tird always releases unverified plaintext, violating the Cryptographic '
+    'Doom Principle; decrypted output is untrusted until the MAC tag is '
+    'verified.',
     'Padding contents are never authenticated; authentication only applies to '
     'the ciphertext, salts, and certain sizes.',
+    'Padding sizes depend on secret values.',
+    'tird does not sort digests of keyfiles and passphrases in constant-time.',
     'Overwriting file contents does not guarantee secure destruction of data '
     'on the media.',
     'You cannot prove to an adversary that your random data does not contain '
@@ -4370,7 +4450,7 @@ APP_MENU: Final[str] = f"""{BOL}
     6. Encrypt & Embed   7. Extract & Decrypt
     8. Create w/ Random  9. Overwrite w/ Random
     ———————————————————————————————————————————
-[00] Select an option [0-9]:{RES} """
+A0. Select an option [0-9]:{RES} """
 
 
 # Constants for action types
@@ -4382,46 +4462,37 @@ EMBED: Final[ActionID] = 4  # Embed
 EXTRACT: Final[ActionID] = 5  # Extract
 ENCRYPT_EMBED: Final[ActionID] = 6  # Encrypt & Embed
 EXTRACT_DECRYPT: Final[ActionID] = 7  # Extract & Decrypt
-CREATE_W_RANDOM: Final[ActionID] = 8  # Create w/ random
-OVERWRITE_W_RANDOM: Final[ActionID] = 9  # Overwrite w/ random
+CREATE_W_RANDOM: Final[ActionID] = 8  # Create w/ Random
+OVERWRITE_W_RANDOM: Final[ActionID] = 9  # Overwrite w/ Random
 
 # Dictionary mapping user input to actions/descriptions
 ACTIONS: Final[dict[str, tuple[ActionID, str]]] = {
     '0': (EXIT, """action #0:
-    exit application"""),
-
+        exit application"""),
     '1': (INFO, """action #1:
-    display info and warnings"""),
-
+        display info and warnings"""),
     '2': (ENCRYPT, """action #2:
-    encrypt file contents and comments;
-    write cryptoblob to new file"""),
-
+        encrypt file contents and comments;
+        write cryptoblob to new file"""),
     '3': (DECRYPT, """action #3:
-    decrypt file; display decrypted comments
-    and write decrypted contents to new file"""),
-
+        decrypt file; display decrypted comments
+        and write decrypted contents to new file"""),
     '4': (EMBED, """action #4:
-    embed file contents (no encryption):
-    write input file contents over output file contents"""),
-
+        embed file contents (no encryption):
+        write input file contents over output file contents"""),
     '5': (EXTRACT, """action #5:
-    extract file contents (no decryption) to new file"""),
-
+        extract file contents (no decryption) to new file"""),
     '6': (ENCRYPT_EMBED, """action #6:
-    encrypt file contents and comments;
-    write cryptoblob over container"""),
-
+        encrypt file contents and comments;
+        write cryptoblob over container"""),
     '7': (EXTRACT_DECRYPT, """action #7:
-    extract and decrypt cryptoblob;
-    display decrypted comments and
-    write decrypted contents to new file"""),
-
+        extract and decrypt cryptoblob;
+        display decrypted comments and
+        write decrypted contents to new file"""),
     '8': (CREATE_W_RANDOM, """action #8:
-    create file of specified size with random data"""),
-
+        create file of specified size with random data"""),
     '9': (OVERWRITE_W_RANDOM, """action #9:
-    overwrite file contents with random data"""),
+        overwrite file contents with random data"""),
 }
 
 # Define a type for functions that take an ActionID and return a boolean
@@ -4462,22 +4533,22 @@ E: Final[int] = 2 ** 60  # EiB
 # Valid answers for boolean queries, representing both true and false options
 VALID_BOOL_ANSWERS: Final[str] = 'Y, y, 1, N, n, 0'
 
-# Tuples representing true and false boolean answers,
+# Sets representing true and false boolean answers,
 # including default false options
-TRUE_BOOL_ANSWERS: Final[tuple[str, ...]] = ('Y', 'y', '1')
-FALSE_BOOL_ANSWERS: Final[tuple[str, ...]] = ('N', 'n', '0')
-DEFAULT_FALSE_BOOL_ANSWERS: Final[tuple[str, ...]] = ('', 'N', 'n', '0')
+TRUE_ANSWERS: Final[set[str]] = {'Y', 'y', '1'}
+FALSE_ANSWERS: Final[set[str]] = {'N', 'n', '0'}
+DEFAULT_FALSE_ANSWERS: Final[set[str]] = {'', 'N', 'n', '0'}
 
 # Constants for proceed_request() function
-PROCEED_OVERWRITE: Final[Literal[1, 2]] = 1
-PROCEED_REMOVE: Final[Literal[1, 2]] = 2
+PROCEED_OVERWRITE: Final[bool] = True
+PROCEED_REMOVE: Final[bool] = False
 
 # Size in bytes for processed comments;
 # comments are padded or truncated to this size
 PROCESSED_COMMENTS_SIZE: Final[int] = 512
 
 # Invalid UTF-8 byte constant that separates comments from random data
-# UTF-8 strings cannot contain the byte 0xFF
+# (UTF-8 strings cannot contain the byte 0xFF)
 COMMENTS_SEPARATOR: Final[bytes] = b'\xff'
 
 # Minimum interval for progress updates
@@ -4510,7 +4581,7 @@ BLOCK_COUNTER_INIT_BYTES: Final[bytes] = \
 # read and write operations. Changing this value breaks backward
 # compatibility, as it defines the size of the data that can be
 # encrypted with a single nonce.
-RW_CHUNK_SIZE: Final[int] = 128 * K
+RW_CHUNK_SIZE: Final[int] = 16 * M
 
 # Default values for custom options
 DEFAULT_ARGON2_TIME_COST: Final[int] = 4
@@ -4535,14 +4606,18 @@ SIZE_BYTES_SIZE: Final[int] = 8  # Supports sizes up to 2^64-1
 PAD_KEY_SIZE: Final[int] = 16
 PAD_KEY_SPACE: Final[int] = 256 ** PAD_KEY_SIZE
 MAX_PAD_SIZE_PERCENT_LIMIT: Final[int] = 10 ** 20
+CONSTANT_PAD_SIZE: Final[int] = 255
 
 # Argon2 constants
 ARGON2_MEM: Final[int] = 512 * M  # Memory size for Argon2 in bytes
 ARGON2_TAG_SIZE: Final[int] = PAD_KEY_SIZE * 2 + ENC_KEY_SIZE + MAC_KEY_SIZE
 
-# Minimum valid size for cryptoblob in bytes
 MIN_VALID_UNPADDED_SIZE: Final[int] = \
     SALTS_SIZE + PROCESSED_COMMENTS_SIZE + MAC_TAG_SIZE
+
+# Minimum valid size for cryptoblob in bytes
+MIN_VALID_PADDED_SIZE: Final[int] = \
+    MIN_VALID_UNPADDED_SIZE + CONSTANT_PAD_SIZE
 
 # Check if debug mode is enabled via command line arguments
 DEBUG: Final[bool] = cli_handler()
