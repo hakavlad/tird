@@ -9,14 +9,12 @@ build-backend = "setuptools.build_meta"
 package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]
-where = [
-    "src",
-]
+where = [ "src" ]
 
 [project]
 name = "tird"
 version = "0.19.0"
-license = { file = "LICENSE" }
+license = "0BSD"
 maintainers = [
     { name = "Alexey Avramov", email = "hakavlad@gmail.com" },
 ]
@@ -39,7 +37,6 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
     "Intended Audience :: End Users/Desktop",
-    "License :: OSI Approved :: Zero-Clause BSD (0BSD)",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Topic :: Security",
@@ -55,10 +52,10 @@ requires-python = ">=3.9.2"
 
 [project.urls]
 "Bug Tracker" = "https://github.com/hakavlad/tird/issues"
-"Discussions" = "https://github.com/hakavlad/tird/discussions"
-"Documentation" = "https://github.com/hakavlad/tird/blob/main/README.md"
-"Homepage" = "https://github.com/hakavlad/tird"
-"Repository" = "https://github.com/hakavlad/tird"
+Discussions = "https://github.com/hakavlad/tird/discussions"
+Documentation = "https://github.com/hakavlad/tird/blob/main/README.md"
+Homepage = "https://github.com/hakavlad/tird"
+Repository = "https://github.com/hakavlad/tird"
 
 [project.scripts]
 tird = "tird.tird:main"
