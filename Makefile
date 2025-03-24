@@ -1,9 +1,12 @@
 NAME = tird
+
 DESTDIR ?=
 PREFIX ?= /usr/local
 BINDIR ?= $(PREFIX)/bin
 DATADIR ?= $(PREFIX)/share
 MANDIR ?=  $(DATADIR)/man
+
+DEB_USR = distribution/build/$(NAME)/usr
 
 PANDOC := $(shell command -v pandoc 2> /dev/null)
 
@@ -27,16 +30,16 @@ uninstall:
 
 build-deb:
 	@echo "Building Debian package for $(NAME)..."
-	install -p -d distribution/build/$(NAME)/usr/bin
-	install -p -m0755 src/$(NAME)/$(NAME).py distribution/build/$(NAME)/usr/bin/$(NAME)
+	install -p -d $(DEB_USR)/bin
+	install -p -m0755 src/$(NAME)/$(NAME).py $(DEB_USR)/bin/$(NAME)
 
-	install -p -d distribution/build/$(NAME)/usr/share/man/man1
-	gzip -9cn docs/$(NAME).1 > distribution/build/$(NAME)/usr/share/man/man1/$(NAME).1.gz
+	install -p -d $(DEB_USR)/share/man/man1
+	gzip -9cn docs/$(NAME).1 > $(DEB_USR)/share/man/man1/$(NAME).1.gz
 
-	install -p -d distribution/build/$(NAME)/usr/share/doc/$(NAME)
-	install -p -m0644 README.md distribution/build/$(NAME)/usr/share/doc/$(NAME)/README.md
-	install -p -m0644 SECURITY.md distribution/build/$(NAME)/usr/share/doc/$(NAME)/SECURITY.md
-	tar -czf distribution/build/$(NAME)/usr/share/doc/$(NAME)/docs.tar.gz docs
+	install -p -d $(DEB_USR)/share/doc/$(NAME)
+	install -p -m0644 README.md $(DEB_USR)/share/doc/$(NAME)/README.md
+	install -p -m0644 SECURITY.md $(DEB_USR)/share/doc/$(NAME)/SECURITY.md
+	tar -czf $(DEB_USR)/share/doc/$(NAME)/docs.tar.gz docs
 
 	cp -r distribution/DEBIAN distribution/build/$(NAME)/
 	fakeroot dpkg-deb --build distribution/build/$(NAME)
