@@ -27,32 +27,32 @@ uninstall:
 
 build-deb:
 	@echo "Building Debian package for $(NAME)..."
-	install -p -d dist/build/$(NAME)/usr/bin
-	install -p -m0755 src/$(NAME)/$(NAME).py dist/build/$(NAME)/usr/bin/$(NAME)
+	install -p -d distribution/build/$(NAME)/usr/bin
+	install -p -m0755 src/$(NAME)/$(NAME).py distribution/build/$(NAME)/usr/bin/$(NAME)
 
-	install -p -d dist/build/$(NAME)/usr/share/man/man1
-	gzip -9cn docs/$(NAME).1 > dist/build/$(NAME)/usr/share/man/man1/$(NAME).1.gz
+	install -p -d distribution/build/$(NAME)/usr/share/man/man1
+	gzip -9cn docs/$(NAME).1 > distribution/build/$(NAME)/usr/share/man/man1/$(NAME).1.gz
 
-	install -p -d dist/build/$(NAME)/usr/share/doc/$(NAME)
-	install -p -m0644 README.md dist/build/$(NAME)/usr/share/doc/$(NAME)/README.md
-	install -p -m0644 SECURITY.md dist/build/$(NAME)/usr/share/doc/$(NAME)/SECURITY.md
-	tar -czf dist/build/$(NAME)/usr/share/doc/$(NAME)/docs.tar.gz docs
+	install -p -d distribution/build/$(NAME)/usr/share/doc/$(NAME)
+	install -p -m0644 README.md distribution/build/$(NAME)/usr/share/doc/$(NAME)/README.md
+	install -p -m0644 SECURITY.md distribution/build/$(NAME)/usr/share/doc/$(NAME)/SECURITY.md
+	tar -czf distribution/build/$(NAME)/usr/share/doc/$(NAME)/docs.tar.gz docs
 
-	cp -r dist/DEBIAN dist/build/$(NAME)/
-	fakeroot dpkg-deb --build dist/build/$(NAME)
+	cp -r distribution/DEBIAN distribution/build/$(NAME)/
+	fakeroot dpkg-deb --build distribution/build/$(NAME)
 	@echo "Debian package built successfully."
 
 install-deb:
 	@echo "Installing Debian package..."
-	apt install -o Acquire::AllowUnsizedPackages=1 --reinstall ./dist/build/$(NAME).deb
+	apt install -o Acquire::AllowUnsizedPackages=1 --reinstall ./distribution/build/$(NAME).deb
 
 clean:
 	@echo "Cleaning up..."
-	@if [ -d dist/build/ ]; then \
-		rm -rf dist/build/; \
-		echo "Removed dist/build/"; \
+	@if [ -d distribution/build/ ]; then \
+		rm -rf distribution/build/; \
+		echo "Removed distribution/build/"; \
 	else \
-		echo "Directory dist/build/ does not exist."; \
+		echo "Directory distribution/build/ does not exist."; \
 	fi
 
 manpage:
