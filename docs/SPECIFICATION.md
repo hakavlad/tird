@@ -1,11 +1,11 @@
 
 <h4 align="left">
-  <a href="https://github.com/hakavlad/tird">🏠&nbsp;Homepage</a> &nbsp;
-  <a href="https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md">📜&nbsp;man&nbsp;page</a> &nbsp;
-  <a href="https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md">📑&nbsp;Specification</a> &nbsp;
-  <a href="https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md">📄&nbsp;Input&nbsp;Options</a> &nbsp;
-  <a href="https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md">📖&nbsp;Tutorial</a> &nbsp;
-  <a href="https://github.com/hakavlad/tird/blob/main/docs/FAQ.md">❓&nbsp;FAQ</a>
+  🏠&nbsp;<a href="https://github.com/hakavlad/tird">Homepage</a> &nbsp;
+  📜&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md">man&nbsp;page</a> &nbsp;
+  📑&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md">Specification</a> &nbsp;
+  📄&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md">Input&nbsp;Options</a> &nbsp;
+  📖&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md">Tutorial</a> &nbsp;
+  ❓&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/FAQ.md">FAQ</a>
 </h4>
 
 ---
@@ -52,49 +52,30 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 Cryptoblob structure:
 
 ```
-                  512 B        0+ B
-              +——————————+———————————————+
-              | Comments | File contents |
-              +——————————+———————————————+
-  16 B   0+ B |        Plaintext         |  64 B     0+ B   16 B
-+——————+——————+——————————————————————————+—————————+——————+——————+
-| Salt | Pad  |       Ciphertext         | MAC tag | Pad  | Salt |
-+——————+——————+——————————————————————————+—————————+——————+——————+
-| Random data |     Random-looking data            | Random data |
-+—————————————+————————————————————————————————————+—————————————+
-```
-
-Alternative scheme:
-
-```
-+——————————————————————————————+—————————+
-| Header salt: 16 B, 2 parts:  |         |
-| BLAKE2b salt[:8] +           |         |
-| Argon2 salt[:8]              | Random  |
-+——————————————————————————————+ data    |
-| Randomized padding: 0-20%    |         |
-| of the ciphertext size       |         |
-| by default                   |         |
-+——————————————————————————————+—————————+
-| Ciphertext: 512+ B, consists |         |
-| of encrypted padded comments |         |
-| (always 512 B) and encrypted | Random- |
-| payload file contents (0+ B) | looking |
-+——————————————————————————————+ data    |
-| MAC tag: 64 B                |         |
-+——————————————————————————————+—————————+
-| Randomized padding: 0-20%    |         |
-| of the ciphertext size       |         |
-| by default                   | Random  |
-+——————————————————————————————+ data    |
-| Footer salt: 16 B, 2 parts:  |         |
-| BLAKE2b salt[-8:] +          |         |
-| Argon2 salt[-8:]             |         |
-+——————————————————————————————+—————————+
++————————————————————————————————————————+
+| Salt for key stretching (Argon2): 16 B |
++————————————————————————————————————————+
+| Randomized padding: ~0-20% of the      |
+| unpadded cryptoblob size by default    |
++————————————————————————————————————————+
+| Ciphertext (ChaCha20): 512+ B,         |
+| consists of:                           |
+| - Encrypted padded/truncated           |
+|   comments, always 512 B               |
+| - Encrypted payload file               |
+|   contents, 0+ B                       |
++————————————————————————————————————————+
+| Optional MAC tag (BLAKE2/random): 64 B |
++————————————————————————————————————————+
+| Randomized padding: ~0-20% of the      |
+| unpadded cryptoblob size by default    |
++————————————————————————————————————————+
+| Salt for prehashing (BLAKE2): 16 B     |
++————————————————————————————————————————+
 ```
 
 ```
-cryptoblob = header_salt || header_pad || ciphertext || MAC tag || footer_pad || footer_salt
+cryptoblob = argon2_salt || header_pad || ciphertext || mac_tag || footer_pad || blake2_salt
 ```
 
 ---
@@ -138,37 +119,39 @@ User can specify none, one or multiple passphrases.
 
 ## Salt
 
-Creating `blake2_salt` and `argon2_salt`:
+In actions 2, 6 (encryption):
 
 ```
-blake2_salt = urandom(16)
-argon2_salt = urandom(16)
+argon2_salt = read(CSPRNG, 16)
+blake2_salt = read(CSPRNG, 16)
 ```
 
-Separating salts into `header_salt` and `footer_salt` to write the `header_salt` at the beginning of the cryptoblob, and the `footer_salt` at the end of the cryptoblob:
+In actions 3, 7 (decryption):
 
 ```
-header_salt = blake2_salt[:8] || argon2_salt[:8]
-footer_salt = blake2_salt[-8:] || argon2_salt[-8:]
-```
-
-When decrypting a cryptoblob, the `header_salt` and the `footer_salt` are read from the beginning and end of the cryptoblob and converted back to `blake2_salt` and `argon2_salt`:
-
-```
-header_salt = cryptoblob[:16]
-footer_salt = cryptoblob[-16:]
-
-blake2_salt = header_salt[:8] || footer_salt[:8]
-argon2_salt = header_salt[-8:] || footer_salt[-8:]
+argon2_salt = cryptoblob[:16]
+blake2_salt = cryptoblob[-16:]
 ```
 
 ---
 
 ## Key derivation scheme
 
-How to get one-time keys (encryption key, padding key, MAC key) from input keying material and salt.
+There are 5 steps:
+
+1. Collecting and handling keyfiles and passphrases, getting IKM digest list.
+2. Sorting IKM digest list, getting sorted IKM digest list.
+3. Hashing sorted IKM digest list, getting Argon2 password.
+4. Key stretching with Argon2, getting Argon2 tag.
+5. Splitting Argon2 tag, getting keys for padding, encryption, and authentication.
+
+
+### 1. Collecting and handling keyfiles and passphrases, getting IKM digest list
 
 ```
+normalized,
+truncated,
+encoded
 passphrase  keyfile1  keyfile2  <-- input keying material (IKM)
     |          |         |
     |          |         |  <------ salted and personalized BLAKE2b-512
@@ -178,31 +161,95 @@ digest:64  digest:64  digest:64
         \      |      /
          v     v     v
          [digest list]
-               |
-               |  <------------- sorting digests for entering keys in any order
-               v
-      [sorted digest list]
-               |
-               |  <------------- hashing sorted digests with salted BLAKE2b-512
-               v
-      Argon2 password (64 B)
-               |                 +------------------------------------------+
-               |  <--------------| salted Argon2id:                         |
-               v                 | 1 lane, 512 MiB, 4 iterations by default |
-       Argon2 tag (128 B)        +------------------------------------------+
-               |
-               |  <-- enc_key || pad_key || mac_key = argon2_tag
-               v
-   +-------------------+---------------------+
-   |                   |                     |
-   v                   v                     v
-encryption key    padding key               MAC key
-   |              |         |                |
-   v              v         v                v
-ChaCha20    pad_key1:16  pad_key2:16   keyed BLAKE2b-512
-              /                 \
-    defines total       defines proportions between
-      pad size           header_pad and footer_pad
+```
+
+```
+PERSON_SIZE = 16
+PERSON_KEYFILE = b'K' * PERSON_SIZE  # 0x4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b
+PERSON_PASSPHRASE = b'P' * PERSON_SIZE  # 0x50505050505050505050505050505050
+```
+
+**How to handle passphrases:**
+
+1. Get passphrase from user input. It's `raw_passphrase`, an UTF-8 string.
+
+2. Normalize it with NFC. Get `normalized_passphrase`.
+
+3. Encode in bytes and truncate to 2048 bytes. Get `encoded_passphrase`.
+
+4. Confirm passphrase. Compare in constant time.
+
+5. Get passhrase digest:
+
+```
+passphrase_digest = BLAKE2b-512(encoded_passphrase, salt = blake2_salt, person = PERSON_PASSPHRASE)
+```
+
+6. Add the digest to `ikm_digest_list`.
+
+
+**How to handle keyfiles:**
+
+1. Read keyfile contents and get its disgest:
+
+```
+keyfile_digest = BLAKE2b-512(keyfile_contents, salt = blake2_salt, person = PERSON_KEYFILE)
+```
+
+2. Add the digest to `ikm_digest_list`.
+
+
+### 2. Sorting IKM digest list, getting sorted IKM digest list
+
+Sorts a list of byte sequences (digests) in ascending order based on their byte values.
+
+```
+sorted_digest_list = sorted(digest_list)
+```
+
+### 3. Hashing sorted IKM digest list, getting Argon2 password
+
+```
+argon2_password = BLAKE2b-512(sorted_ikm_digest_list, salt = blake2_salt)
+```
+
+### 4. Key stretching with Argon2, getting Argon2 tag
+
+```
+argon2_tag = Argon2(password = argon2_password, salt = argon2_salt, params)
+```
+
+```
+Argon2 params:
+
+Argon2id version number 19 (0x13)
+Memory:       512 MiB
+Passes:       4 by default
+Parallelism:  1 lanes
+Tag length:   128 bytes
+```
+
+Number of passes may be specified by the user.
+
+### 5. Splitting Argon2 tag, getting keys for padding, encryption, and authentication.
+
+```
++————————————————+———————————————+————————————————+
+|                | pad_key_rp:16 | Secret values  |
+|                +———————————————+ that define    |
+|                | pad_key_hf:16 | padding sizes  |
+| argon2_tag:128 +———————————————+————————————————+
+|                | enc_key:32    | Encryption key |
+|                +———————————————+————————————————+
+|                | mac_key:64    | MAC key        |
++————————————————+———————————————+————————————————+
+```
+
+```
+pad_key_rp = argon2_tag[0:16]
+pad_key_hf = argon2_tag[16:32]
+enc_key = argon2_tag[32:64]
+mac_key = argon2_tag[64:128]
 ```
 
 ---
@@ -211,36 +258,64 @@ ChaCha20    pad_key1:16  pad_key2:16   keyed BLAKE2b-512
 
 ### Padding
 
+Relationships between different parts of the padding:
+
+```
++———————————————————+—————————————————————+
+| CONSTANT_PAD_SIZE | randomized_pad_size |
++———————————————————+—————————————————————+
+|            total_pad_size               |
++———————————————————+—————————————————————+
+|  header_pad_size  |  footer_pad_size    |
++———————————————————+—————————————————————+
+```
+
+`pad_key_rp` defines `randomized_pad_size`.
+
+`pad_key_hf` defines proportions between `header_pad_size` and `footer_pad_size`.
+
+
+`randomized_pad_size` in cryptoblob structurte:
+
+```
++——————————————————————+—————————————————————+
+| constant_padded_size | randomized_pad_size |
++——————————————————————+—————————————————————+
+|              total_padded_size             |
++————————————————————————————————————————————+
+```
+
 ### Encryption
 
-`tird` uses ChaCha20 from \[[RFC 7539](https://www.rfc-editor.org/rfc/rfc7539)] with a counter nonce to encrypt a payload.
+`tird` uses ChaCha20 from \[[RFC 8439](https://www.rfc-editor.org/rfc/rfc8439)] with a counter nonce to encrypt a payload.
 
 256-bit encryption key is from Argon2 output.
 
 96-bit nonce is bytes in little-endian from a counter.
 
+
+**Overview of nonce incrementation process:**
+
 |Counter|nonce|Data to encrypt|
 |-|-|-|
-|1|`0x010000000000000000000000`|Comments, 512 B|
-|2|`0x020000000000000000000000`|File contents chunk0, 128 KiB|
-|3|`0x030000000000000000000000`|File contents chunk1, 128 KiB|
-|4|`0x040000000000000000000000`|File contents chunk2, 128 KiB|
-|5|`0x050000000000000000000000`|File contents chunk3, 0-128 KiB|
-
-Decryption never fails.
+|0| |None|
+|1|`0x010000000000000000000000`|Processed comments, size: 512 B|
+|2|`0x020000000000000000000000`|File contents chunk 0, size: 16 MiB|
+|3|`0x030000000000000000000000`|File contents chunk 1, size: 16 MiB|
+|4|`0x040000000000000000000000`|File contents last chunk, size: 1 B to 16 MiB|
 
 ### MAC
 
 ```
-MAC message = salt_header || salt_footer || ciphertext
+mac_message = argon2_salt || blake2_salt || total_padded_size_bytes || header_pad_size_bytes || footer_pad_size_bytes || ciphertext
 ```
 
 ```
-MAC tag = BLAKE2b-512(MAC message, MAC key)
+mac_tag = BLAKE2b-512(mac_message, key = mac_key)
 ```
 
 ```
-Fake MAC tag = urandom(64)
+fake_mac_tag = read(CSPRNG, 64)
 ```
 
 ---
@@ -279,10 +354,10 @@ Write a cryptoblob over a container file.
 
 ## Creating files with random data
 
-Create a new file and write random data with chunks up to 128 KiB.
+Create a new file and write random data with chunks up to 16 MiB.
 
 ```
-output file contents = urandom(size)
+output file contents = read(CSPRNG, size)
 ```
 
 ---
@@ -291,7 +366,7 @@ output file contents = urandom(size)
 
 Owerwrite file contents with random data from the start position to the end position.
 
-Use chunks up to 128 KiB.
+Use chunks up to 16 MiB.
 
 ```
 0       start         end
