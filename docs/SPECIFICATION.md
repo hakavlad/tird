@@ -10,13 +10,13 @@
 
 ---
 
-# Draft Specification
+# \[WIP] Draft Specification
 
 - Conventions used in this document
-- Encrypted file format
 - Payload
   - Comments
   - File contents
+- Encrypted file format
 - IKM
   - Keyfiles
   - Passphrases
@@ -47,39 +47,6 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ---
 
-## Encrypted file format
-
-Cryptoblob structure:
-
-```
-+————————————————————————————————————————+
-| Salt for key stretching (Argon2): 16 B |
-+————————————————————————————————————————+
-| Randomized padding: ~0-20% of the      |
-| unpadded cryptoblob size by default    |
-+————————————————————————————————————————+
-| Ciphertext (ChaCha20): 512+ B,         |
-| consists of:                           |
-| - Encrypted padded/truncated           |
-|   comments, always 512 B               |
-| - Encrypted payload file               |
-|   contents, 0+ B                       |
-+————————————————————————————————————————+
-| Optional MAC tag (BLAKE2/random): 64 B |
-+————————————————————————————————————————+
-| Randomized padding: ~0-20% of the      |
-| unpadded cryptoblob size by default    |
-+————————————————————————————————————————+
-| Salt for prehashing (BLAKE2): 16 B     |
-+————————————————————————————————————————+
-```
-
-```
-cryptoblob = argon2_salt || header_pad || ciphertext || mac_tag || footer_pad || blake2_salt
-```
-
----
-
 ## Payload
 
 Payload consists of Comments up to 512 bytes and File contents from 0 bytes.
@@ -100,6 +67,56 @@ The payload file could be:
 
 - regular file;
 - block device.
+
+---
+
+## Encrypted file format
+
+Cryptoblob structure:
+
+```
++————————————————————————————————————————+
+| Salt for key stretching (Argon2): 16 B |
++————————————————————————————————————————+
+| Randomized padding: 0-20% of the       |
+| (unpadded size + 255) B by default     |
++————————————————————————————————————————+
+| Ciphertext (ChaCha20): 512+ B,         |
+| consists of:                           |
+| - Encrypted padded/truncated           |
+|   comments, always 512 B               |
+| - Encrypted payload file               |
+|   contents, 0+ B                       |
++————————————————————————————————————————+
+| Optional MAC tag (BLAKE2/CSPRNG): 64 B |
++————————————————————————————————————————+
+| Randomized padding: 0-20% of the       |
+| (unpadded size + 255) B by default     |
++————————————————————————————————————————+
+| Salt for prehashing (BLAKE2): 16 B     |
++————————————————————————————————————————+
+```
+
+```
+argon2_salt || header_pad || ciphertext || (calc_mac_tag|fake_mac_tag) || footer_pad || blake2_salt
+```
+
+`cryptoblob`:
+
+`argon2_salt`:
+
+`header_pad`:
+
+`ciphertext`
+
+`calc_mac_tag`:
+
+`fake_mac_tag`:
+
+`footer_pad`:
+
+`blake2_salt`:
+
 
 ---
 
@@ -225,7 +242,7 @@ Argon2 params:
 Argon2id version number 19 (0x13)
 Memory:       512 MiB
 Passes:       4 by default
-Parallelism:  1 lanes
+Parallelism:  1 lane
 Tag length:   128 bytes
 ```
 
@@ -289,10 +306,13 @@ Relationships between different parts of the padding:
 
 `tird` uses ChaCha20 from \[[RFC 8439](https://www.rfc-editor.org/rfc/rfc8439)] with a counter nonce to encrypt a payload.
 
-256-bit encryption key is from Argon2 output.
+```
+ciphertext chunk = ChaCha20(plaintext chunk, key = enc_key, nonce++)
+```
 
-96-bit nonce is bytes in little-endian from a counter.
+`enc_key`: 256-bit encryption key is from Argon2 output.
 
+`nonce`: 96-bit nonce is bytes in little-endian from a counter.
 
 **Overview of nonce incrementation process:**
 
@@ -311,7 +331,7 @@ mac_message = argon2_salt || blake2_salt || total_padded_size_bytes || header_pa
 ```
 
 ```
-mac_tag = BLAKE2b-512(mac_message, key = mac_key)
+calc_mac_tag = BLAKE2b-512(mac_message, key = mac_key)
 ```
 
 ```
