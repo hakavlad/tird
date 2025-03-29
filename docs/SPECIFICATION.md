@@ -75,33 +75,28 @@ The payload file could be:
 Cryptoblob structure:
 
 ```
-+————————————————————————————————————————+
-| Salt for key stretching (Argon2): 16 B |
-+————————————————————————————————————————+
-| Randomized padding: 0-20% of the       |
-| (unpadded size + 255) B by default     |
-+————————————————————————————————————————+
-| Ciphertext (ChaCha20): 512+ B,         |
-| consists of:                           |
-| - Encrypted padded/truncated           |
-|   comments, always 512 B               |
-| - Encrypted payload file               |
-|   contents, 0+ B                       |
-+————————————————————————————————————————+
-| Optional MAC tag (BLAKE2/CSPRNG): 64 B |
-+————————————————————————————————————————+
-| Randomized padding: 0-20% of the       |
-| (unpadded size + 255) B by default     |
-+————————————————————————————————————————+
-| Salt for prehashing (BLAKE2): 16 B     |
-+————————————————————————————————————————+
++———————————————————————————————————————————————————————————————+
+| CSPRNG output: Salt for key stretching used with Argon2, 16 B |
++———————————————————————————————————————————————————————————————+
+| CSPRNG output: Randomized padding: 0-20% of the               |
+|                (unpadded size + 255 B) by default             |
++———————————————————————————————————————————————————————————————+
+| ChaCha20 output (ciphertext): 512+ B, consists of:            |
+|          - Encrypted padded/truncated comments, always 512 B  |
+|          - Encrypted payload file contents, 0+ B              |
++———————————————————————————————————————————————————————————————+
+| BLAKE2 or CSPRNG output: Optional MAC tag, 64 B               |
++———————————————————————————————————————————————————————————————+
+| CSPRNG output: Randomized padding: 0-20% of the               |
+|                (unpadded size + 255 B) B by default           |
++———————————————————————————————————————————————————————————————+
+| CSPRNG output: Salt for prehashing used with BLAKE2, 16 B     |
++———————————————————————————————————————————————————————————————+
 ```
 
 ```
 argon2_salt || header_pad || ciphertext || (calc_mac_tag|fake_mac_tag) || footer_pad || blake2_salt
 ```
-
-`cryptoblob`:
 
 `argon2_salt`:
 
@@ -116,7 +111,6 @@ argon2_salt || header_pad || ciphertext || (calc_mac_tag|fake_mac_tag) || footer
 `footer_pad`:
 
 `blake2_salt`:
-
 
 ---
 
