@@ -16,7 +16,7 @@
 - Payload
   - Comments
   - File contents
-- Encrypted file format
+- Encrypted data format
 - IKM
   - Keyfiles
   - Passphrases
@@ -58,7 +58,7 @@ User can add comments to encrypt it with a cryptoblob.
 `0xFF` is used as a marker to separate user-entered comments from random data.
 
 ```
-comments_bytes = (comments || 0xFF || random data)[:512]
+processed_comments = (comments || 0xFF || random data)[:512]
 ```
 
 ### Payload file contents
@@ -101,7 +101,7 @@ Cryptoblob structure:
 ```
 
 ```
-argon2_salt || header_pad || ciphertext || (calc_mac_tag|fake_mac_tag) || footer_pad || blake2_salt
+argon2_salt || header_pad || ciphertext || (computed_mac_tag|fake_mac_tag) || footer_pad || blake2_salt
 ```
 
 `argon2_salt`:
@@ -110,7 +110,7 @@ argon2_salt || header_pad || ciphertext || (calc_mac_tag|fake_mac_tag) || footer
 
 `ciphertext`
 
-`calc_mac_tag`:
+`computed_mac_tag`:
 
 `fake_mac_tag`:
 
@@ -180,11 +180,17 @@ digest:64  digest:64  digest:64
          [digest list]
 ```
 
+**How to handle keyfiles:**
+
+1. Read keyfile contents and get its disgest:
+
 ```
-PERSON_SIZE = 16
-PERSON_KEYFILE = b'K' * PERSON_SIZE  # 0x4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b
-PERSON_PASSPHRASE = b'P' * PERSON_SIZE  # 0x50505050505050505050505050505050
+keyfile_digest = BLAKE2b-512(keyfile_contents, salt = blake2_salt, person = PERSON_KEYFILE)
 ```
+
+`PERSON_KEYFILE`: the UTF-8 encoding of "KKKKKKKKKKKKKKKK" (`0x4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b`, 16 bytes).
+
+2. Add the digest to `ikm_digest_list`.
 
 **How to handle passphrases:**
 
@@ -202,19 +208,9 @@ PERSON_PASSPHRASE = b'P' * PERSON_SIZE  # 0x50505050505050505050505050505050
 passphrase_digest = BLAKE2b-512(encoded_passphrase, salt = blake2_salt, person = PERSON_PASSPHRASE)
 ```
 
+`PERSON_PASSPHRASE`: the UTF-8 encoding of "PPPPPPPPPPPPPPPP" (`0x50505050505050505050505050505050`, 16 bytes).
+
 6. Add the digest to `ikm_digest_list`.
-
-
-**How to handle keyfiles:**
-
-1. Read keyfile contents and get its disgest:
-
-```
-keyfile_digest = BLAKE2b-512(keyfile_contents, salt = blake2_salt, person = PERSON_KEYFILE)
-```
-
-2. Add the digest to `ikm_digest_list`.
-
 
 ### 2. Sorting IKM digest list, getting sorted IKM digest list
 
