@@ -70,28 +70,34 @@ The payload file could be:
 
 ---
 
-## Encrypted file format
+## Encrypted data format
 
 Cryptoblob structure:
 
 ```
-+———————————————————————————————————————————————————————————————+
-| CSPRNG output: Salt for key stretching used with Argon2, 16 B |
-+———————————————————————————————————————————————————————————————+
-| CSPRNG output: Randomized padding: 0-20% of the               |
-|                (unpadded size + 255 B) by default             |
-+———————————————————————————————————————————————————————————————+
-| ChaCha20 output (ciphertext): 512+ B, consists of:            |
-|          - Encrypted padded/truncated comments, always 512 B  |
-|          - Encrypted payload file contents, 0+ B              |
-+———————————————————————————————————————————————————————————————+
-| BLAKE2 or CSPRNG output: Optional MAC tag, 64 B               |
-+———————————————————————————————————————————————————————————————+
-| CSPRNG output: Randomized padding: 0-20% of the               |
-|                (unpadded size + 255 B) B by default           |
-+———————————————————————————————————————————————————————————————+
-| CSPRNG output: Salt for prehashing used with BLAKE2, 16 B     |
-+———————————————————————————————————————————————————————————————+
++————————————————————————————————————————————————————+
+| CSPRNG output:                                     |
+|     Salt for key stretching used with Argon2, 16 B |
++————————————————————————————————————————————————————+
+| CSPRNG output:                                     |
+|     Randomized padding (header padding): 0-20% of  |
+|     the (unpadded size + 255 B) by default         |
++————————————————————————————————————————————————————+
+| ChaCha20 output:                                   |
+|     Ciphertext, 512+ B, consists of:               |
+|     - Encrypted padded/truncated comments, 512 B   |
+|     - Encrypted payload file contents, 0+ B        |
++————————————————————————————————————————————————————+
+| BLAKE2 or CSPRNG output:                           |
+|     Optional MAC tag, 64 B                         |
++————————————————————————————————————————————————————+
+| CSPRNG output:                                     |
+|     Randomized padding (footer padding): 0-20% of  |
+|     the (unpadded size + 255 B) by default         |
++————————————————————————————————————————————————————+
+| CSPRNG output:                                     |
+|     Salt for prehashing IKM used with BLAKE2, 16 B |
++————————————————————————————————————————————————————+
 ```
 
 ```
