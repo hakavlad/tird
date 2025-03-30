@@ -1344,7 +1344,7 @@ def get_processed_comments() -> bytes:
             while True:
                 processed_comments = token_bytes(PROCESSED_COMMENTS_SIZE)
 
-                # If calculated MAC tag set (not fake MAC tag), then
+                # If computed MAC tag set (not fake MAC tag), then
                 # processed comments must be decoded to None
                 if decode_processed_comments(processed_comments) is None:
                     # Approximately 99.164% chance of success
@@ -1590,7 +1590,7 @@ def hash_keyfile_contents(
 
 def get_keyfile_digest(file_path: str) -> Optional[bytes]:
     """
-    Calculates the digest of the keyfile at the given file path.
+    Computes the digest of the keyfile at the given file path.
 
     Args:
         file_path (str): The path to the keyfile.
@@ -1618,7 +1618,7 @@ def get_keyfile_digest(file_path: str) -> Optional[bytes]:
     if file_obj is None:
         return None
 
-    # Calculate the digest of the keyfile
+    # Compute the digest of the keyfile
     file_digest: Optional[bytes] = hash_keyfile_contents(file_obj, file_size)
 
     # Close the file after reading
@@ -2081,7 +2081,7 @@ def randomized_pad_from_constant_padded(
     Calculates the randomized part of total padding (RPoTP) size based
     on the constant-padded size and a padding key.
 
-    This function computes the RPoTP size to be applied to the
+    This function calculates the RPoTP size to be applied to the
     constant-padded size based on the provided parameters. The RPoTP
     size is determined by the size of the constant-padded size, a
     padding key converted from bytes to an integer, and a maximum RPoTP
@@ -2177,7 +2177,7 @@ def randomized_pad_from_total_padded(
     Calculates the randomized part of total padding (RPoTP) size based
     on the total padded size and the padding key.
 
-    This function computes the RPoTP size that was applied to the
+    This function calculates the RPoTP size that was applied to the
     constant-padded size using the specified padding key and maximum
     padding percentage. The RPoTP size is derived from the total padded
     size and the integer value of the padding key.
@@ -2576,7 +2576,7 @@ def handle_mac_tag(action: ActionID, mac_message_size: int) -> bool:
     Handles the MAC (Message Authentication Code) tag for integrity
     verification.
 
-    This function calculates the MAC tag based on the current state of
+    This function computes the MAC tag based on the current state of
     the MAC hash object. Depending on the specified action, it either
     writes a MAC tag (for encryption actions) or verifies a MAC tag (for
     decryption actions). It also checks if the provided
@@ -2602,10 +2602,10 @@ def handle_mac_tag(action: ActionID, mac_message_size: int) -> bool:
     if DEBUG:
         log_d('handling MAC tag')
 
-    calculated_mac_tag: bytes = ANY_D['mac_hash_obj'].digest()
+    computed_mac_tag: bytes = ANY_D['mac_hash_obj'].digest()
 
     if DEBUG:
-        log_d(f'calculated MAC tag:\n        {calculated_mac_tag.hex()}')
+        log_d(f'computed MAC tag:\n        {computed_mac_tag.hex()}')
 
     if action in (ENCRYPT, ENCRYPT_EMBED):  # Encryption actions
         fake_mac_tag: bytes = token_bytes(MAC_TAG_SIZE)
@@ -2617,7 +2617,7 @@ def handle_mac_tag(action: ActionID, mac_message_size: int) -> bool:
         if BOOL_D['set_fake_mac']:
             mac_tag: bytes = fake_mac_tag
         else:
-            mac_tag = calculated_mac_tag
+            mac_tag = computed_mac_tag
 
         if DEBUG:
             log_d(f'MAC tag to write:\n        {mac_tag.hex()}')
@@ -2646,17 +2646,17 @@ def handle_mac_tag(action: ActionID, mac_message_size: int) -> bool:
         if DEBUG:
             log_d(f'retrieved MAC tag:\n        {retrieved_mac_tag.hex()}')
 
-        # Compare the calculated MAC tag with the retrieved MAC tag
-        if compare_digest(calculated_mac_tag, retrieved_mac_tag):
+        # Compare the computed MAC tag with the retrieved MAC tag
+        if compare_digest(computed_mac_tag, retrieved_mac_tag):
             if DEBUG:
-                log_d('calculated_mac_tag is equal to retrieved_mac_tag')
+                log_d('computed MAC tag is equal to retrieved MAC tag')
 
             log_i('integrity/authenticity check:\n        [ OK ]')
         else:
             BOOL_D['auth_fail'] = True
 
             if DEBUG:
-                log_d('calculated_mac_tag is not equal to retrieved_mac_tag')
+                log_d('computed MAC tag is not equal to retrieved MAC tag')
 
             log_w('integrity/authenticity check:')
             log_w('\r        [FAIL]')
@@ -3099,7 +3099,7 @@ def encrypt_and_embed_handler(
        encryption/decryption and MAC authentication keys).
     2. Initialize the ChaCha20 nonce counter and the MAC hash object
        based on the current action.
-    3. Compute the appropriate padding size using the action type and
+    3. Calculate the appropriate padding size using the action type and
        provided parameters:
        - For encryption actions, determine the randomized padding based
          on the constant-padded size.
@@ -3792,7 +3792,7 @@ def embed_handler(action: ActionID, start_pos: int, message_size: int) -> bool:
         fsync_end_time: float = monotonic()
         log_i(f'synced in {round(fsync_end_time - fsync_start_time, 1)}s')
 
-    # Calculate the checksum of the written data
+    # Compute the checksum of the written data
     message_checksum: str = hash_obj.hexdigest()
 
     # Get the current position in the output container
