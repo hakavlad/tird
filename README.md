@@ -1,3 +1,4 @@
+
 <p align="left">
   <img src="https://raw.githubusercontent.com/hakavlad/tird/main/images/logo2.png" width="800" alt="Logo">
 </p>
@@ -50,7 +51,7 @@ With `tird`, you can:
 2. Overwrite the contents of block devices and regular files with random data. This can be used to prepare containers and to destroy residual data.
 3. Encrypt file contents and comments with modern cryptographic primitives. The encrypted data format (called cryptoblob) is a [padded uniform random blob (PURB)](https://en.wikipedia.org/wiki/PURB_(cryptography)): it looks like random data and has a randomized size. This reduces metadata leakage from file format and length, and also allows cryptoblobs to be hidden among random data. You can use keyfiles and passphrases at your choice to enhance security.
 4. Create [steganographic](https://en.wikipedia.org/wiki/Steganography) (hidden, undetectable) user-driven file systems inside container files and block devices. Unlike [VeraCrypt](https://veracrypt.fr) and [Shufflecake](https://shufflecake.net/) containers, `tird` containers do not contain headers at all; the user specifies the location of the data in the container and is responsible for ensuring that this location is separated from the container.
-5. Resist [coercive](https://en.wikipedia.org/wiki/Coercion) attacks (keywords: [key disclosure law](https://en.wikipedia.org/wiki/Key_disclosure_law), [rubber-hose cryptanalysis](https://en.wikipedia.org/wiki/Deniable_encryption), [xkcd 538](https://xkcd.com/538/)). `tird` provides some forms of [plausible deniability](https://en.wikipedia.org/wiki/Plausible_deniability) out of the box, even if you encrypt files without hiding them in containers.
+5. Prevent or resist [coercive](https://en.wikipedia.org/wiki/Coercion) attacks (keywords: [key disclosure law](https://en.wikipedia.org/wiki/Key_disclosure_law), [rubber-hose cryptanalysis](https://en.wikipedia.org/wiki/Deniable_encryption), [xkcd 538](https://xkcd.com/538/)). `tird` provides some forms of [plausible deniability](https://en.wikipedia.org/wiki/Plausible_deniability) out of the box, even if you encrypt files without hiding them in containers.
 
 ## Goals
 
@@ -62,6 +63,60 @@ With `tird`, you can:
   - Hiding encrypted data.
 - **Stable Format:** Ensuring a stable encryption format with no [cryptographic agility](https://en.wikipedia.org/wiki/Cryptographic_agility) for long-term data storage.
 - **Simplicity:** Ensuring simplicity and avoiding [feature creep](https://en.wikipedia.org/wiki/Feature_creep): refusal to implement features that are not directly related to primary security goals.
+
+## Payload
+
+Payload that will be encrypted during cryptoblob creation:
+
+- Contents of one file. It may be a regular file or an entire disk or partition. Maximum size: 16 EiB minus 864 B.
+- Comments (optional): an arbitrary string of up to 512 bytes. Decrypted comments will be displayed during decryption.
+
+Specifying the payload in the UI looks as follows:
+
+```
+D1. File to encrypt: foo
+    I: path: 'foo'; size: 1 B
+D2. Comments (optional, up to 512 B): foo file, secret data
+    I: comments will be shown as ['foo file, secret data']
+```
+
+## Input Keying Material
+
+`tird` provides the option to use passphrases and the contents of keyfiles to derive one-time keys.
+
+- **Keyfiles:** Specify none, one, or multiple keyfile paths. A keyfile path may be:
+  - A regular file. The contents of the keyfile will be hashed, and its digest will be used for further key stretching and key derivation.
+  - A block device. Handled the same as a regular keyfile: contents will be hashed.
+  - A directory. All files within the directory will be hashed and used as keyfiles.
+- **Passphrases:** Specify none, one, or multiple passphrases of up to 2048 bytes.
+
+The order of input does not matter.
+
+Specifying IKM in the UI looks as follows:
+
+```
+K1. Keyfile path (optional): foo
+    I: path: 'foo'; size: 1 B
+    I: reading and hashing contents of 'foo'
+    I: keyfile accepted
+K1. Keyfile path (optional):
+K2. Passphrase (optional):
+K2. Confirm passphrase:
+    I: passphrase accepted
+```
+
+## Low Observability and Minimizing Metadata
+
+|![](https://i.imgur.com/ArRAis1.jpeg)<br>Vs.<br>![](https://i.imgur.com/Oa3y3qg.jpeg)|
+|-|
+
+- PURB format:
+  - Encrypted files look like random data.
+  - Encrypted files have a randomized size: do not reveal the payload size.
+- Do not prove that the entered keys are incorrect.
+- Prompt-based CLI: no leakage of used options through shell history.
+- The output file path is user-defined and is not related to the input file path by default.
+- Optional: hiding encrypted data in containers.
 
 ## Cryptographic Primitives
 
@@ -81,32 +136,37 @@ The format of the encrypted data is quite simple and consists of ciphertext with
 +—————————————+————————————+—————————+—————————————+
 | Random data | Ciphertext | MAC tag | Random data |
 +—————————————+————————————+—————————+—————————————+
+|               Random-looking data                |
++——————————————————————————————————————————————————+
 ```
 
 <details>
   <summary>&nbsp;<b>Show more detailed scheme</b></summary>
 
 ```
-+————————————————————————————————————————+—————————+
-| Salt for key stretching (Argon2): 16 B |         |
-+————————————————————————————————————————+ Random  |
-| Randomized padding: 0-20% of the       | data    |
-| unpadded cryptoblob size by default    |         |
-+————————————————————————————————————————+—————————+
-| Ciphertext (ChaCha20): 512+ B,         |         |
-| consists of:                           |         |
-| - Encrypted padded/truncated           | Random- |
-|   comments, always 512 B               | looking |
-| - Encrypted payload file               | data    |
-|   contents, 0+ B                       |         |
-+————————————————————————————————————————+         |
-| Optional MAC tag (BLAKE2/random): 64 B |         |
-+————————————————————————————————————————+—————————+
-| Randomized padding: 0-20% of the       |         |
-| unpadded cryptoblob size by default    | Random  |
-+————————————————————————————————————————+ data    |
-| Salt for prehashing (BLAKE2): 16 B     |         |
-+————————————————————————————————————————+—————————+
++————————————————————————————————————————————————————+
+| CSPRNG output:                                     |
+|     Salt for key stretching used with Argon2, 16 B |
++————————————————————————————————————————————————————+
+| CSPRNG output:                                     |
+|     Randomized padding (header padding): 0-20% of  |
+|     the (unpadded size + 255 B) by default         |
++————————————————————————————————————————————————————+
+| ChaCha20 output:                                   |
+|     Ciphertext, 512+ B, consists of:               |
+|     - Encrypted padded/truncated comments, 512 B   |
+|     - Encrypted payload file contents, 0+ B        |
++————————————————————————————————————————————————————+
+| BLAKE2 or CSPRNG output:                           |
+|     Optional MAC tag, 64 B                         |
++————————————————————————————————————————————————————+
+| CSPRNG output:                                     |
+|     Randomized padding (footer padding): 0-20% of  |
+|     the (unpadded size + 255 B) by default         |
++————————————————————————————————————————————————————+
+| CSPRNG output:                                     |
+|     Salt for prehashing IKM used with BLAKE2, 16 B |
++————————————————————————————————————————————————————+
 ```
 
 </details>
