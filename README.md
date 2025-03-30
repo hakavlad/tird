@@ -107,8 +107,7 @@ K2. Confirm passphrase:
 
 ## Low Observability and Minimizing Metadata
 
-|![](https://i.imgur.com/ArRAis1.jpeg)<br>Vs.<br>![](https://i.imgur.com/Oa3y3qg.jpeg)|
-|-|
+<img src="https://i.imgur.com/nSJ0il6.jpeg" width="780" alt="">
 
 - PURB format:
   - Encrypted files look like random data.
@@ -257,6 +256,15 @@ Can we disprove the existence of this data? Yes, for example, by examining the e
 
 If you are interested in hiding data outside the visible file system, then `tird` is at your service to provide an Invisibility Cloak for your files.
 
+## Time-Lock Encryption
+
+<img src="https://i.imgur.com/uXNXq5Z.jpeg" width="300" alt="">
+
+```
+C1. Time cost (default=4): 1000000
+    I: time cost: 1,000,000
+```
+
 ## Usage
 
 You don't need to memorize command-line options to use `tird`. This tool features a prompt-based CLI: simply start it, select a menu option, and answer the questions that will follow.
@@ -342,9 +350,9 @@ Enabling debug messages additionally shows:
 
 > Crypto can help, but it won’t save you from misuse, vulnerabilities, social engineering, or physical threats.
 
-<p align="right"><i>— <a href="https://loup-vaillant.fr/articles/rolling-your-own-crypto">Loup Vaillant</a></i></p>
+<i>— <a href="https://loup-vaillant.fr/articles/rolling-your-own-crypto">Loup Vaillant</a></i>
 
-![DANGER MINES](https://i.imgur.com/JaMXwNV.jpeg)
+![DANGER MINES](https://i.imgur.com/AdVIKuY.jpeg)
 
 - ⚠️ The author does not have a background in cryptography.
 - ⚠️ The code has 0% test coverage.

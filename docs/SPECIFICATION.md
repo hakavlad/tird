@@ -108,7 +108,7 @@ argon2_salt || header_pad || ciphertext || (computed_mac_tag|fake_mac_tag) || fo
 
 `header_pad`:
 
-`ciphertext`
+`ciphertext`:
 
 `computed_mac_tag`:
 
@@ -327,7 +327,7 @@ mac_message = argon2_salt || blake2_salt || total_padded_size_bytes || header_pa
 ```
 
 ```
-calc_mac_tag = BLAKE2b-512(mac_message, key = mac_key)
+computed_mac_tag = BLAKE2b-512(mac_message, key = mac_key)
 ```
 
 ```
