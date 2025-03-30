@@ -108,6 +108,88 @@ def format_size(size: int) -> str:
     return formatted_size
 
 
+def short_format_size(size: int) -> str:
+    """
+    Converts a size in bytes to a human-readable string representation.
+
+    This function takes an integer representing a size in bytes and
+    converts it into a more readable format, displaying the size in
+    the appropriate unit (EiB, PiB, TiB, GiB, MiB, or KiB) depending on
+    the size. If the size is less than 1 KiB, it will be displayed in
+    bytes. The converted sizes are rounded to one decimal place for
+    clarity.
+
+    Args:
+        size (int): The size in bytes to be converted.
+
+    Returns:
+        str: A string representation of the size, including its
+             equivalent in EiB, PiB, TiB, GiB, MiB, or KiB, as
+             appropriate. If the size is less than 1 KiB, it will be
+             displayed in bytes.
+    """
+    formatted_size: str
+
+    if size >= E:
+        formatted_size = f'{round(size / E, 1)} EiB'
+    elif size >= P:
+        formatted_size = f'{round(size / P, 1)} PiB'
+    elif size >= T:
+        formatted_size = f'{round(size / T, 1)} TiB'
+    elif size >= G:
+        formatted_size = f'{round(size / G, 1)} GiB'
+    elif size >= M:
+        formatted_size = f'{round(size / M, 1)} MiB'
+    elif size >= K:
+        formatted_size = f'{round(size / K, 1)} KiB'
+    else:
+        formatted_size = f'{size:,} B'
+
+    return formatted_size
+
+
+def format_time(total_s: float) -> str:
+    """
+    Formats a given time in seconds into a more readable string format.
+
+    The output format will be:
+    - For less than 60 seconds: "Xs" (where X is seconds)
+    - For less than 3600 seconds (1 hour): "Xs (Ym Zs)" (where Y is
+      minutes and Z is seconds)
+    - For 1 hour or more: "Xs (Ah Bm Cs)" (where A is hours, B is
+      minutes, and C is seconds)
+
+    Args:
+        total_s (float): The time in seconds to be formatted.
+
+    Returns:
+        str: A string representing the time in seconds, along with its
+             equivalent in minutes and seconds, or hours, minutes, and
+             seconds, depending on the total duration. The seconds in
+             the output are rounded to one decimal place.
+    """
+    formatted_time: str
+
+    rounded_s: float = round(total_s, 1)
+
+    if total_s < 60:
+        formatted_time = f'{rounded_s}s'
+
+    elif total_s < 3600:
+        total_m: int = int(total_s // 60)
+        mod_s: float = round(total_s % 60, 1)
+        formatted_time = f'{rounded_s:,}s ({total_m}m {mod_s}s)'
+
+    else:
+        total_m = int(total_s // 60)
+        mod_s = round(total_s % 60, 1)
+        total_h: int = int(total_m // 60)
+        mod_m: int = int(total_m % 60)
+        formatted_time = f'{rounded_s:,}s ({total_h}h {mod_m}m {mod_s}s)'
+
+    return formatted_time
+
+
 def log_progress(total_data_size: int) -> None:
     """
     Logs the progress of a data writing operation.
@@ -147,7 +229,7 @@ def log_progress(total_data_size: int) -> None:
     percentage: float = INT_D['written_sum'] / total_data_size * 100
 
     # Format the amount of data written for logging
-    formatted_written: str = format_size(INT_D['written_sum'])
+    formatted_written: str = short_format_size(INT_D['written_sum'])
 
     if not elapsed_time:
         # Log progress without average speed if elapsed time is zero
@@ -155,15 +237,12 @@ def log_progress(total_data_size: int) -> None:
               f'{formatted_written} in 0.0s')
         return
 
-    # Round the elapsed time to one decimal place for logging
-    rounded_elapsed_time: float = round(elapsed_time, 1)
-
     # Calculate the average writing speed in MiB/s
     average_speed: float = round(INT_D['written_sum'] / M / elapsed_time, 1)
 
     # Log the detailed progress information
     log_i(f'written {round(percentage, 1)}%; '
-          f'{formatted_written} in {rounded_elapsed_time:,}s; '
+          f'{formatted_written} in {format_time(elapsed_time)}; '
           f'avg {average_speed:,} MiB/s')
 
 
@@ -2003,7 +2082,7 @@ def derive_keys() -> bool:
 
     end_time: float = monotonic()
 
-    log_i(f'keys derived in {round(end_time - start_time, 1)}s')
+    log_i(f'keys derived in {format_time(end_time - start_time)}')
 
     return True
 
@@ -3445,6 +3524,9 @@ def encrypt_and_embed_handler(
     if action in (DECRYPT, EXTRACT_DECRYPT):
         log_progress(out_data_size)
 
+        if out_data_size >= K:
+            log_i(f'written {out_data_size:,} B (100%)')
+
     # Handle the MAC tag for integrity/authenticity verification
     # ----------------------------------------------------------------------- #
 
@@ -3486,13 +3568,16 @@ def encrypt_and_embed_handler(
 
         log_progress(out_data_size)
 
+        if out_data_size >= K:
+            log_i(f'written {out_data_size:,} B (100%)')
+
     # Validate the total written size against the expected output size
     # ----------------------------------------------------------------------- #
 
     if INT_D['written_sum'] != out_data_size:
         written_sum: int = INT_D['written_sum']
-        log_e(f'written data size ({format_size(written_sum)}) does not '
-              f'equal expected size ({format_size(out_data_size)})')
+        log_e(f'written data size ({written_sum:,} B) does not '
+              f'equal expected size ({out_data_size:,} B)')
         return False
 
     # Synchronize data to disk if necessary
@@ -3774,11 +3859,14 @@ def embed_handler(action: ActionID, start_pos: int, message_size: int) -> bool:
     # Log the final progress after writing all data
     log_progress(message_size)
 
+    if message_size >= K:
+        log_i(f'written {message_size:,} B (100%)')
+
     # Validate the total written size against the expected output size
     if INT_D['written_sum'] != message_size:
         written_sum: int = INT_D['written_sum']
-        log_e(f'written data size ({format_size(written_sum)}) does not '
-              f'equal expected size ({format_size(message_size)})')
+        log_e(f'written data size ({written_sum:,} B) does not '
+              f'equal expected size ({message_size:,} B)')
         return False
 
     if action == EMBED:
@@ -3927,11 +4015,14 @@ def create_with_random_handler(out_file_size: int) -> bool:
     # Log the final progress after writing all data
     log_progress(out_file_size)
 
+    if out_file_size >= K:
+        log_i(f'written {out_file_size:,} B (100%)')
+
     # Validate the total written size against the expected output size
     if INT_D['written_sum'] != out_file_size:
         written_sum: int = INT_D['written_sum']
-        log_e(f'written data size ({format_size(written_sum)}) does not '
-              f'equal expected size ({format_size(out_file_size)})')
+        log_e(f'written data size ({written_sum:,} B) does not '
+              f'equal expected size ({out_file_size:,} B)')
         return False
 
     # Return True if all data was written successfully
@@ -4125,11 +4216,14 @@ def overwrite_with_random_handler(start_pos: int, data_size: int) -> bool:
     # Log the final progress after writing all data
     log_progress(data_size)
 
+    if data_size >= K:
+        log_i(f'written {data_size:,} B (100%)')
+
     # Validate the total written size against the expected output size
     if INT_D['written_sum'] != data_size:
         written_sum: int = INT_D['written_sum']
-        log_e(f'written data size ({format_size(written_sum)}) does not '
-              f'equal expected size ({format_size(data_size)})')
+        log_e(f'written data size ({written_sum:,} B) does not '
+              f'equal expected size ({data_size:,} B)')
         return False
 
     log_i('syncing output data to disk')
@@ -4200,6 +4294,7 @@ def file_chunk_handler(
     if monotonic() - \
             FLOAT_D['last_progress_time'] >= MIN_PROGRESS_INTERVAL:
         log_progress(out_data_size)
+
         FLOAT_D['last_progress_time'] = monotonic()
 
     # Update MAC with the encrypted chunk
