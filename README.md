@@ -70,10 +70,10 @@ With `tird`, you can:
 
 ## Payload
 
-Payload that will be encrypted during cryptoblob creation:
+The payload that will be encrypted during cryptoblob creation consists of:
 
-- Contents of one file. It may be a regular file or an entire disk or partition. Maximum size: 16 EiB minus 864 B.
-- Comments (optional): an arbitrary string of up to 512 bytes. Decrypted comments will be displayed during decryption.
+- **Contents of one file:** This may be a regular file or a block device (an entire disk or partition). Maximum size: 16 exbibytes minus 864 bytes.
+- **Comments (optional):** An arbitrary string of up to 512 bytes. Decrypted comments will be displayed during decryption.
 
 Specifying the payload in the UI looks as follows:
 
