@@ -264,10 +264,19 @@ If you are interested in hiding data outside the visible file system, then `tird
 
 <img src="https://i.imgur.com/uXNXq5Z.jpeg" width="300" alt="">
 
+Time-lock encryption (TLE) can be used to prevent an adversary from quickly accessing plaintexts in the event of an IKM compromise. In our implementation, it is actually a PoW-based time-lock key derivation. The "Time cost" input option specifies the number of Argon2 passes. If you specify a sufficiently high number of passes, it will take a significant amount of time to perform them. However, an attacker will require the same amount of time when using similar hardware. The execution of Argon2 cannot be accelerated through parallelization, so it is expected that the time spent by an attacker will be approximately the same as that spent by the defender.
+
+Use custom options and set the desired "Time cost" value:
+
 ```
+C0. Use custom settings? (Y/N, default=N): y
+    I: use custom settings: True
+    W: decryption will require the same [C1] and [C2] values!
 C1. Time cost (default=4): 1000000
     I: time cost: 1,000,000
 ```
+
+**Plausible TLE:** The adversary does not know the actual value of the time cost, so you can plausibly misrepresent the number of passes. The adversary cannot refute your claim until they attempt to decrypt the cryptoblob using the specified time cost value.
 
 ## Usage
 
