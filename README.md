@@ -18,26 +18,34 @@
 [![Codacy Security Scan](https://github.com/hakavlad/tird/actions/workflows/codacy.yml/badge.svg)](https://github.com/hakavlad/tird/actions/workflows/codacy.yml)
 
 <details>
-  <summary>&nbsp;<b>Contents</b></summary>
+  <summary>&nbsp;<b>Table of Contents</b></summary>
 
 > - [About](#about)
 > - [Goals](#goals)
-> - [Payload](#payload)
-> - [Input Keying Material](#input-keying-material)
-> - [Low Observability and Minimizing Metadata](#low-observability-and-minimizing-metadata)
-> - [Cryptographic Primitives](#cryptographic-primitives)
-> - [Encrypted Data Format](#encrypted-data-format)
-> - [Hidden File System and Container Format](#hidden-file-system-and-container-format)
-> - [Visualization of Embedding](#visualization-of-embedding)
-> - [Storing and Carrying Concealed Encrypted Data](#storing-and-carrying-concealed-encrypted-data)
-> - [Time-Lock Encryption](#time-lock-encryption)
+
 > - [Usage](#usage)
 > - [Input Options](#input-options)
 > - [Debug Mode](#debug-mode)
+
+> - [Payload](#payload)
+> - [Input Keying Material](#input-keying-material)
+
+> - [Cryptographic Primitives](#cryptographic-primitives)
+> - [Encrypted Data Format](#encrypted-data-format)
+
+> - [Low Observability and Minimizing Metadata](#low-observability-and-minimizing-metadata)
+
+> - [Hidden File System and Container Format](#hidden-file-system-and-container-format)
+> - [Storing and Carrying Concealed Encrypted Data](#storing-and-carrying-concealed-encrypted-data)
+
+> - [Time-Lock Encryption](#time-lock-encryption)
+
 > - [Tradeoffs and Limitations](#tradeoffs-and-limitations)
 > - [Warnings](#warnings)
+
 > - [Requirements](#requirements)
 > - [Installation](#installation)
+
 > - [TODO](#todo)
 > - [Feedback](#feedback)
 
@@ -67,216 +75,6 @@ With `tird`, you can:
   - Hiding encrypted data.
 - **Stable Format:** Ensuring a stable encryption format with no [cryptographic agility](https://en.wikipedia.org/wiki/Cryptographic_agility) for long-term data storage.
 - **Simplicity:** Ensuring simplicity and avoiding [feature creep](https://en.wikipedia.org/wiki/Feature_creep): refusal to implement features that are not directly related to primary security goals.
-
-## Payload
-
-The payload that will be encrypted during cryptoblob creation consists of:
-
-- **Contents of one file:** This may be a regular file or a block device (an entire disk or partition). Maximum size: 16 exbibytes minus 864 bytes.
-- **Comments (optional):** An arbitrary string of up to 512 bytes. Decrypted comments will be displayed during decryption.
-
-Specifying the payload in the UI looks as follows:
-
-```
-D1. File to encrypt: foo
-    I: path: 'foo'; size: 1 B
-D2. Comments (optional, up to 512 B): foo file, secret data
-    I: comments will be shown as ['foo file, secret data']
-```
-
-## Input Keying Material
-
-`tird` provides the option to use passphrases and the contents of keyfiles to derive one-time keys.
-
-- **Keyfiles:** Specify none, one, or multiple keyfile paths. A keyfile path may be:
-  - A regular file. The contents of the keyfile will be hashed, and its digest will be used for further key stretching and key derivation.
-  - A block device. Handled the same as a regular keyfile: contents will be hashed.
-  - A directory. All files within the directory will be hashed and used as keyfiles.
-- **Passphrases:** Specify none, one, or multiple passphrases of up to 2048 bytes.
-
-The order of input does not matter.
-
-Specifying IKM in the UI looks as follows:
-
-```
-K1. Keyfile path (optional): foo
-    I: path: 'foo'; size: 1 B
-    I: reading and hashing contents of 'foo'
-    I: keyfile accepted
-K1. Keyfile path (optional):
-K2. Passphrase (optional):
-K2. Confirm passphrase:
-    I: passphrase accepted
-```
-
-## Low Observability and Minimizing Metadata
-
-<img src="https://i.imgur.com/nSJ0il6.jpeg" width="780" alt="">
-
-- PURB format:
-  - Encrypted files look like random data.
-  - Encrypted files have a randomized size: do not reveal the payload size.
-- Do not prove that the entered keys are incorrect.
-- Prompt-based CLI: no leakage of used options through shell history.
-- The output file path is user-defined and is not related to the input file path by default.
-- Optional: hiding encrypted data in containers.
-
-## Cryptographic Primitives
-
-The following cryptographic primitives are utilized by `tird`:
-
-- `ChaCha20` cipher ([RFC 8439](https://www.rfc-editor.org/rfc/rfc8439.html)) for data encryption.
-- `BLAKE2` ([RFC 7693](https://www.rfc-editor.org/rfc/rfc7693.html)) for hashing and authentication.
-- `Argon2` memory-hard function ([RFC 9106](https://www.rfc-editor.org/rfc/rfc9106.html)) for key stretching and key derivation.
-
-For more details, refer to the [specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md).
-
-## Encrypted Data Format
-
-The format of the encrypted data is quite simple and consists of ciphertext with a MAC tag, located *somewhere* among the surrounding random data:
-
-```
-+—————————————+————————————+—————————+—————————————+
-| Random data | Ciphertext | MAC tag | Random data |
-+—————————————+————————————+—————————+—————————————+
-|               Random-looking data                |
-+——————————————————————————————————————————————————+
-```
-
-<details>
-  <summary>&nbsp;<b>Show more detailed scheme</b></summary>
-
-```
-+————————————————————————————————————————————————————+
-| CSPRNG output:                                     |
-|     Salt for key stretching used with Argon2, 16 B |
-+————————————————————————————————————————————————————+
-| CSPRNG output:                                     |
-|     Randomized padding (header padding): 0-20% of  |
-|     the (unpadded size + 255 B) by default         |
-+————————————————————————————————————————————————————+
-| ChaCha20 output:                                   |
-|     Ciphertext, 512+ B, consists of:               |
-|     - Encrypted padded/truncated comments, 512 B   |
-|     - Encrypted payload file contents, 0+ B        |
-+————————————————————————————————————————————————————+
-| BLAKE2 or CSPRNG output:                           |
-|     Optional MAC tag, 64 B                         |
-+————————————————————————————————————————————————————+
-| CSPRNG output:                                     |
-|     Randomized padding (footer padding): 0-20% of  |
-|     the (unpadded size + 255 B) by default         |
-+————————————————————————————————————————————————————+
-| CSPRNG output:                                     |
-|     Salt for prehashing IKM used with BLAKE2, 16 B |
-+————————————————————————————————————————————————————+
-```
-
-</details>
-
-Data encrypted with `tird` cannot be distinguished from random data without knowledge of the keys. It also does not contain identifiable headers. `tird` produces cryptoblobs that contain bilateral [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with uniform random data (PURBs). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data. Bilateral padding also conceals the exact location of the ciphertext and MAC tag within the cryptoblob.
-
-## Hidden File System and Container Format
-
-`tird` employs a technique that is [described](https://en.wikipedia.org/wiki/List_of_steganography_techniques#Digital) as follows:
-
-> Concealing data within encrypted data or within random data. The message to conceal is encrypted, then used to overwrite part of a much larger block of encrypted data or a block of random data (an unbreakable cipher like the one-time pad generates ciphertexts that look perfectly random without the private key).
-
-You can encrypt files and embed cryptoblobs into containers starting at arbitrary positions. After writing the cryptoblob, you will need to remember its location in the container (the starting and ending positions), which will be used later to extract the cryptoblobs. In this way, you can create a **hidden, headerless, user-driven file system** inside a container:
-
-- It is **hidden** because it is impossible to distinguish between random container data and cryptoblob data, as well as to determine the location of written cryptoblobs without knowing the positions and keys.
-- It is **headerless** because containers do not contain any headers; all data about cryptoblob locations must be stored separately by the user.
-- The starting position of the cryptoblob in the container is **user-defined**, and the **user must** store both the starting and ending positions separately from the container. This is why it is called a **user-driven file system**.
-
-Any file, disk, or partition larger than the minimum cryptonlob size (863 B) can be a valid container. Cryptoblobs can be embedded into any area.
-
-**Examples of Valid Containers Include:**
-
-1. Specially generated files with random data.
-2. `tird` cryptoblobs, as they contain unauthenticated padding of random data by default, which can be used to embed smaller cryptoblobs.
-3. Disk areas containing random data. For example, you can overwrite a disk with random data, format it in FAT32 or exFAT, and use a large portion of the disk, leaving a few dozen MB from the beginning. The disk will appear empty unless you add some files to it.
-4. [LUKS](https://en.wikipedia.org/wiki/Linux_Unified_Key_Setup) encrypted volumes.
-5. VeraCrypt containers, even those that already contain hidden volumes.
-
-**Example of Container Structure:**
-
-```
-+—————————+—————————————+ <— Position 0 of the container
-|         |             |
-|         | Random data |
-|         |             |
-|         +—————————————+ <— Cryptoblob1 start position
-| Header- |             |
-| less    | Cryptoblob1 |
-|         |             |
-| Layer   +—————————————+ <— Cryptoblob1 end position
-|         | Random data |
-| Cake    +—————————————+ <— Cryptoblob2 start position
-|         |             |
-|         | Cryptoblob2 |
-|         |             |
-|         +—————————————+ <— Cryptoblob2 end position
-|         | Random data |
-+—————————+—————————————+
-```
-
-## Visualization of Embedding
-
-The next image visualizes how hard it is to distinguish one random data entry from another and the process of embedding cryptoblobs in a container.
-
-<details>
-  <summary>&nbsp;<b>Show Images</b></summary>
-
-<br>
-
-*Empty container with random data:*
-<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/container.png" width="850" alt="Container">
-
-*One cryptoblob embedded in the container:*
-<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embed1.png" width="850" alt="Embedded1">
-
-*Two cryptoblobs embedded in the container:*
-<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embed2.png" width="850" alt="Embedded2">
-
-*Three cryptoblobs embedded in the container:*
-<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embed3.png" width="850" alt="Embedded3">
-
-*Animation: visualization of embedding:*
-<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embedding.gif" width="850" alt="GIF: visualization of embedding">
-
-</details>
-
-## Storing and Carrying Concealed Encrypted Data
-
-Please look at the following screenshot.
-
-<img src="https://i.imgur.com/2tpEhTw.png" width="839" alt="Screenshot">
-
-It looks like this 16 GB volume contains only one 8.7 MiB file. Is it really true? Maybe yes, maybe no.
-
-The file system tells us that there is only one file here. But is there really only one file on the volume? We cannot determine this using the file system. In fact, data may be located outside the file system and be undetectable by file system tools. The 15.2 GiB of space marked as free may be occupied by a hidden file system. This "free" space may be taken up by hidden encrypted data.
-
-Can we disprove the existence of this data? Yes, for example, by examining the entropy level of this free space using `binwalk`. Low entropy indicates a likely absence of hidden data. High entropy *does not*, *by itself*, prove the presence of encrypted hidden data. Areas with high entropy can be either just residual data or hidden encrypted data.
-
-If you are interested in hiding data outside the visible file system, then `tird` is at your service to provide an Invisibility Cloak for your files.
-
-## Time-Lock Encryption
-
-<img src="https://i.imgur.com/uXNXq5Z.jpeg" width="300" alt="">
-
-Time-lock encryption (TLE) can be used to prevent an adversary from quickly accessing plaintexts in the event of an IKM compromise. In our implementation, it is actually a PoW-based time-lock key derivation. The "Time cost" input option specifies the number of Argon2 passes. If you specify a sufficiently high number of passes, it will take a significant amount of time to perform them. However, an attacker will require the same amount of time when using similar hardware. The execution of Argon2 cannot be accelerated through parallelization, so it is expected that the time spent by an attacker will be approximately the same as that spent by the defender.
-
-Use custom options and set the desired "Time cost" value:
-
-```
-C0. Use custom settings? (Y/N, default=N): y
-    I: use custom settings: True
-    W: decryption will require the same [C1] and [C2] values!
-C1. Time cost (default=4): 1000000
-    I: time cost: 1,000,000
-```
-
-**Plausible TLE:** The adversary does not know the actual value of the time cost, so you can plausibly misrepresent the number of passes. The adversary cannot refute your claim until they attempt to decrypt the cryptoblob using the specified time cost value.
 
 ## Usage
 
@@ -342,6 +140,219 @@ Enabling debug messages additionally shows:
 - Byte strings related to cryptographic operations: salts, passphrases, digests, keys, nonces, and tags.
 - Some other information, including various sizes.
 
+## Payload
+
+The payload that will be encrypted during cryptoblob creation consists of:
+
+- **Contents of one file:** This may be a regular file or a block device (an entire disk or partition). Maximum size: 16 exbibytes minus 864 bytes.
+- **Comments (optional):** An arbitrary string of up to 512 bytes. Decrypted comments will be displayed during decryption.
+
+Specifying the payload in the UI looks as follows:
+
+```
+D1. File to encrypt: foo
+    I: path: 'foo'; size: 1 B
+D2. Comments (optional, up to 512 B): foo file, secret data
+    I: comments will be shown as ['foo file, secret data']
+```
+
+## Input Keying Material
+
+`tird` provides the option to use passphrases and the contents of keyfiles to derive one-time keys.
+
+- **Keyfiles:** Specify none, one, or multiple keyfile paths. A keyfile path may be:
+  - A regular file. The contents of the keyfile will be hashed, and its digest will be used for further key stretching and key derivation.
+  - A block device. Handled the same as a regular keyfile: contents will be hashed.
+  - A directory. All files within the directory will be hashed and used as keyfiles.
+- **Passphrases:** Specify none, one, or multiple passphrases of up to 2048 bytes.
+
+The order of input does not matter.
+
+Specifying IKM in the UI looks as follows:
+
+```
+K1. Keyfile path (optional): foo
+    I: path: 'foo'; size: 1 B
+    I: reading and hashing contents of 'foo'
+    I: keyfile accepted
+K1. Keyfile path (optional):
+K2. Passphrase (optional):
+K2. Confirm passphrase:
+    I: passphrase accepted
+```
+
+## Cryptographic Primitives
+
+The following cryptographic primitives are utilized by `tird`:
+
+- `ChaCha20` cipher ([RFC 8439](https://www.rfc-editor.org/rfc/rfc8439.html)) for data encryption.
+- `BLAKE2` ([RFC 7693](https://www.rfc-editor.org/rfc/rfc7693.html)) for hashing and authentication.
+- `Argon2` memory-hard function ([RFC 9106](https://www.rfc-editor.org/rfc/rfc9106.html)) for key stretching and key derivation.
+
+For more details, refer to the [specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md).
+
+## Encrypted Data Format
+
+The format of the encrypted data is quite simple and consists of ciphertext with a MAC tag, located *somewhere* among the surrounding random data:
+
+```
++—————————————+————————————+—————————+—————————————+
+| Random data | Ciphertext | MAC tag | Random data |
++—————————————+————————————+—————————+—————————————+
+|               Random-looking data                |
++——————————————————————————————————————————————————+
+```
+
+<details>
+  <summary>&nbsp;<b>Show more detailed scheme</b></summary>
+
+```
++————————————————————————————————————————————————————+
+| CSPRNG output:                                     |
+|     Salt for key stretching used with Argon2, 16 B |
++————————————————————————————————————————————————————+
+| CSPRNG output:                                     |
+|     Randomized padding (header padding): 0-20% of  |
+|     the (unpadded size + 255 B) by default         |
++————————————————————————————————————————————————————+
+| ChaCha20 output:                                   |
+|     Ciphertext, 512+ B, consists of:               |
+|     - Encrypted constant-padded comments, 512 B    |
+|     - Encrypted payload file contents, 0+ B        |
++————————————————————————————————————————————————————+
+| BLAKE2 or CSPRNG output:                           |
+|     MAC tag or Fake MAC tag, 64 B                  |
++————————————————————————————————————————————————————+
+| CSPRNG output:                                     |
+|     Randomized padding (footer padding): 0-20% of  |
+|     the (unpadded size + 255 B) by default         |
++————————————————————————————————————————————————————+
+| CSPRNG output:                                     |
+|     Salt for prehashing IKM used with BLAKE2, 16 B |
++————————————————————————————————————————————————————+
+```
+
+</details>
+
+Data encrypted with `tird` cannot be distinguished from random data without knowledge of the keys. It also does not contain identifiable headers. `tird` produces cryptoblobs that contain bilateral [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with uniform random data (PURBs). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data. Bilateral padding also conceals the exact location of the ciphertext and MAC tag within the cryptoblob.
+
+## Low Observability and Minimizing Metadata
+
+|![](https://i.imgur.com/ArRAis1.jpeg)<br>Vs.<br>![](https://i.imgur.com/Oa3y3qg.jpeg)|
+|-|
+
+- PURB format:
+  - Encrypted files look like random data.
+  - Encrypted files have a randomized size: do not reveal the payload size.
+- Do not prove that the entered keys are incorrect.
+- Prompt-based CLI: no leakage of used options through shell history.
+- The output file path is user-defined and is not related to the input file path by default.
+- Optional: hiding encrypted data in containers.
+
+## Hidden File System and Container Format
+
+`tird` employs a technique that is [described](https://en.wikipedia.org/wiki/List_of_steganography_techniques#Digital) as follows:
+
+> Concealing data within encrypted data or within random data. The message to conceal is encrypted, then used to overwrite part of a much larger block of encrypted data or a block of random data (an unbreakable cipher like the one-time pad generates ciphertexts that look perfectly random without the private key).
+
+You can encrypt files and embed cryptoblobs into containers starting at arbitrary positions. After writing the cryptoblob, you will need to remember its location in the container (the starting and ending positions), which will be used later to extract the cryptoblobs. In this way, you can create a **hidden, headerless, user-driven file system** inside a container:
+
+- It is **hidden** because it is impossible to distinguish between random container data and cryptoblob data, as well as to determine the location of written cryptoblobs without knowing the positions and keys.
+- It is **headerless** because containers do not contain any headers; all data about cryptoblob locations must be stored separately by the user.
+- The starting position of the cryptoblob in the container is **user-defined**, and the **user must** store both the starting and ending positions separately from the container. This is why it is called a **user-driven file system**.
+
+Any file, disk, or partition larger than the minimum cryptonlob size (863 B) can be a valid container. Cryptoblobs can be embedded into any area.
+
+**Examples of Valid Containers Include:**
+
+1. Specially generated files with random data.
+2. `tird` cryptoblobs, as they contain unauthenticated padding of random data by default, which can be used to embed smaller cryptoblobs.
+3. Disk areas containing random data. For example, you can overwrite a disk with random data, format it in FAT32 or exFAT, and use a large portion of the disk, leaving a few dozen MB from the beginning. The disk will appear empty unless you add some files to it.
+4. [LUKS](https://en.wikipedia.org/wiki/Linux_Unified_Key_Setup) encrypted volumes.
+5. VeraCrypt containers, even those that already contain hidden volumes.
+
+**Example of Container Structure:**
+
+```
++—————————+—————————————+ <— Position 0 of the container
+|         |             |
+|         | Random data |
+|         |             |
+|         +—————————————+ <— Cryptoblob1 start position
+| Header- |             |
+| less    | Cryptoblob1 |
+|         |             |
+| Layer   +—————————————+ <— Cryptoblob1 end position
+|         | Random data |
+| Cake    +—————————————+ <— Cryptoblob2 start position
+|         |             |
+|         | Cryptoblob2 |
+|         |             |
+|         +—————————————+ <— Cryptoblob2 end position
+|         | Random data |
++—————————+—————————————+
+```
+
+#### Visualization of Embedding
+
+The next image visualizes how hard it is to distinguish one random data entry from another and the process of embedding cryptoblobs in a container.
+
+<details>
+  <summary>&nbsp;<b>Show Images</b></summary>
+
+<br>
+
+*Empty container with random data:*
+<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/container.png" width="850" alt="Container">
+
+*One cryptoblob embedded in the container:*
+<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embed1.png" width="850" alt="Embedded1">
+
+*Two cryptoblobs embedded in the container:*
+<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embed2.png" width="850" alt="Embedded2">
+
+*Three cryptoblobs embedded in the container:*
+<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embed3.png" width="850" alt="Embedded3">
+
+*Animation: visualization of embedding:*
+<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embedding.gif" width="850" alt="GIF: visualization of embedding">
+
+</details>
+
+## Storing and Carrying Concealed Encrypted Data
+
+Please look at the following screenshot.
+
+<img src="https://i.imgur.com/2tpEhTw.png" width="839" alt="Screenshot">
+
+It looks like this 16 GB volume contains only one 8.7 MiB file. Is it really true? Maybe yes, maybe no.
+
+The file system tells us that there is only one file here. But is there really only one file on the volume? We cannot determine this using the file system. In fact, data may be located outside the file system and be undetectable by file system tools. The 15.2 GiB of space marked as free may be occupied by a hidden file system. This "free" space may be taken up by hidden encrypted data.
+
+Can we disprove the existence of this data? Yes, for example, by examining the entropy level of this free space using `binwalk`. Low entropy indicates a likely absence of hidden data. High entropy *does not*, *by itself*, prove the presence of encrypted hidden data. Areas with high entropy can be either just residual data or hidden encrypted data.
+
+If you are interested in hiding data outside the visible file system, then `tird` is at your service to provide an Invisibility Cloak for your files.
+
+## Time-Lock Encryption
+
+<img src="https://i.imgur.com/uXNXq5Z.jpeg" width="300" alt="">
+
+Time-lock encryption (TLE) can be used to prevent an adversary from quickly accessing plaintexts in the event of an IKM compromise (in case of user coercion, for example). In our implementation, it is actually a PoW-based time-lock key derivation. The "Time cost" input option specifies the number of Argon2 passes. If you specify a sufficiently high number of passes, it will take a significant amount of time to perform them. However, an attacker will require the same amount of time when using similar hardware. The execution of Argon2 cannot be accelerated through parallelization, so it is expected that the time spent by an attacker will be approximately the same as that spent by the defender.
+
+This TLE implementation works offline, unlike [tlock](https://github.com/drand/tlock).
+
+Use custom options and set the desired "Time cost" value:
+
+```
+C0. Use custom settings? (Y/N, default=N): y
+    I: use custom settings: True
+    W: decryption will require the same [C1] and [C2] values!
+C1. Time cost (default=4): 1000000
+    I: time cost: 1,000,000
+```
+
+**Plausible TLE:** The adversary does not know the actual value of the time cost, so you can plausibly misrepresent the number of passes. The adversary cannot refute your claim until they attempt to decrypt the cryptoblob using the specified time cost value.
+
 ## Tradeoffs and Limitations
 
 - `tird` does not support:
@@ -365,7 +376,7 @@ Enabling debug messages additionally shows:
 
 <i>— <a href="https://loup-vaillant.fr/articles/rolling-your-own-crypto">Loup Vaillant</a></i>
 
-![DANGER MINES](https://i.imgur.com/AdVIKuY.jpeg)
+<img src="https://i.imgur.com/g84qgw8.jpeg" width="600" alt="DANGER MINES">
 
 - ⚠️ The author does not have a background in cryptography.
 - ⚠️ The code has 0% test coverage.

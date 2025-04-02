@@ -85,11 +85,11 @@ Cryptoblob structure:
 +————————————————————————————————————————————————————+
 | ChaCha20 output:                                   |
 |     Ciphertext, 512+ B, consists of:               |
-|     - Encrypted padded/truncated comments, 512 B   |
+|     - Encrypted constant-padded comments, 512 B    |
 |     - Encrypted payload file contents, 0+ B        |
 +————————————————————————————————————————————————————+
 | BLAKE2 or CSPRNG output:                           |
-|     Optional MAC tag, 64 B                         |
+|     MAC tag or Fake MAC tag, 64 B                  |
 +————————————————————————————————————————————————————+
 | CSPRNG output:                                     |
 |     Randomized padding (footer padding): 0-20% of  |
