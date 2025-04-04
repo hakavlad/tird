@@ -65,6 +65,8 @@ With `tird`, you can:
 4. Create [steganographic](https://en.wikipedia.org/wiki/Steganography) (hidden, undetectable) user-driven file systems inside container files and block devices. Unlike [VeraCrypt](https://veracrypt.fr) and [Shufflecake](https://shufflecake.net/) containers, `tird` containers do not contain headers at all; the user specifies the location of the data in the container and is responsible for ensuring that this location is separated from the container.
 5. Prevent or resist [coercive](https://en.wikipedia.org/wiki/Coercion) attacks (keywords: [key disclosure law](https://en.wikipedia.org/wiki/Key_disclosure_law), [rubber-hose cryptanalysis](https://en.wikipedia.org/wiki/Deniable_encryption), [xkcd 538](https://xkcd.com/538/)). `tird` provides some forms of [plausible deniability](https://en.wikipedia.org/wiki/Plausible_deniability) out of the box, even if you encrypt files without hiding them in containers.
 
+The author pronounces `tird` as `/tɪrd/` (where `/tɪrd/` sounds like `тирд` in Russian).
+
 ## Goals
 
 - **File Protection:** Ensuring protection for individual files, including:
@@ -96,7 +98,7 @@ A0. Select an option [0-9]:
 
 ## Input Options
 
-There are 5 groups of input options. They are numbered for ease of description.
+There are 5 groups of input options: A (Action), C (Custom), D (Data), K (Keys), P (Proceed). They are numbered for ease of description.
 
 ```
 +——————————————————————————+————————————————————————+
@@ -238,6 +240,10 @@ Data encrypted with `tird` cannot be distinguished from random data without know
 
 ## Low Observability and Minimizing Metadata
 
+> While the content of an encrypted message is protected, its size, its provenance, its destination… are not. Data is hidden, metadata is shown.
+
+<i>— <a href="https://loup-vaillant.fr/articles/rolling-your-own-crypto">Loup Vaillant</a></i>
+
 |![](https://i.imgur.com/ArRAis1.jpeg)<br>Vs.<br>![](https://i.imgur.com/Oa3y3qg.jpeg)|
 |-|
 
@@ -335,7 +341,7 @@ If you are interested in hiding data outside the visible file system, then `tird
 
 ## Time-Lock Encryption
 
-<img src="https://i.imgur.com/uXNXq5Z.jpeg" width="300" alt="">
+<img src="https://i.imgur.com/uXNXq5Z.jpeg" width="300" alt="TLE image">
 
 Time-lock encryption (TLE) can be used to prevent an adversary from quickly accessing plaintexts in the event of an IKM compromise (in case of user coercion, for example). In our implementation, it is actually a PoW-based time-lock key derivation. The "Time cost" input option specifies the number of Argon2 passes. If you specify a sufficiently high number of passes, it will take a significant amount of time to perform them. However, an attacker will require the same amount of time when using similar hardware. The execution of Argon2 cannot be accelerated through parallelization, so it is expected that the time spent by an attacker will be approximately the same as that spent by the defender.
 
