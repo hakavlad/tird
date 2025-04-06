@@ -49,9 +49,6 @@ There are 5 groups of input options: A (Action), C (Custom), D (Data), K (Keys),
 
 ---
 
-
-
-
 ## A0. Select an option
 
 **Data type:** `int`
@@ -200,7 +197,6 @@ A0. Select an option [0-9]: 2
 
 
 
-
 ## C0. Use custom settings?
 
 **Used in:** Actions `2`|`3`|`6`|`7`
@@ -216,17 +212,11 @@ A0. Select an option [0-9]: 2
 <details>
   <summary>&nbsp;<b>Show Examples</b></summary>
 
-
-
-
-
 Context: actions `2`|`3`|`6`|`7` with default value:
 ```
 C0. Use custom settings? (Y/N, default=N):
     I: use custom settings: False
 ```
-
-
 
 Context: `2`|`3`|`6`|`7` with default value with debug messages enabled:
 ```
@@ -236,8 +226,6 @@ C0. Use custom settings? (Y/N, default=N):
     D: max padding size, %: 20
     D: set fake MAC tag: False
 ```
-
-
 
 
 
@@ -265,12 +253,6 @@ C0. Use custom settings? (Y/N, default=N): y
 
 
 
-
-
-
-
-
-
 ## C1. Time cost
 
 **Used in:** Actions `2`|`3`|`6`|`7`
@@ -285,11 +267,6 @@ C0. Use custom settings? (Y/N, default=N): y
 
 <details>
   <summary>&nbsp;<b>Show Examples</b></summary>
-
-
-
-
-
 
 Context: actions `2`|`3`|`6`|`7` with default value:
 ```
@@ -312,7 +289,6 @@ C1. Time cost (default=4): 1000
 
 
 
-
 ## C2. Max padding size
 
 **Used in:** Actions `2`|`3`|`6`|`7`
@@ -327,13 +303,6 @@ C1. Time cost (default=4): 1000
 
 <details>
   <summary>&nbsp;<b>Show Examples</b></summary>
-
-
-
-
-
-
-
 
 Context: actions `2`|`3`|`6`|`7` with default value:
 ```
@@ -357,7 +326,6 @@ C2. Max padding size, % (default=20): 1000
 
 
 
-
 ## C3. Set fake MAC tag?
 
 **Used in:** Actions `2`|`6`
@@ -372,13 +340,6 @@ C2. Max padding size, % (default=20): 1000
 
 <details>
   <summary>&nbsp;<b>Show Examples</b></summary>
-
-
-
-
-
-
-
 
 Context: actions `2`|`6` with default value:
 ```
@@ -402,9 +363,6 @@ C3. Set fake MAC tag? (Y/N, default=N): 1
 
 
 
-
-
-
 ## D1. Input file path
 
 **Used in:** Actions `2`-`7`
@@ -420,10 +378,6 @@ C3. Set fake MAC tag? (Y/N, default=N): 1
 <details>
   <summary>&nbsp;<b>Show Examples</b></summary>
 
-
-
-
-
 Context: action `2`:
 ```
 D1. File to encrypt: secret.zip
@@ -435,13 +389,12 @@ Context: action `2` with debug messages enabled:
 D1. File to encrypt: secret.zip
     D: real path: '/tmpfs/test/secret.zip'
     D: opening file 'secret.zip' in mode 'rb'
-    D: opened file (object): <_io.BufferedReader name='secret.zip'>
+    D: opened file object: <_io.BufferedReader name='secret.zip'>
     I: path: 'secret.zip'; size: 19,356,207 B (18.5 MiB)
     D: constant_padded_size:     19,357,070 B (18.5 MiB)
     D: max_randomized_pad_size:  3,871,414 B (3.7 MiB)
     D: max_total_padded_size:    23,228,484 B (22.2 MiB)
 ```
-
 
 
 Context: action `3`:
@@ -455,11 +408,9 @@ Context: action `3` with debug messages enabled:
 D1. File to decrypt: file.bin
     D: real path: '/tmpfs/test/file.bin'
     D: opening file 'file.bin' in mode 'rb'
-    D: opened file (object): <_io.BufferedReader name='file.bin'>
+    D: opened file object: <_io.BufferedReader name='file.bin'>
     I: path: 'file.bin'; size: 32,973,056 B (31.4 MiB)
 ```
-
-
 
 
 Context: action `4`:
@@ -473,12 +424,9 @@ Context: action `4` with debug messages enabled:
 D1. File to embed: file.bin
     D: real path: '/tmpfs/test/file.bin'
     D: opening file 'file.bin' in mode 'rb'
-    D: opened file (object): <_io.BufferedReader name='file.bin'>
+    D: opened file object: <_io.BufferedReader name='file.bin'>
     I: path: 'file.bin'; size: 32,973,056 B (31.4 MiB)
 ```
-
-
-
 
 
 Context: actions `5`|`7`:
@@ -492,12 +440,9 @@ Context: actions `5`|`7` with debug messages enabled:
 D1. Container: file.bin
     D: real path: '/tmpfs/test/file.bin'
     D: opening file 'file.bin' in mode 'rb'
-    D: opened file (object): <_io.BufferedReader name='file.bin'>
+    D: opened file object: <_io.BufferedReader name='file.bin'>
     I: path: 'file.bin'; size: 32,973,056 B (31.4 MiB)
 ```
-
-
-
 
 
 Context: action `6`:
@@ -506,14 +451,12 @@ D1. File to encrypt and embed: file.bin
     I: path: 'file.bin'; size: 32,973,056 B (31.4 MiB)
 ```
 
-
-
 Context: action `6` with debug messages enabled:
 ```
 D1. File to encrypt and embed: file.bin
     D: real path: '/tmpfs/test/file.bin'
     D: opening file 'file.bin' in mode 'rb'
-    D: opened file (object): <_io.BufferedReader name='file.bin'>
+    D: opened file object: <_io.BufferedReader name='file.bin'>
     I: path: 'file.bin'; size: 32,973,056 B (31.4 MiB)
     D: constant_padded_size:     32,973,919 B (31.4 MiB)
     D: max_randomized_pad_size:  6,594,783 B (6.3 MiB)
@@ -523,13 +466,6 @@ D1. File to encrypt and embed: file.bin
 </details>
 
 ---
-
-
-
-
-
-
-
 
 
 
@@ -552,14 +488,6 @@ D1. File to encrypt and embed: file.bin
 <details>
   <summary>&nbsp;<b>Show Examples</b></summary>
 
-
-
-
-
-
-
-
-
 Comments are not specified (by default):
 ```
 D2. Comments (optional, up to 512 B):
@@ -573,12 +501,6 @@ D2. Comments (optional, up to 512 B):
     D: processed_comments: [b'\x7f\xb0?\xf61\xb0\xbe\x96\xed\xecdVs@\x8f\xefq\x01\x1e\xe6r\x88\x08\xa0\x12\x13\xc3\xe2\x87\n_\xdb-\xd0\xbe\x19b\x18h&Y\xd3F\xaf\xb2\xe0\xbd\x9d\xa5R\xd9Pc\x19O\x1dd\xeaO\xcc\xc4\xf6I\xc3\xcb~\x02\xe8\x81\xda\xb0\x15\xb8/\xf2\xed\xf2Jy.\xcbho\xba\x1d5\x8d\x88S\x83\xf2\xef\x14\xd5\xca\x04P\n/\x95>z3\x8c\xaa\xee\x99\x84\x84\x15~A\x90\xea\xae\xfb\x8dq\xa3\x0cix\t\x7f\xdc}`\xcc\x89\x06\xfe\xda\x1b\xba3\x07\xe8\x1e\x84\xd5O\xbb\xaaB\xad\xf2|\xf1/\xb9\xe8V\x04}s\xb5\x97\x8f\xd1l`\xa2\x03\xe0\x06\xfd\xf8\xb5$X\x08"g\x85s\xf0\xf66++u\x1dT"\xc6V-\xf9\xde\x0c"\xe3\xc0\xc7\xcb\n\x0c\x98\xa1\xa6.\xf7\xbb\xd8\xebR\x84\xcd\xe3\x14\xf5\x0e\x19\x97\xbamJx\x97\xd47\x0f\x10+z\xe3\xb2Q\xf9|f\x06(\xee\x84\xa5g\x85UJY?\xdf\xaa\xd6\xad\xc2BP/\xe4jj\xb5g$d K\xdf\x01\xb5\xfe\xd2\xb88F\x9f\x9b\x94\xfdM\xb3\xa5\xb7\x87\xbf\xff\xa2T)\x80\xe9\xd6\\\x86R_\xcf\xc0g\x80b\x81\xa9\x87\x90\x85\x8c"#\xd5\xa17v\'\xb9\td`^\xc1o\x80\'\xc0*\x15\x02\xe9d\xa0\xcb\xea\x06\x03`\x0c\x82g\xd6\xa7\x91\x13}\x98\x08\x7f\xf3\xfci\x8aV\t\xdc\xe4MS\x18\x17\xb9\xd1\xf6T\xfd\xbbXpF\x89L\x8b\x05\x86.\xc8\xc6\x8f\xce\xb9\xa5}o\x8e\xcc\xc1\x1f\xd3!\x88S\xd6\xf8W\x03\xe3\xed\xd7\x1d\x1fw\xbf\xdb\xd11YZ\xe7\xf8\x9e`~\x15/\x03\xe4a\xa3\xee\xb1{\xd1\xd2\xef\xb2\x04\xb3U\xb9\xf3\xc5\xd7\x85\xf8e\xe7\x0f\xaa\xe4 \xf5\x9b\x89P\xfc\x05\x16\xcdTK\x95\xc1\xd0\r\xe1C@\x02/\xfdb}m\xb8f^]\x84M\xf1\x1b\x01\xccH\xcb\x9d\xcc:m\x9c\xe3\xb9\xddL\xbb;\xc7\xea\xfb.\'\x06\x150bhe\x06FF\x1b\xf6\xdd\xa1\x84_\xc13\xd95h\x0c\xab\xc4\xfc\x84\xbf\x18g\x9a\x1af'], size: 512 B
     I: comments will be shown as [None]
 ```
-
-
-
-
-
-
 
 
 
@@ -600,33 +522,25 @@ D2. Comments (optional, up to 512 B): zip archive with some secret data
 
 
 
-
-
-
-
-
-
-
 Comments longer than 512 bytes:
 ```
-D2. Comments (optional, up to 512 B): An implementation reference for ChaCha20 has been published in RFC 7539. The IETF's implementation modified Bernstein's published algorithm by changing the 64-bit nonce and 64-bit block counter to a 96-bit nonce and 32-bit block counter.[46] The name was not changed when the algorithm was modified, as it is cryptographically insignificant (both form what a cryptographer would recognize as a 128-bit nonce), but the interface change could be a source of confusion for developers. Because of the reduced block counter, the maximum message length that can be safely encrypted by the IETF's variant is 232 blocks of 64 bytes (256 GiB). For applications where this is not enough, such as file or disk encryption, RFC 7539 proposes using the original algorithm with 64-bit nonce.
-    W: comments size: 776 B; it will be truncated!
-    I: comments will be shown as ["An implementation reference for ChaCha20 has been published in RFC 7539. The IETF's implementation modified Bernstein's published algorithm by changing the 64-bit nonce and 64-bit block counter to a 96-bit nonce and 32-bit block counter.[46] The name was not changed when the algorithm was modified, as it is cryptographically insignificant (both form what a cryptographer would recognize as a 128-bit nonce), but the interface change could be a source of confusion for developers. Because of the reduced block c"]
+D2. Comments (optional, up to 512 B): Argon2 erzeugt einen großen Vektor im Arbeitsspeicher, der als Matrix aufgebaut ist, um eine synchronisierte Parallelität zu ermöglichen. Die Zugriffe auf den Vektor stellen sicher, dass nur zugunsten einer sehr viel längeren Laufzeit darauf verzichtet werden kann, diesen Vektor vollständig im Arbeitsspeicher zu halten. Es wird somit verhindert, dass der Algorithmus durch spezialisierte Hardware (ASICs und andere), die über geringe Arbeitsspeicher verfügen, wesentlich schneller ausgeführt werden kann, als auf einem PC oder Server. Dazu berechnet die indexing function die Indices des Vektors, auf die zugegriffen wird. Sie ist im Falle von Argon2i unabhängig von Passwort und Salt, dafür jedoch langsamer als Argon2d und kann daher in der gleichen Zeit nur einen kleineren Vektor berechnen.
+    W: comments size: 806 B; it will be truncated!
+    I: comments will be shown as ['Argon2 erzeugt einen großen Vektor im Arbeitsspeicher, der als Matrix aufgebaut ist, um eine synchronisierte Parallelität zu ermöglichen. Die Zugriffe auf den Vektor stellen sicher, dass nur zugunsten einer sehr viel längeren Laufzeit darauf verzichtet werden kann, diesen Vektor vollständig im Arbeitsspeicher zu halten. Es wird somit verhindert, dass der Algorithmus durch spezialisierte Hardware (ASICs und andere), die über geringe Arbeitsspeicher verfügen, wesentlich schneller ausgeführt werden kan']
 ```
 
 Comments longer than 512 bytes with debug messages enabled:
 ```
-D2. Comments (optional, up to 512 B): An implementation reference for ChaCha20 has been published in RFC 7539. The IETF's implementation modified Bernstein's published algorithm by changing the 64-bit nonce and 64-bit block counter to a 96-bit nonce and 32-bit block counter.[46] The name was not changed when the algorithm was modified, as it is cryptographically insignificant (both form what a cryptographer would recognize as a 128-bit nonce), but the interface change could be a source of confusion for developers. Because of the reduced block counter, the maximum message length that can be safely encrypted by the IETF's variant is 232 blocks of 64 bytes (256 GiB). For applications where this is not enough, such as file or disk encryption, RFC 7539 proposes using the original algorithm with 64-bit nonce.
-    W: comments size: 776 B; it will be truncated!
-    D: raw_comments: ["An implementation reference for ChaCha20 has been published in RFC 7539. The IETF's implementation modified Bernstein's published algorithm by changing the 64-bit nonce and 64-bit block counter to a 96-bit nonce and 32-bit block counter.[46] The name was not changed when the algorithm was modified, as it is cryptographically insignificant (both form what a cryptographer would recognize as a 128-bit nonce), but the interface change could be a source of confusion for developers. Because of the reduced block counter, the maximum message length that can be safely encrypted by the IETF's variant is 232 blocks of 64 bytes (256 GiB). For applications where this is not enough, such as file or disk encryption, RFC 7539 proposes using the original algorithm with 64-bit nonce."], size: 776 B
-    D: processed_comments: [b"An implementation reference for ChaCha20 has been published in RFC 7539. The IETF's implementation modified Bernstein's published algorithm by changing the 64-bit nonce and 64-bit block counter to a 96-bit nonce and 32-bit block counter.[46] The name was not changed when the algorithm was modified, as it is cryptographically insignificant (both form what a cryptographer would recognize as a 128-bit nonce), but the interface change could be a source of confusion for developers. Because of the reduced block c"], size: 512 B
-    I: comments will be shown as ["An implementation reference for ChaCha20 has been published in RFC 7539. The IETF's implementation modified Bernstein's published algorithm by changing the 64-bit nonce and 64-bit block counter to a 96-bit nonce and 32-bit block counter.[46] The name was not changed when the algorithm was modified, as it is cryptographically insignificant (both form what a cryptographer would recognize as a 128-bit nonce), but the interface change could be a source of confusion for developers. Because of the reduced block c"]
+D2. Comments (optional, up to 512 B): Argon2 erzeugt einen großen Vektor im Arbeitsspeicher, der als Matrix aufgebaut ist, um eine synchronisierte Parallelität zu ermöglichen. Die Zugriffe auf den Vektor stellen sicher, dass nur zugunsten einer sehr viel längeren Laufzeit darauf verzichtet werden kann, diesen Vektor vollständig im Arbeitsspeicher zu halten. Es wird somit verhindert, dass der Algorithmus durch spezialisierte Hardware (ASICs und andere), die über geringe Arbeitsspeicher verfügen, wesentlich schneller ausgeführt werden kann, als auf einem PC oder Server. Dazu berechnet die indexing function die Indices des Vektors, auf die zugegriffen wird. Sie ist im Falle von Argon2i unabhängig von Passwort und Salt, dafür jedoch langsamer als Argon2d und kann daher in der gleichen Zeit nur einen kleineren Vektor berechnen.
+    W: comments size: 806 B; it will be truncated!
+    D: raw_comments: ['Argon2 erzeugt einen großen Vektor im Arbeitsspeicher, der als Matrix aufgebaut ist, um eine synchronisierte Parallelität zu ermöglichen. Die Zugriffe auf den Vektor stellen sicher, dass nur zugunsten einer sehr viel längeren Laufzeit darauf verzichtet werden kann, diesen Vektor vollständig im Arbeitsspeicher zu halten. Es wird somit verhindert, dass der Algorithmus durch spezialisierte Hardware (ASICs und andere), die über geringe Arbeitsspeicher verfügen, wesentlich schneller ausgeführt werden kann, als auf einem PC oder Server. Dazu berechnet die indexing function die Indices des Vektors, auf die zugegriffen wird. Sie ist im Falle von Argon2i unabhängig von Passwort und Salt, dafür jedoch langsamer als Argon2d und kann daher in der gleichen Zeit nur einen kleineren Vektor berechnen.'], size: 806 B
+    D: processed_comments: [b'Argon2 erzeugt einen gro\xc3\x9fen Vektor im Arbeitsspeicher, der als Matrix aufgebaut ist, um eine synchronisierte Parallelit\xc3\xa4t zu erm\xc3\xb6glichen. Die Zugriffe auf den Vektor stellen sicher, dass nur zugunsten einer sehr viel l\xc3\xa4ngeren Laufzeit darauf verzichtet werden kann, diesen Vektor vollst\xc3\xa4ndig im Arbeitsspeicher zu halten. Es wird somit verhindert, dass der Algorithmus durch spezialisierte Hardware (ASICs und andere), die \xc3\xbcber geringe Arbeitsspeicher verf\xc3\xbcgen, wesentlich schneller ausgef\xc3\xbchrt werden kan'], size: 512 B
+    I: comments will be shown as ['Argon2 erzeugt einen großen Vektor im Arbeitsspeicher, der als Matrix aufgebaut ist, um eine synchronisierte Parallelität zu ermöglichen. Die Zugriffe auf den Vektor stellen sicher, dass nur zugunsten einer sehr viel längeren Laufzeit darauf verzichtet werden kann, diesen Vektor vollständig im Arbeitsspeicher zu halten. Es wird somit verhindert, dass der Algorithmus durch spezialisierte Hardware (ASICs und andere), die über geringe Arbeitsspeicher verfügen, wesentlich schneller ausgeführt werden kan']
 ```
 
 </details>
 
 ---
-
 
 
 
@@ -649,9 +563,6 @@ D2. Comments (optional, up to 512 B): An implementation reference for ChaCha20 h
 <details>
   <summary>&nbsp;<b>Show Examples</b></summary>
 
-
-
-
 Context: action `2`:
 ```
 D3. Output (encrypted) file: random.bin
@@ -663,10 +574,9 @@ Context: action `2` with debug messages enabled:
 D3. Output (encrypted) file: random.bin
     D: real path: '/tmpfs/test/random.bin'
     D: opening file 'random.bin' in mode 'wb'
-    D: opened file (object): <_io.BufferedWriter name='random.bin'>
+    D: opened file object: <_io.BufferedWriter name='random.bin'>
     I: new empty file 'random.bin' created
 ```
-
 
 
 
@@ -682,10 +592,9 @@ Context: actions `3`|`7` with debug messages enabled:
 D3. Output (decrypted) file: plain.txt
     D: real path: '/tmpfs/test/plain.txt'
     D: opening file 'plain.txt' in mode 'wb'
-    D: opened file (object): <_io.BufferedWriter name='plain.txt'>
+    D: opened file object: <_io.BufferedWriter name='plain.txt'>
     I: new empty file 'plain.txt' created
 ```
-
 
 
 
@@ -702,12 +611,10 @@ Context: actions `4`|`6` with debug messages enabled:
 D3. File to overwrite (container): file.bin
     D: real path: '/tmpfs/test/file.bin'
     D: opening file 'file.bin' in mode 'rb+'
-    D: opened file (object): <_io.BufferedRandom name='file.bin'>
+    D: opened file object: <_io.BufferedRandom name='file.bin'>
     I: path: 'file.bin'
     I: size: 32,973,056 B (31.4 MiB)
 ```
-
-
 
 
 
@@ -722,11 +629,9 @@ Context: actions `5`|`8` with debug messages enabled:
 D3. Output file: random.bin
     D: real path: '/tmpfs/test/random.bin'
     D: opening file 'random.bin' in mode 'wb'
-    D: opened file (object): <_io.BufferedWriter name='random.bin'>
+    D: opened file object: <_io.BufferedWriter name='random.bin'>
     I: new empty file 'random.bin' created
 ```
-
-
 
 
 
@@ -741,7 +646,7 @@ Context: action `9` with debug messages enabled:
 D3. File to overwrite: /dev/sdc
     D: real path: '/dev/sdc'
     D: opening file '/dev/sdc' in mode 'rb+'
-    D: opened file (object): <_io.BufferedRandom name='/dev/sdc'>
+    D: opened file object: <_io.BufferedRandom name='/dev/sdc'>
     I: path: '/dev/sdc'; size: 16,357,785,600 B (15.2 GiB)
 ```
 
@@ -773,12 +678,6 @@ Desired output file size in bytes. The number of random bytes that will be writt
 <details>
   <summary>&nbsp;<b>Show Examples</b></summary>
 
-
-
-
-
-
-
 Specifying 32 B:
 ```
 D4. Output file size in bytes: 32
@@ -788,17 +687,6 @@ D4. Output file size in bytes: 32
 </details>
 
 ---
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -815,19 +703,10 @@ D4. Output file size in bytes: 32
 
 **Default value:** Not specified for actions `4`|`5`|`6`|`7`; defaults to `0` for action `9` (if not provided, `0` is used)
 
-
-
-
-
-
-
-
 ### Examples
 
 <details>
   <summary>&nbsp;<b>Show Examples</b></summary>
-
-
 
 Context: action `4`:
 ```
@@ -836,23 +715,17 @@ D5. Start position [0; 56372322]: 34956
     I: end position: 33008012 (offset: 33,008,012 B)
 ```
 
-
-
-
 Context: actions `5`|`6`|`7`:
 ```
 D5. Start position [0; 32973056]: 395673
     I: start position: 395673 (offset: 395,673 B)
 ```
 
-
-
 Context: action `9`:
 ```
 D5. Start position [0; 32973056], default=0:
     I: start position: 0 (offset: 0 B)
 ```
-
 
 ```
 D5. Start position [0; 32973056], default=0: 2623552
@@ -862,12 +735,6 @@ D5. Start position [0; 32973056], default=0: 2623552
 </details>
 
 ---
-
-
-
-
-
-
 
 
 
@@ -884,9 +751,6 @@ D5. Start position [0; 32973056], default=0: 2623552
 
 **Default value:** Not specified for actions `5`|`7`; defaults to container file size in bytes for action `9`
 
-
-
-
 ### Examples
 
 <details>
@@ -900,16 +764,11 @@ D6. End position [32442; 32973056]: 483764
     I: message size to retrieve: 451,322 B (440.7 KiB)
 ```
 
-
-
-
 Context: action `7`:
 ```
 D6. End position [55408; 32973056]: 5656465
     I: end position: 5656465 (offset: 5,656,465 B)
 ```
-
-
 
 Context: action `9`:
 ```
@@ -917,7 +776,6 @@ D6. End position [0; 32973056], default=32973056:
     I: end position: 32973056 (offset: 32,973,056 B)
     I: data size to write: 32,973,056 B (31.4 MiB)
 ```
-
 
 ```
 D6. End position [4423; 32973056], default=32973056: 543432
@@ -951,11 +809,6 @@ D6. End position [4423; 32973056], default=32973056: 543432
 <details>
   <summary>&nbsp;<b>Show Examples</b></summary>
 
-
-
-
-
-
 Keyfiles and passphrases are not specified (skipped):
 ```
 K1. Keyfile path (optional):
@@ -963,20 +816,22 @@ K2. Passphrase (optional):
     W: no keyfile or passphrase specified!
 ```
 
-
 The same with debug messages enabled:
 ```
+    D: collecting IKM
 K1. Keyfile path (optional):
     W: entered passphrases will be displayed!
 K2. Passphrase (optional):
+    D: collecting IKM completed
     D: 0 IKM digests collected
     W: no keyfile or passphrase specified!
-    D: collecting input keying material completed
     D: digest list is empty, nothing to sort
     D: hashing digest list
     D: list containing 0 digests hashed
+    D: argon2_password:
+        0ac1630e2e062acd137b422a65f31279cd7f9fe7dbc0464e5516e4b7f16e6b9a044304a02a773e39d67f680e0e88c0911f849807dfff3b3d5e8f79c3758072e4
+    I: deriving one-time keys
 ```
-
 
 
 
@@ -992,63 +847,35 @@ K2. Passphrase (optional):
     I: deriving one-time keys
 ```
 
-
-
 The same with debug messages enabled:
 ```
+    D: collecting IKM
 K1. Keyfile path (optional): keyfile.bin
     D: real path: '/tmpfs/test/keyfile.bin'
     I: path: 'keyfile.bin'; size: 32 B
     I: reading and hashing contents of 'keyfile.bin'
     D: opening file 'keyfile.bin' in mode 'rb'
-    D: opened file (object): <_io.BufferedReader name='keyfile.bin'>
+    D: opened file object: <_io.BufferedReader name='keyfile.bin'>
     D: read 32 B from <_io.BufferedReader name='keyfile.bin'>; position moved from 0 to 32
     D: closing <_io.BufferedReader name='keyfile.bin'>
     D: <_io.BufferedReader name='keyfile.bin'> closed
     D: digest of 'keyfile.bin' contents:
-        691693749d3a3c058871474e71dfaebe55ef4e91abbbe40b31bf6503e2c1b9acd3504f4032e3c6febcb1e539f3ce86893041656315bd2673708fb8d02d497410
+        78f791ed96c78b8dad4489853e8893694c2ab2ef9b057b646dc4d653d8f5598cbb86623a812f84937d10d1af7e67a5492c3c8f02873f9b180150b68afd8bb081
     I: keyfile accepted
 K1. Keyfile path (optional):
     W: entered passphrases will be displayed!
 K2. Passphrase (optional):
+    D: collecting IKM completed
     D: 1 IKM digests collected
-    D: collecting input keying material completed
-    D: sorting digests of keying material
-    D: sorted digests of keying material:
-      - 691693749d3a3c058871474e71dfaebe55ef4e91abbbe40b31bf6503e2c1b9acd3504f4032e3c6febcb1e539f3ce86893041656315bd2673708fb8d02d497410
+    D: sorting IKM digests
+    D: sorted IKM digests:
+      - 78f791ed96c78b8dad4489853e8893694c2ab2ef9b057b646dc4d653d8f5598cbb86623a812f84937d10d1af7e67a5492c3c8f02873f9b180150b68afd8bb081
     D: hashing digest list
     D: list containing 1 digests hashed
     D: argon2_password:
-        b1d9f8334f4d8be703e0072befe66f6bd448d224cbbfac58e1b28c0f0c2e270c84488e417d75c947189bb66f46480848a5446b90d15cf8ae027cb5010189953b
+        f42d66b64b43103c4dc5c06f806dc8ff51650b448db56b6a788068a4db9b5915173336041c0b1f28f7547587b6b96c4f861fbba7e1c859106addf55d0365bb87
     I: deriving one-time keys
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1090,7 +917,7 @@ K1. Keyfile path (optional): keydir
     I: hashing files in directory 'keydir'
     D: reading and hashing contents of 'keydir/keyfile.bin'
     D: opening file 'keydir/keyfile.bin' in mode 'rb'
-    D: opened file (object): <_io.BufferedReader name='keydir/keyfile.bin'>
+    D: opened file object: <_io.BufferedReader name='keydir/keyfile.bin'>
     D: read 32 B from <_io.BufferedReader name='keydir/keyfile.bin'>; position moved from 0 to 32
     D: closing <_io.BufferedReader name='keydir/keyfile.bin'>
     D: <_io.BufferedReader name='keydir/keyfile.bin'> closed
@@ -1098,7 +925,7 @@ K1. Keyfile path (optional): keydir
         d4fe1f52c510f69363a47db7c37511ae2673c61b5aa341ba69cc58c9d103e23f30c7db3fba04a1efdcddef7b207e8734217c6d3bd35e8958bb4bf547be0d7b5a
     D: reading and hashing contents of 'keydir/x/111'
     D: opening file 'keydir/x/111' in mode 'rb'
-    D: opened file (object): <_io.BufferedReader name='keydir/x/111'>
+    D: opened file object: <_io.BufferedReader name='keydir/x/111'>
     D: read 12,318 B (12.0 KiB) from <_io.BufferedReader name='keydir/x/111'>; position moved from 0 to 12,318
     D: closing <_io.BufferedReader name='keydir/x/111'>
     D: <_io.BufferedReader name='keydir/x/111'> closed
@@ -1106,7 +933,7 @@ K1. Keyfile path (optional): keydir
         e7221ae7ac1108885745c85e2fecd31dce6c305e4e6e088d0a2ee0c760919402f8194bf004590d27ef6fc122d9fdf1b89d15f6705f322c69ce306429b453cf7e
     D: reading and hashing contents of 'keydir/x/444'
     D: opening file 'keydir/x/444' in mode 'rb'
-    D: opened file (object): <_io.BufferedReader name='keydir/x/444'>
+    D: opened file object: <_io.BufferedReader name='keydir/x/444'>
     D: read 32 B from <_io.BufferedReader name='keydir/x/444'>; position moved from 0 to 32
     D: closing <_io.BufferedReader name='keydir/x/444'>
     D: <_io.BufferedReader name='keydir/x/444'> closed
@@ -1118,7 +945,7 @@ K1. Keyfile path (optional): /bin/sh
     I: path: '/bin/sh'; size: 125,560 B (122.6 KiB)
     I: reading and hashing contents of '/bin/sh'
     D: opening file '/bin/sh' in mode 'rb'
-    D: opened file (object): <_io.BufferedReader name='/bin/sh'>
+    D: opened file object: <_io.BufferedReader name='/bin/sh'>
     D: read 125,560 B (122.6 KiB) from <_io.BufferedReader name='/bin/sh'>; position moved from 0 to 125,560
     D: closing <_io.BufferedReader name='/bin/sh'>
     D: <_io.BufferedReader name='/bin/sh'> closed
@@ -1126,15 +953,6 @@ K1. Keyfile path (optional): /bin/sh
         7db1cc29b7bc3341cf12438ecc272dd5cfa0bd12d98f5ff1ff18fd1b7e958119fc74571c746d60855838d2fd16f4ea3a77e9f28bb17c918c3f2be75a676505bf
     I: keyfile accepted
 ```
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1167,7 +985,6 @@ K1. Keyfile path (optional): emptydir
 
 
 
-
 ## K2. Passphrase
 
 **Used in:** Actions `2`|`3`|`6`|`7`
@@ -1183,9 +1000,7 @@ K1. Keyfile path (optional): emptydir
 <details>
   <summary>&nbsp;<b>Show Examples</b></summary>
 
-
-
-Just specifying one passphrase:
+Specifying one passphrase:
 ```
 K2. Passphrase (optional):
 K2. Confirm passphrase:
@@ -1219,7 +1034,6 @@ K2. Confirm passphrase:
         6620fb4dfabf8e838bf86d8297792cc80eedcf080eb83d7d754b3a7ff44164dd7d12350cb8133663abbae6596d1bb67da13b8f78c6aa33cd2f51a32de965af67
     I: passphrase accepted
 ```
-
 
 
 Specify one passphrase, then fail to confirm passphrase, then specify another passphrase:
@@ -1283,17 +1097,38 @@ K2. Confirm passphrase:
     I: passphrase accepted
 ```
 
+
+How NFC normalization can affect passphrase length (debug messages enabled):
+```
+    W: entered passphrases will be displayed!
+K2. Passphrase (optional):
+    D: passphrase (raw):
+        'éééééééééé'
+    D: length: 30 B
+    D: passphrase (normalized):
+        'éééééééééé'
+    D: length: 20 B
+    D: passphrase (normalized, encoded, truncated):
+        b'\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9'
+    D: length: 20 B
+K2. Confirm passphrase:
+    D: passphrase (raw):
+        'éééééééééé'
+    D: length: 30 B
+    D: passphrase (normalized):
+        'éééééééééé'
+    D: length: 20 B
+    D: passphrase (normalized, encoded, truncated):
+        b'\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9'
+    D: length: 20 B
+    D: passphrase digest:
+        9275cb031c5871d1ee97a62e0e786cfa287c733b16bb2204f644d171615ee61c11dd8a36107210f1b948fc6d1beeb7cabc61fb01e0967cf26534b26665e6713d
+    I: passphrase accepted
+```
+
 </details>
 
 ---
-
-
-
-
-
-
-
-
 
 
 
@@ -1341,14 +1176,12 @@ P0. Proceed overwriting? (Y/N): 1
     I: writing random data
 ```
 
-
 Context: actions `4`|`9`:
 ```
     W: output file will be partially overwritten!
 P0. Proceed overwriting? (Y/N): n
     I: stopped by user request
 ```
-
 
 Context: actions `2`-`9`:
 ```
@@ -1357,13 +1190,4 @@ P0. Proceed removing? (Y/N, default=Y):
     I: path 'file.bin' removed
 ```
 
-
-
 </details>
-
-
-
-
-
-
-
