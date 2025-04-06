@@ -272,7 +272,7 @@ def open_file(
         file_obj: BinaryIO = open(file_path, access_mode)
 
         if DEBUG:
-            log_d(f'opened file (object): {file_obj}')
+            log_d(f'opened file object: {file_obj}')
 
         return file_obj
     except Exception as error:
@@ -1171,7 +1171,7 @@ def collect_and_handle_ikm(action: ActionID) -> list[bytes]:
               valid keyfiles or passphrases were provided.
     """
     if DEBUG:
-        log_d('collecting input keying material')
+        log_d('collecting IKM')
 
     # List to store the digests of keying material
     ikm_digest_list: list[bytes] = []
@@ -1263,13 +1263,13 @@ def collect_and_handle_ikm(action: ActionID) -> list[bytes]:
     # ----------------------------------------------------------------------- #
 
     if DEBUG:
+        log_d('collecting IKM completed')
+
+    if DEBUG:
         log_d(f'{len(ikm_digest_list)} IKM digests collected')
 
     if not ikm_digest_list and action in (ENCRYPT, ENCRYPT_EMBED):
         log_w('no keyfile or passphrase specified!')
-
-    if DEBUG:
-        log_d('collecting input keying material completed')
 
     return ikm_digest_list
 
@@ -1964,14 +1964,14 @@ def sort_digest_list(digest_list: list[bytes]) -> list[bytes]:
         return digest_list
 
     if DEBUG:
-        log_d('sorting digests of keying material')
+        log_d('sorting IKM digests')
 
     # Sort the digest list in place in ascending order
     digest_list.sort(key=None, reverse=False)
 
     # Log sorted digests if debugging is enabled
     if DEBUG:
-        log_d('sorted digests of keying material:')
+        log_d('sorted IKM digests:')
         for digest in digest_list:
             log_d(f'\r      - {digest.hex()}')
 
