@@ -167,8 +167,8 @@ There are 5 steps:
 
 ```
 normalized,
-truncated,
-encoded
+encoded,
+truncated
 passphrase  keyfile1  keyfile2  <-- input keying material (IKM)
     |          |         |
     |          |         |  <------ salted and personalized BLAKE2b-512

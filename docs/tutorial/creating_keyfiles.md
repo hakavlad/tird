@@ -12,7 +12,7 @@
 
 # Creating Keyfiles with Random Data
 
-> [!IMPORTANT]
+> \[!IMPORTANT]
 > Keyfiles must be kept secret!
 
 Answer 3 questions to create a keyfile:
