@@ -2428,7 +2428,7 @@ def handle_padding(
             # Generate a random data chunk of size RW_CHUNK_SIZE
             chunk: bytes = token_bytes(RW_CHUNK_SIZE)
 
-            # Attempt to write the chunk; return None if it fails
+            # Attempt to write the chunk; return False if it fails
             if not write_data(chunk):
                 return False
 
@@ -2451,7 +2451,7 @@ def handle_padding(
             # Generate a random data chunk of the remaining size
             chunk = token_bytes(num_remaining_bytes)
 
-            # Attempt to write the remaining chunk; return None if it fails
+            # Attempt to write the remaining chunk; return False if it fails
             if not write_data(chunk):
                 return False
 
@@ -2469,7 +2469,7 @@ def handle_padding(
                 FLOAT_D['last_progress_time'] = monotonic()
 
     else:  # If the action is to seek (DECRYPT or EXTRACT_DECRYPT)
-        # Attempt to seek to the specified position; return None if it fails
+        # Attempt to seek to the specified position; return False if it fails
         if not seek_position(BIO_D['IN'], pad_size, SEEK_CUR):
             return False
 
