@@ -1533,33 +1533,47 @@ def decode_processed_comments(processed_comments: bytes) -> Optional[str]:
 # --------------------------------------------------------------------------- #
 
 
-def get_salts(input_size: int, end_pos: int, action: ActionID) -> bool:
+def get_salts(
+    input_size: int,
+    end_pos: Optional[int],
+    action: ActionID
+) -> bool:
     """
-    Retrieves and generates salts for cryptographic operations based
-    on the specified action.
+    Retrieves or generates salts for cryptographic operations based on
+    the specified action.
 
-    Depending on the action provided, the function either generates
-    new salts or reads existing salts from a cryptoblob. For actions
-    ENCRYPT and ENCRYPT_EMBED, new salts are generated using random
-    bytes. For actions DECRYPT and EXTRACT_DECRYPT, the function reads
-    salts from the beginning and end of the cryptoblob. The retrieved
-    or generated salts are stored in the global dictionary `BYTES_D`.
+    Depending on the action provided:
+      - For actions ENCRYPT and ENCRYPT_EMBED, the function generates
+        new salts (using random bytes) for Argon2 and BLAKE2.
+      - For actions DECRYPT and EXTRACT_DECRYPT, the function reads
+        salts from a cryptoblob. It reads the Argon2 salt from the
+        beginning of the cryptoblob, and then reads the BLAKE2 salt from
+        near the end. For DECRYPT, the BLAKE2 salt is read starting from
+        position (input_size - ONE_SALT_SIZE), while for EXTRACT_DECRYPT,
+        it is read starting from position (end_pos - ONE_SALT_SIZE).
+
+    The retrieved or generated salts are stored in the global dictionary
+    `BYTES_D`.
 
     Args:
-        input_size (int): The size of the input data, used to determine
-                          positions for reading salts.
-        end_pos (int): The end position in the cryptoblob, used for
-                       calculating blake2_salt position.
+        input_size (int): The total size of the input data, used to
+                          calculate the position to read the BLAKE2 salt
+                          when action is DECRYPT.
+        end_pos (Optional[int]): The end position in the cryptoblob;
+                                 required when the action is
+                                 EXTRACT_DECRYPT to calculate the BLAKE2
+                                 salt position. It can be None for
+                                 actions that generate salts.
         action (ActionID): The action that determines how salts are
                            handled. Actions ENCRYPT and ENCRYPT_EMBED
-                           generate new salts, while actions DECRYPT and
-                           EXTRACT_DECRYPT read existing salts.
+                           generate new salts, whereas actions DECRYPT
+                           and EXTRACT_DECRYPT read the salts from the
+                           cryptoblob.
 
     Returns:
-        bool: True if salts were successfully retrieved or generated,
-              False otherwise. If False is returned, it indicates a
-              failure in reading salts or seeking positions in the
-              cryptoblob.
+        bool: True if the salts were successfully generated or retrieved,
+              False otherwise. A False return indicates a failure in
+              reading salts or seeking positions in the cryptoblob.
     """
 
     # Log the start of getting salts if debugging is enabled
@@ -1598,6 +1612,8 @@ def get_salts(input_size: int, end_pos: int, action: ActionID) -> bool:
         if action == DECRYPT:
             pos_before_blake2_salt: int = input_size - ONE_SALT_SIZE
         else:  # action == EXTRACT_DECRYPT
+            assert end_pos is not None
+
             pos_before_blake2_salt = end_pos - ONE_SALT_SIZE
 
         # Move to the position for reading blake2_salt
@@ -3185,6 +3201,8 @@ def encrypt_and_embed_input(
 
     # Get the ending position for extraction
     if action == EXTRACT_DECRYPT:
+        assert start_pos is not None
+
         end_pos = get_end_position(
             min_pos=start_pos + MIN_VALID_PADDED_SIZE,
             max_pos=in_file_size,
@@ -3197,11 +3215,15 @@ def encrypt_and_embed_input(
 
     # Seek to the start position in the output file if encrypting
     if action == ENCRYPT_EMBED:
+        assert start_pos is not None
+
         if not seek_position(BIO_D['OUT'], start_pos):
             return None
 
     # Seek to the start position in the input file if decrypting
     if action == EXTRACT_DECRYPT:
+        assert start_pos is not None
+
         if not seek_position(BIO_D['IN'], start_pos):
             return None
 
@@ -3375,6 +3397,7 @@ def encrypt_and_embed_handler(
 
     # Determine total padding size based on the action
     if action in (ENCRYPT, ENCRYPT_EMBED):  # Encryption actions
+        assert constant_padded_size is not None
 
         # Get randomized pad size from constant-padded size
         randomized_pad_size = randomized_pad_from_constant_padded(
@@ -3390,6 +3413,9 @@ def encrypt_and_embed_handler(
         if action == DECRYPT:
             total_padded_size = in_file_size
         else:  # action == EXTRACT_DECRYPT
+            assert start_pos is not None
+            assert end_pos is not None
+
             total_padded_size = end_pos - start_pos
 
         # Get randomized pad size from total padded size
@@ -3533,6 +3559,8 @@ def encrypt_and_embed_handler(
     enc_processed_comments: Optional[bytes]  # Encrypted processed_comments
 
     if action in (ENCRYPT, ENCRYPT_EMBED):
+        assert processed_comments is not None
+
         enc_processed_comments = encrypt_decrypt(processed_comments)
 
         update_mac(enc_processed_comments)
