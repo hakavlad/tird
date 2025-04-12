@@ -1,14 +1,20 @@
 #!/usr/bin/env python3
 """
+tird /tɪrd/ (an acronym for "this is random data")
+
 A file encryption tool focused on
-- minimizing metadata and
-- hiding encrypted data.
+    minimizing metadata and hiding encrypted data.
+
+Requirements:
+- Python >= 3.9.2
 
 Dependencies:
-- cryptography: for data encryption.
-- PyNaCl: for hashing and authentication.
+- cryptography >= 2.1 (ChaCha20)
+- PyNaCl >= 1.2.0 (Argon2/BLAKE2)
 
 SPDX-License-Identifier: 0BSD
+
+Homepage: https://github.com/hakavlad/tird
 """
 
 from collections.abc import Callable
@@ -301,22 +307,24 @@ def close_file(file_obj: BinaryIO) -> None:
 
 def get_file_size(file_path: str) -> Optional[int]:
     """
-    Retrieve the size of a file in bytes.
+    Retrieve the size of a file or block device in bytes.
 
-    This function opens a file in binary read mode and seeks to the end
-    of the file to determine its size. If the file cannot be opened or
-    an error occurs, it returns None. This function is used instead of
-    os.path.getsize() to also determine the size of block devices on
-    Unix systems.
+    This function opens a file in binary read mode, seeks to the end,
+    and returns the position as the size. Unlike os.path.getsize(), it
+    works with block devices (e.g., /dev/sda) on Unix systems.
 
     Args:
-        file_path (str): The path to the file whose size is to be
-                         retrieved.
+        file_path (str): Path to the file or block device.
 
     Returns:
-        Optional[int]: The size of the file in bytes if successful;
-                       None if the file cannot be opened or an error
-                       occurs.
+        Optional[int]: File size in bytes if successful, None on error
+                       (e.g., permission denied, seek failure).
+
+    Example:
+        >>> get_file_size("/dev/sda")  # Size of a block device
+        500107862016
+        >>> get_file_size("normal_file.txt")
+        1024
     """
     try:
         with open(file_path, 'rb') as file_obj:
@@ -377,18 +385,27 @@ def seek_position(
 
 def read_data(file_obj: BinaryIO, data_size: int) -> Optional[bytes]:
     """
-    Reads a specified number of bytes from a file.
+    Reads exactly `data_size` bytes from a file object.
 
-    Attempts to read a given number of bytes from the provided file
-    object.
+    This function performs a strict read operation: it either reads the
+    exact     requested number of bytes or returns None
+    (unlike file_obj.read() which may return fewer bytes). Useful for
+    cryptographic operations where partial reads are unacceptable.
 
     Args:
-        file_obj (BinaryIO): File object to read from
-                             (must be opened in read mode).
-        data_size (int): Number of bytes to read.
+        file_obj (BinaryIO): File object opened in binary mode (must
+                             support read() and seek/tell operations if
+                             DEBUG is enabled).
+        data_size (int): Exact number of bytes to read. Must be
+                         non-negative.
 
     Returns:
-        Optional[bytes]: Bytes read from the file, or None on error.
+        Optional[bytes]: Bytes read (exactly `data_size` bytes) if
+                         successful, None if:
+                         - EOF reached before reading `data_size` bytes.
+                         - I/O error occurred.
+                         - DEBUG enabled and seek position changed
+                           unexpectedly.
     """
     if DEBUG:
         start_pos: int = file_obj.tell()
@@ -414,16 +431,36 @@ def read_data(file_obj: BinaryIO, data_size: int) -> Optional[bytes]:
 
 def write_data(data: bytes) -> bool:
     """
-    Writes bytes to the global output file.
+    Writes binary data to the global output file (BIO_D['OUT']) with
+    error handling.
 
-    Attempts to write the provided bytes to the output file associated
-    with the global `BIO_D['OUT']`.
+    This function performs a single atomic write operation to the
+    pre-opened output file stored in the global BIO_D dictionary. It's
+    designed for reliability in cryptographic operations where partial
+    writes must be avoided.
 
     Args:
-        data (bytes): Bytes to write.
+        data (bytes): Binary data to write.
 
     Returns:
-        bool: True if written successfully, False otherwise.
+        bool: True if all bytes were successfully written, False if:
+              - OS-level write error occurred (disk full, permission
+                denied, etc.).
+              - File object is not properly initialized in BIO_D['OUT'].
+              - DEBUG enabled and position tracking fails.
+
+    Side Effects:
+        - Advances file position by len(data) bytes on success.
+        - Modifies INT_D['written_sum'] for progress tracking if DEBUG
+          enabled.
+
+    Notes:
+        - For proper error recovery, caller should close/remove the
+          output file on False.
+        - Does NOT perform fsync() - use fsync_written_data() for
+          persistence guarantees.
+        - DEBUG mode adds position validation but doesn't affect write
+          atomicity.
     """
     file_obj: BinaryIO = BIO_D['OUT']
 
@@ -488,7 +525,8 @@ def remove_output_path(action: ActionID) -> None:
 
     Args:
         action (ActionID): The action identifier used to log the context
-                           of the operation and may influence user prompts.
+                           of the operation and may influence user
+                           prompts.
 
     Returns:
         None
@@ -1608,14 +1646,14 @@ def hash_keyfile_contents(
     """
     Computes the BLAKE2 digest of the contents of a keyfile.
 
-    This function reads the contents of the provided file-like object in
+    This function reads the contents of the provided file object in
     chunks and updates the BLAKE2 hash object with the data read. The
     final digest is returned as a byte string. The file should be opened
     in binary mode. The digest is computed using a specific salt and
     personalization string
 
     Args:
-        file_obj (BinaryIO): A file-like object to read data from,
+        file_obj (BinaryIO): A file object to read data from,
                              opened in binary mode.
         file_size (int): The total size of the file in bytes.
 
@@ -1861,19 +1899,29 @@ def get_keyfile_digest_list(directory_path: str) -> Optional[list[bytes]]:
 
 def handle_raw_passphrase(raw_passphrase: str) -> bytes:
     """
-    Normalize and encode a raw passphrase, truncating it to a
-    specified size limit.
+    Normalizes, encodes and truncates a raw passphrase to a standardized
+    format.
 
-    This function takes a raw passphrase as input, normalizes it
-    using Unicode Normalization Form, encodes it to bytes using a
-    specified encoding, and truncates the result to a defined size
-    limit.
+    Processes passphrases consistently for cryptographic use by:
+    1. Applying Unicode normalization
+    2. UTF-8 encoding
+    3. Truncating to PASSPHRASE_SIZE_LIMIT
 
     Args:
-        raw_passphrase (str): The raw passphrase input as a string.
+        raw_passphrase (str): Input passphrase string. May contain:
+                             - Any Unicode characters
+                             - Leading/trailing whitespace (not stripped)
+                             - Mixed scripts (e.g., Cyrillic + Latin)
 
     Returns:
-        bytes: The encoded and truncated passphrase as a byte sequence.
+        bytes: Normalized byte sequence ready for hashing, with
+               properties:
+               - Always <= PASSPHRASE_SIZE_LIMIT bytes
+               - Consistent for canonically equivalent Unicode inputs
+
+    Notes:
+        - Empty string input returns empty bytes (b'')
+        - DEBUG mode logs raw/normalized forms and lengths
     """
 
     # Normalize the raw passphrase using Unicode Normalization Form
@@ -1980,14 +2028,25 @@ def sort_digest_list(digest_list: list[bytes]) -> list[bytes]:
 
 def hash_digest_list(digest_list: list[bytes]) -> bytes:
     """
-    Computes a hash digest for a list of byte sequences using the
-    BLAKE2 hashing algorithm with a specified salt.
+    Computes a BLAKE2b hash of concatenated digests using a specified
+    salt.
+
+    The hash calculation is performed as follows:
+    BLAKE2b(
+        data = digest_list[0] + digest_list[1] + ... + digest_list[N],
+        salt = BYTES_D['blake2_salt'],
+        digest_size = IKM_DIGEST_SIZE  # Should be defined globally
+    )
+
+    The order of the digests in the input list is preserved in the hash
+    computation. An empty list will return the hash of an empty input.
 
     Args:
-        digest_list (list[bytes]): A list of byte sequences to be hashed.
+        digest_list: List of binary digests (order-sensitive).
+                     If empty, returns the hash of an empty input.
 
     Returns:
-        bytes: The resulting hash digest as a byte sequence.
+        bytes: BLAKE2b hash with length determined by IKM_DIGEST_SIZE.
     """
     if DEBUG:
         log_d('hashing digest list')
@@ -2157,8 +2216,8 @@ def randomized_pad_from_constant_padded(
     max_pad_size_percent: int,
 ) -> int:
     """
-    Calculates the randomized part of total padding (RPoTP) size based
-    on the constant-padded size and a padding key.
+    Calculates the randomized part of total padding (RPoTP) size
+    deterministically from secret parameters.
 
     This function calculates the RPoTP size to be applied to the
     constant-padded size based on the provided parameters. The RPoTP
@@ -2385,13 +2444,15 @@ def handle_padding(
     output_data_size: int,
 ) -> bool:
     """
-    Handles padding operations based on the specified action.
+    Handles padding operations by either writing random data or seeking
+    through padding.
 
-    This function performs different operations depending on the value
-    of `action`. If the action is ENCRYPT or ENCRYPT_EMBED, it writes
-    random data chunks of size `RW_CHUNK_SIZE` to a target until the
-    given pad size is reached. If the action is DECRYPT or
-    EXTRACT_DECRYPT, it seeks to a specified position in the data.
+    For encryption actions (ENCRYPT, ENCRYPT_EMBED):
+    - Writes `pad_size` bytes of random data to the output file in chunks.
+    - Updates progress at regular intervals.
+
+    For decryption actions (DECRYPT, EXTRACT_DECRYPT):
+    - Seeks forward by `pad_size` bytes in the input file.
 
     Args:
         pad_size (int): The total size of the padding to be handled.
@@ -2540,31 +2601,44 @@ def get_incremented_nonce() -> bytes:
 
 def encrypt_decrypt(input_data: bytes) -> bytes:
     """
-    Encrypt or decrypt a data chunk using the ChaCha20 cipher.
+    Encrypts or decrypts data using the ChaCha20 cipher with an
+    auto-incremented nonce.
 
-    This function increments the nonce counter by calling the
-    `get_incremented_nonce` function to generate a nonce based
-    on the current counter value. It then uses the ChaCha20 cipher
-    to encrypt or decrypt the provided input data. The same function
-    is used for both encryption and decryption, as ChaCha20 is a
-    symmetric stream cipher.
+    This function performs a symmetric encryption/decryption operation
+    on the provided data chunk using the ChaCha20 stream cipher. On each
+    invocation, it obtains a new nonce by incrementing an internal
+    counter, thereby ensuring that the same nonce is never reused with
+    the same key (a critical requirement for ChaCha20).
+
+    Key Points:
+    - Uses a 256-bit key stored in BYTES_D['enc_key'].
+    - Constructs a full nonce by concatenating a constant initialization
+      segment (BLOCK_COUNTER_INIT_BYTES) with the incremented nonce.
+    - Implements a symmetric encryption, so the same function can be
+      used for both encryption and decryption.
+    - Lacks built-in message authentication; integrity should be
+      verified using a separate MAC.
 
     Args:
-        input_data (bytes): The data to be encrypted or decrypted. This
-                            should be provided as a byte string.
+        input_data (bytes): The byte string to be processed. An empty
+                            input returns an empty output.
 
     Returns:
-        bytes: The encrypted or decrypted output data,
-               also as a byte string.
+        bytes: The processed data (ciphertext if input was plaintext, or
+               plaintext if input was ciphertext) of the same length as
+               the input.
 
     Note:
-        Ensure that the nonce counter is properly managed to avoid nonce
-        reuse, which can compromise the security of the encryption.
-        The nonce must be unique for each encryption operation with the
-        same key.
+        It is essential to manage the nonce counter carefully to prevent
+        nonce reuse, as reusing a nonce with the same key can lead to a
+        catastrophic breakdown of the ChaCha20 cipher's security.
+
+        If debug mode is enabled, additional information regarding the
+        chunk size and nonce used for
+        each operation is logged.
     """
 
-    # Retrieve the incremented nonce value as queried by ChaCha20-IETF
+    # Retrieve the incremented nonce value as queried by ChaCha20
     nonce: bytes = get_incremented_nonce()
 
     # This ChaCha20 implementation uses a 128-bit full nonce
@@ -2792,6 +2866,12 @@ def set_custom_settings(action: ActionID) -> None:
 
     Returns:
         None
+
+    Modifies:
+        INT_D (dict): Updates the dictionary with the Argon2 time cost
+            and maximum padding size percentage.
+        BOOL_D (dict): Updates the dictionary with the setting for
+            the fake MAC tag if the action requires it.
     """
 
     # Check if custom settings are enabled
