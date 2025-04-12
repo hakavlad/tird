@@ -53,9 +53,10 @@
 
 ## About
 
-`tird` *(an acronym for "this is random data")* is a file encryption tool focused on
-- minimizing metadata and
-- hiding encrypted data.
+`tird` /tɪrd/ *(an acronym for "this is random data")* is a
+- <ins>file encryption tool</ins> focused on
+- <ins>minimizing metadata</ins> and
+- <ins>hiding encrypted data</ins>.
 
 With `tird`, you can:
 
