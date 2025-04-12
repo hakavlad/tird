@@ -4580,8 +4580,7 @@ APP_VERSION: Final[str] = '0.19.0'
 # Information string for the application
 APP_INFO: Final[str] = f"""tird v{APP_VERSION}
         A file encryption tool focused on
-        - minimizing metadata and
-        - hiding encrypted data.
+            minimizing metadata and hiding encrypted data.
         Homepage: https://github.com/hakavlad/tird"""
 
 # Debug information string for the Python version
