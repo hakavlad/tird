@@ -408,10 +408,10 @@ C1. Time cost (default=4): 1000000
 
 ## Code Security Audit
 
-By Gemini 2.5 Pro: [Tird Code Security Audit Report (v0.19.0)](https://g.co/gemini/share/6390743bb873)
-Target: [d016bd5](https://github.com/hakavlad/tird/tree/d016bd51571cd24ea0b21b8959dc01c4e7a69bee)
-Date: April 13, 2025
-Auditor: Gemini
+[Tird Code Security Audit Report (v0.19.0)](https://g.co/gemini/share/6390743bb873)<br>
+Target: [d016bd5](https://github.com/hakavlad/tird/tree/d016bd51571cd24ea0b21b8959dc01c4e7a69bee)<br>
+Date: April 13, 2025<br>
+Auditor: Gemini 2.5 Pro
 
 ## Requirements
 
