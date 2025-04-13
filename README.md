@@ -66,6 +66,11 @@ With `tird`, you can:
 4. Create [steganographic](https://en.wikipedia.org/wiki/Steganography) (hidden, undetectable) user-driven file systems inside container files and block devices. Unlike [VeraCrypt](https://veracrypt.fr) and [Shufflecake](https://shufflecake.net/) containers, `tird` containers do not contain headers at all; the user specifies the location of the data in the container and is responsible for ensuring that this location is separated from the container.
 5. Prevent or resist [coercive](https://en.wikipedia.org/wiki/Coercion) attacks (keywords: [key disclosure law](https://en.wikipedia.org/wiki/Key_disclosure_law), [rubber-hose cryptanalysis](https://en.wikipedia.org/wiki/Deniable_encryption), [xkcd 538](https://xkcd.com/538/)). `tird` provides some forms of [plausible deniability](https://en.wikipedia.org/wiki/Plausible_deniability) out of the box, even if you encrypt files without hiding them in containers.
 
+> [!WARNING]
+> Users of `tird` **must** carefully read and understand the "[Warnings](#warnings)" section in the `README.md`. The tool's security relies heavily on the user's understanding of its limitations and operating it in a secure environment, especially regarding key management, debug mode usage, and interpreting MAC verification results.
+
+<i>— <a href="https://g.co/gemini/share/627c17c844b9">Gemini</a></i>
+
 ## Goals
 
 - **File Protection:** Ensuring protection for individual files, including:
