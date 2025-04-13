@@ -385,7 +385,7 @@ C1. Time cost (default=4): 1000000
 
 - ⚠️ The author does not have a background in cryptography.
 - ⚠️ The code has 0% test coverage.
-- ⚠️ `tird` has not been independently audited by humans.
+- ⚠️ `tird` has not been independently security audited by humans.
 - ⚠️ `tird` is ineffective in a compromised environment; executing it in such cases may cause disastrous data leaks.
 - ⚠️ `tird` is unlikely to be effective when used with short and predictable keys.
 - ⚠️ Sensitive data may leak into swap space.
