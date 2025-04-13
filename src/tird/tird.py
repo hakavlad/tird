@@ -4621,7 +4621,7 @@ APP_DEBUG_INFO: Final[str] = f'Python version {version}'
 APP_WARNINGS: Final[tuple[str, ...]] = (
     'The author does not have a background in cryptography.',
     'The code has 0% test coverage.',
-    'tird has not been independently audited.',
+    'tird has not been independently audited by humans.',
     'tird is ineffective in a compromised environment; executing it in such '
     'cases may cause disastrous data leaks.',
     'tird is unlikely to be effective when used with short and predictable '
