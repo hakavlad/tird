@@ -1588,18 +1588,21 @@ def get_salts(
     else:
         # Read the salts from the cryptoblob for actions DECRYPT and
         # EXTRACT_DECRYPT
+        opt_argon2_salt: Optional[bytes]
+        opt_blake2_salt: Optional[bytes]
+
         if DEBUG:
             log_d('reading argon2_salt from start of cryptoblob')
 
-        read_data_result: Optional[bytes] = read_data(
-            BIO_D['IN'], ONE_SALT_SIZE)
+        # Try to read argon2_salt from the cryptoblob
+        opt_argon2_salt = read_data(BIO_D['IN'], ONE_SALT_SIZE)
 
         # Return False if reading argon2_salt fails
-        if read_data_result is None:
+        if opt_argon2_salt is None:
             return False
 
         # Store argon2_salt
-        argon2_salt = read_data_result
+        argon2_salt = opt_argon2_salt
 
         # Log that the argon2_salt has been read if debugging is enabled
         if DEBUG:
@@ -1623,15 +1626,15 @@ def get_salts(
         if DEBUG:
             log_d('reading blake2_salt from end of cryptoblob')
 
-        # Read blake2_salt from the cryptoblob
-        read_data_result = read_data(BIO_D['IN'], ONE_SALT_SIZE)
+        # Try to read blake2_salt from the cryptoblob
+        opt_blake2_salt = read_data(BIO_D['IN'], ONE_SALT_SIZE)
 
         # Return False if reading blake2_salt fails
-        if read_data_result is None:
+        if opt_blake2_salt is None:
             return False
 
         # Store blake2_salt
-        blake2_salt = read_data_result
+        blake2_salt = opt_blake2_salt
 
         # Log that blake2_salt has been read if debugging is enabled
         if DEBUG:
