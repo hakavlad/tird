@@ -43,7 +43,7 @@
 > - [Tradeoffs and Limitations](#tradeoffs-and-limitations)
 > - [Warnings](#warnings)
 
-> - [Security Audit](#security-audit)
+> - [Code Security Audit](#code-security-audit)
 
 > - [Requirements](#requirements)
 > - [Installation](#installation)
@@ -406,10 +406,10 @@ C1. Time cost (default=4): 1000000
 - ⚠️ `tird` protects data, not the user; it cannot prevent torture if you are under suspicion.
 - ⚠️ Development is not complete, and there may be backward compatibility issues.
 
-## Security Audit
+## Code Security Audit
 
 By Gemini 2.5 Pro: [Tird Code Security Audit Report (v0.19.0)](https://g.co/gemini/share/6390743bb873)
-
+Target: [d016bd5](https://github.com/hakavlad/tird/tree/d016bd51571cd24ea0b21b8959dc01c4e7a69bee)
 Date: April 13, 2025
 Auditor: Gemini
 
