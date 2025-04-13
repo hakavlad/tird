@@ -1615,7 +1615,8 @@ def get_salts(
         if action == DECRYPT:
             pos_before_blake2_salt: int = input_size - ONE_SALT_SIZE
         else:  # action == EXTRACT_DECRYPT
-            assert end_pos is not None
+            if end_pos is None:
+                raise TypeError
 
             pos_before_blake2_salt = end_pos - ONE_SALT_SIZE
 
@@ -3204,7 +3205,8 @@ def encrypt_and_embed_input(
 
     # Get the ending position for extraction
     if action == EXTRACT_DECRYPT:
-        assert start_pos is not None
+        if start_pos is None:
+            raise TypeError
 
         end_pos = get_end_position(
             min_pos=start_pos + MIN_VALID_PADDED_SIZE,
@@ -3218,14 +3220,16 @@ def encrypt_and_embed_input(
 
     # Seek to the start position in the output file if encrypting
     if action == ENCRYPT_EMBED:
-        assert start_pos is not None
+        if start_pos is None:
+            raise TypeError
 
         if not seek_position(BIO_D['OUT'], start_pos):
             return None
 
     # Seek to the start position in the input file if decrypting
     if action == EXTRACT_DECRYPT:
-        assert start_pos is not None
+        if start_pos is None:
+            raise TypeError
 
         if not seek_position(BIO_D['IN'], start_pos):
             return None
@@ -3400,7 +3404,8 @@ def encrypt_and_embed_handler(
 
     # Determine total padding size based on the action
     if action in (ENCRYPT, ENCRYPT_EMBED):  # Encryption actions
-        assert constant_padded_size is not None
+        if constant_padded_size is None:
+            raise TypeError
 
         # Get randomized pad size from constant-padded size
         randomized_pad_size = randomized_pad_from_constant_padded(
@@ -3416,8 +3421,8 @@ def encrypt_and_embed_handler(
         if action == DECRYPT:
             total_padded_size = in_file_size
         else:  # action == EXTRACT_DECRYPT
-            assert start_pos is not None
-            assert end_pos is not None
+            if start_pos is None or end_pos is None:
+                raise TypeError
 
             total_padded_size = end_pos - start_pos
 
@@ -3562,7 +3567,8 @@ def encrypt_and_embed_handler(
     enc_processed_comments: Optional[bytes]  # Encrypted processed_comments
 
     if action in (ENCRYPT, ENCRYPT_EMBED):
-        assert processed_comments is not None
+        if processed_comments is None:
+            raise TypeError
 
         enc_processed_comments = encrypt_decrypt(processed_comments)
 
