@@ -52,6 +52,10 @@ from nacl.pwhash import argon2id
 ActionID = Literal[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 
+class KeyfileScanError(Exception):
+    """Exception raised by keyfile directory scanning errors."""
+
+
 # Formatting output messages and logging
 # --------------------------------------------------------------------------- #
 
@@ -262,26 +266,37 @@ def open_file(
 ) -> Optional[BinaryIO]:
     """
     Opens a file in the specified mode and returns the file object.
+    Handles exceptionsvrelated to file operations.
 
     Args:
         file_path (str): The path to the file.
-        access_mode (str): The mode in which to open the file.
+        access_mode (Literal['rb', 'rb+', 'xb']): The mode in which to
+                                                  open the file.
 
     Returns:
-        Optional[BinaryIO]: The file object if successful, None
-                            otherwise.
+        Optional[BinaryIO]: The file object if successful, or None if an
+                            error occurs.
+
+    Exceptions handled:
+        - FileNotFoundError: Raised when trying to read a file that does
+          not exist.
+        - PermissionError: Raised when the user does not have the
+          appropriate permissions.
+        - FileExistsError (subclass of OSError): Raised in exclusive
+          creation mode ('xb') if the file already exists.
+        - OSError: Handles other OS-related errors.
     """
     if DEBUG:
         log_d(f'opening file {file_path!r} in mode {access_mode!r}')
 
     try:
         file_obj: BinaryIO = open(file_path, access_mode)
-
         if DEBUG:
             log_d(f'opened file object: {file_obj}')
-
         return file_obj
-    except Exception as error:
+    except (
+        FileNotFoundError, PermissionError, FileExistsError, OSError
+    ) as error:
         log_e(f'{error}')
         return None
 
@@ -331,7 +346,7 @@ def get_file_size(file_path: str) -> Optional[int]:
             # Move to the end of the file
             file_size: int = file_obj.seek(0, SEEK_END)
             return file_size
-    except Exception as error:
+    except (FileNotFoundError, PermissionError, OSError) as error:
         log_e(f'{error}')
         return None
 
@@ -1791,7 +1806,7 @@ def get_keyfile_digest_list(directory_path: str) -> Optional[list[bytes]]:
         Handle walk error by logging the error and raising an exception.
         """
         log_e(f'{error}')
-        raise Exception
+        raise KeyfileScanError
 
     # Collect file paths
     # ----------------------------------------------------------------------- #
@@ -1808,7 +1823,7 @@ def get_keyfile_digest_list(directory_path: str) -> Optional[list[bytes]]:
                 # Construct the full file path and add it to the list
                 full_file_path: str = path.join(root, file_name)
                 file_path_list.append(full_file_path)
-    except Exception:
+    except KeyfileScanError:
         # Return None if an exception is raised during directory traversal
         return None
 
