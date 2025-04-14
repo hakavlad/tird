@@ -258,7 +258,7 @@ def log_progress(total_data_size: int) -> None:
 
 def open_file(
     file_path: str,
-    access_mode: Literal['rb', 'rb+', 'wb'],
+    access_mode: Literal['rb', 'rb+', 'xb'],
 ) -> Optional[BinaryIO]:
     """
     Opens a file in the specified mode and returns the file object.
@@ -914,21 +914,16 @@ def get_output_file_new(action: ActionID) -> tuple[str, BinaryIO]:
             log_e('output file path not specified')
             continue  # Prompt the user again
 
-        # Check if the file already exists
-        if path.exists(out_file_path):
-            # Log an error message
-            log_e(f'file {out_file_path!r} already exists')
-            continue  # Prompt the user again
-
-        # Log the real path if in DEBUG mode
-        if DEBUG:
-            log_d(f'real path: {path.realpath(out_file_path)!r}')
-
-        # Attempt to open the output file in binary write mode
-        out_file_obj: Optional[BinaryIO] = open_file(out_file_path, 'wb')
+        # Attempt to open the output file in exclusive creation mode
+        out_file_obj: Optional[BinaryIO] = open_file(out_file_path, 'xb')
 
         # Check if the file object was created successfully
         if out_file_obj is not None:
+
+            # Log the real path if in DEBUG mode
+            if DEBUG:
+                log_d(f'real path: {path.realpath(out_file_path)!r}')
+
             # Return the valid file path and object
             return out_file_path, out_file_obj
 
