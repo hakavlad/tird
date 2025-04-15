@@ -43,7 +43,7 @@
 > - [Tradeoffs and Limitations](#tradeoffs-and-limitations)
 > - [Warnings](#warnings)
 
-> - [Code Security Audit](#code-security-audit)
+> - [AI reports](#ai-reports)
 
 > - [Requirements](#requirements)
 > - [Installation](#installation)
@@ -133,11 +133,10 @@ A detailed description of these options with examples can be found [here](https:
 
 ## Debug Mode
 
-Start `tird` with the `--debug` option to look under the hood while the program is running:
+> \[!WARNING]
+> Debug mode is not intended for use in production!
 
-```bash
-$ tird --debug
-```
+Start `tird` with the `--debug` option to look under the hood while the program is running.
 
 Enabling debug messages additionally shows:
 
@@ -273,7 +272,7 @@ You can encrypt files and embed cryptoblobs into containers starting at arbitrar
 - It is **headerless** because containers do not contain any headers; all data about cryptoblob locations must be stored separately by the user.
 - The starting position of the cryptoblob in the container is **user-defined**, and the **user must** store both the starting and ending positions separately from the container. This is why it is called a **user-driven file system**.
 
-Any file, disk, or partition larger than the minimum cryptonlob size (863 B) can be a valid container. Cryptoblobs can be embedded into any area.
+Any file, disk, or partition larger than the minimum cryptoblob size (863 B) can be a valid container. Cryptoblobs can be embedded into any area.
 
 **Examples of Valid Containers Include:**
 
@@ -406,7 +405,7 @@ C1. Time cost (default=4): 1000000
 - ⚠️ `tird` protects data, not the user; it cannot prevent torture if you are under suspicion.
 - ⚠️ Development is not complete, and there may be backward compatibility issues.
 
-## Code Security Audit
+## AI reports
 
 [Tird Code Security Audit Report (v0.19.0)](https://g.co/gemini/share/6390743bb873)<br>
 Target: [d016bd5](https://github.com/hakavlad/tird/tree/d016bd51571cd24ea0b21b8959dc01c4e7a69bee)<br>
