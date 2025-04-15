@@ -4435,26 +4435,32 @@ def file_chunk_handler(
 
 def perform_file_action(action: ActionID) -> None:
     """
-    Executes the specified file-related action (2-9) based on the
-    provided action identifier.
+    Executes the specified file-related action based on the provided
+    action identifier (expected values 2-9).
 
-    This function performs the following tasks:
-    - Sets a flag indicating that a file action is currently ongoing.
-    - Executes the action corresponding to the provided action
-      identifier, including manages file I/O processes including
-      reading from or writing to files, ensuring that the correct
-      file-related functions are invoked.
-    - Cleans up resources and performs necessary post-action operations.
-    - Logs detailed information regarding the progress and the outcome
-      of the action, helping with debugging and auditing.
+    The function performs the following steps:
+    - Inserts a marker in the shared dictionary by adding the key
+      'action_is_ongoing'. The actual value of the key is irrelevant;
+      its mere presence indicates that a file action is in progress.
+    - Calls the corresponding file processing function mapped to the
+      given ActionID.
+    - After executing the main action, performs necessary resource
+      cleanup and post-action operations via the 'post_action_clean_up'
+      function.
+    - Logs details about the process: if DEBUG mode is enabled, it logs
+      a warning at the start; upon successful completion of the action,
+      it logs an informational message.
 
     Args:
-        action (ActionID): The identifier for the file action to be
-                           performed.
+        action (ActionID): The identifier for the file action (expected
+                           values from 2 to 9).
 
     Returns:
         None
     """
+    if DEBUG:
+        log_w(DEBUG_WARNING)
+
     ANY_D['action_is_ongoing'] = None
 
     success: bool = FILE_ACTION_MAP[action](action)
@@ -4544,29 +4550,40 @@ def signal_handler(signum: int, frame: Optional[FrameType]) -> NoReturn:
     Handles incoming signals by determining the current state of the
     application.
 
-    This function is called when a signal is received. It checks if an
-    action is ongoing and prints an appropriate message before exiting
-    the program with a status code.
+    This function is triggered when a signal is received. It checks if a
+    file-related action is in progress by verifying the existence of the
+    'action_is_ongoing' key in the shared dictionary. Note that the
+    value associated with the key is irrelevant; only its presence
+    matters. Based on whether an action is ongoing, it logs an
+    appropriate message and exits the program with a corresponding
+    status code:
+      - If the key exists, it logs an error and exits with status code 1.
+      - If the key does not exist, it logs an informational message and
+        exits with status code 0.
 
     Args:
         signum (int): The signal number that was received.
-        frame (Optional[FrameType]): The current stack frame
-                                     (not used in this implementation).
+        frame (Optional[FrameType]): The current stack frame (unused in
+                                     this implementation).
 
     Raises:
-        NoReturn: This function does not return; it exits the program.
+        NoReturn: This function does not return;
+                  it terminates the program.
     """
     print()
 
     message: str = f'caught signal {signum}'
 
-    # Check if an action is currently ongoing
+    # Check if an action is currently ongoing by verifying the presence
+    # of 'action_is_ongoing'
     if 'action_is_ongoing' in ANY_D:
-        # Print an error message and exit with status code 1
+        # Log an error message and exit with status code 1 if an action
+        # is ongoing
         log_e(message)
         exit(1)
     else:
-        # Print an informational message and exit with status code 0
+        # Log an informational message and exit with status code 0 if no
+        # action is ongoing
         log_i(message)
         exit(0)
 
@@ -4593,7 +4610,7 @@ def main() -> NoReturn:
     signal(SIGINT, signal_handler)
 
     if DEBUG:
-        log_w('debug mode enabled! Sensitive data will be displayed!')
+        log_w(DEBUG_WARNING)
 
     while True:
         action: ActionID = select_action()
@@ -4842,6 +4859,8 @@ MIN_VALID_PADDED_SIZE: Final[int] = \
 
 # Check if debug mode is enabled via command line arguments
 DEBUG: Final[bool] = cli_handler()
+
+DEBUG_WARNING: Final[str] = 'debug mode enabled! Sensitive data will exposed!'
 
 
 # Start the application
