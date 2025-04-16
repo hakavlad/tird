@@ -138,7 +138,7 @@ A detailed description of these options with examples can be found [here](https:
 
 Start `tird` with the `--debug` option to look under the hood while the program is running.
 
-Enabling debug messages additionally shows:
+Enabling debug mode additionally shows:
 
 - File operations:
   - Opening and closing of file descriptors.
