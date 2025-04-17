@@ -29,7 +29,7 @@ Description: tool for encrypting files and hiding encrypted data
  the user specifies the location of the data in the container and is
  responsible for ensuring that this location is separated from the
  container.
- 5. Resist coercive attacks (keywords: key disclosure law, rubber-hose
- cryptanalysis, xkcd 538). tird provides some forms of plausible
- deniability out of the box, even if you encrypt files without hiding
- them in containers.
+ 5. Prevent or resist coercive attacks (keywords: key disclosure law,
+ rubber-hose cryptanalysis, xkcd 538). tird provides some forms of
+ plausible deniability out of the box, even if you encrypt files without
+ hiding them in containers.
