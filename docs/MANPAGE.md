@@ -10,7 +10,7 @@ tird - encrypt files and hide encrypted data
 
 # DESCRIPTION
 
-**tird** *(an acronym for "this is random data")* is a file encryption tool focused on minimizing metadata and hiding encrypted data.
+**tird** /tɪrd/ *(an acronym for "this is random data")* is a file encryption tool focused on minimizing metadata and hiding encrypted data.
 
 With **tird**, you can:
 
@@ -18,17 +18,37 @@ With **tird**, you can:
 2. Overwrite the contents of devices and regular files with random data. This can be used to prepare containers and to destroy residual data.
 3. Encrypt file contents and comments with modern cryptographic primitives. The encrypted file format (called cryptoblob) is a padded uniform random blob (PURB): it looks like random data and has a randomized size. This reduces metadata leakage from file format and length, and also allows cryptoblobs to be hidden among random data. You can use keyfiles and passphrases at your choice to enhance security.
 4. Create steganographic (hidden, undetectable) user-driven file systems inside container files and devices. Unlike VeraCrypt and Shufflecake containers, **tird** containers do not contain headers at all; the user specifies the location of the data in the container and is responsible for ensuring that this location is separated from the container.
-5. Resist coercive attacks (keywords: key disclosure law, rubber-hose cryptanalysis, xkcd 538). **tird** provides some forms of plausible deniability out of the box, even if you encrypt files without hiding them in containers.
+5. Prevent or resist coercive attacks (keywords: key disclosure law, rubber-hose cryptanalysis, xkcd 538). **tird** provides some forms of plausible deniability out of the box, even if you encrypt files without hiding them in containers.
 
 # COMMAND-LINE OPTIONS
 
 #### \--debug
 
-print debug messages
+enable debug mode
+
+# USAGE
+
+You don't need to memorize command-line options to use tird. This tool features a prompt-based CLI: simply start it, select a menu option, and answer the questions that will follow.
+
+```
+$ tird
+
+                       MENU
+    ———————————————————————————————————————————
+    0. Exit              1. Info & Warnings
+    2. Encrypt           3. Decrypt
+    4. Embed             5. Extract
+    6. Encrypt & Embed   7. Extract & Decrypt
+    8. Create w/ Random  9. Overwrite w/ Random
+    ———————————————————————————————————————————
+A0. Select an option [0-9]:
+```
+
+A detailed description of these options with examples can be found here: <https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md>.
 
 # INPUT OPTIONS
 
-There are 5 groups of input options: A (Action), C (Custom), D (Data), K (Keys), P (Proceed).
+There are 5 groups of input options: A (Action), C (Custom), D (Data), K (Keys), P (Proceed). They are numbered for ease of description.
 
 ```
 +——————————————————————————+————————————————————————+
@@ -53,8 +73,6 @@ There are 5 groups of input options: A (Action), C (Custom), D (Data), K (Keys),
 +——————————————————————————+————————————————————————+
 ```
 
-A detailed description of these options with examples can be found here: <https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md>.
-
 # GOALS
 
 - **File Protection:** Ensuring protection for individual files, including:
@@ -66,22 +84,45 @@ A detailed description of these options with examples can be found here: <https:
 - **Stable Format:** Ensuring a stable encryption format with no cryptographic agility for long-term data storage.
 - **Simplicity:** Ensuring simplicity and avoiding feature creep: refusal to implement features that are not directly related to primary security goals.
 
-# USAGE
+# PAYLOAD
 
-You don't need to memorize command-line options to use tird. This tool features a prompt-based CLI: simply start it, select a menu option, and answer the questions that will follow.
+The payload that will be encrypted during cryptoblob creation consists of:
+
+- **Contents of one file:** This may be a regular file or a block device (an entire disk or partition). Maximum size: 16 exbibytes minus 864 bytes.
+- **Comments (optional):** An arbitrary string of up to 512 bytes. Decrypted comments will be displayed during decryption.
+
+Specifying the payload in the UI looks as follows:
 
 ```
-$ tird
+D1. File to encrypt: foo
+    I: path: 'foo'; size: 1 B
+D2. Comments (optional, up to 512 B): foo file, secret data
+    I: comments will be shown as ['foo file, secret data']
+```
 
-                       MENU
-    ———————————————————————————————————————————
-    0. Exit              1. Info & Warnings
-    2. Encrypt           3. Decrypt
-    4. Embed             5. Extract
-    6. Encrypt & Embed   7. Extract & Decrypt
-    8. Create w/ Random  9. Overwrite w/ Random
-    ———————————————————————————————————————————
-A0. Select an option [0-9]:
+# INPUT KEYING MATERIAL
+
+**tird** provides the option to use passphrases and the contents of keyfiles to derive one-time keys.
+
+- **Keyfiles:** Specify none, one, or multiple keyfile paths. A keyfile path may be:
+  - A regular file. The contents of the keyfile will be hashed, and its digest will be used for further key stretching and key derivation.
+  - A block device. Handled the same as a regular keyfile: contents will be hashed.
+  - A directory. All files within the directory will be hashed and used as keyfiles.
+- **Passphrases:** Specify none, one, or multiple passphrases of up to 2048 bytes.
+
+The order of input does not matter.
+
+Specifying IKM in the UI looks as follows:
+
+```
+K1. Keyfile path (optional): foo
+    I: path: 'foo'; size: 1 B
+    I: reading and hashing contents of 'foo'
+    I: keyfile accepted
+K1. Keyfile path (optional):
+K2. Passphrase (optional):
+K2. Confirm passphrase:
+    I: passphrase accepted
 ```
 
 # HIDDEN FILE SYSTEM AND CONTAINER FORMAT
@@ -92,7 +133,7 @@ You can encrypt files and embed cryptoblobs into containers starting at arbitrar
 - It is **headerless** because containers do not contain any headers; all data about cryptoblob locations must be stored separately by the user.
 - The starting position of the cryptoblob in the container is **user-defined**, and the **user must** store both the starting and ending positions separately from the container. This is why it is called a **user-driven file system**.
 
-Any file, disk, or partition larger than the minimum cryptonlob size (863 B) can be a valid container. Cryptoblobs can be embedded into any area.
+Any file, disk, or partition larger than the minimum cryptoblob size (863 B) can be a valid container. Cryptoblobs can be embedded into any area.
 
 **Examples of valid containers include:**
 
@@ -124,15 +165,31 @@ Any file, disk, or partition larger than the minimum cryptonlob size (863 B) can
 +—————————+—————————————+
 ```
 
+# TIME-LOCK ENCRYPTION
+
+Time-lock encryption (TLE) can be used to prevent an adversary from quickly accessing plaintexts in the event of an IKM compromise (in case of user coercion, for example). In our implementation, it is actually a PoW-based time-lock key derivation. The "Time cost" input option specifies the number of Argon2 passes. If you specify a sufficiently high number of passes, it will take a significant amount of time to perform them. However, an attacker will require the same amount of time when using similar hardware. The execution of Argon2 cannot be accelerated through parallelization, so it is expected that the time spent by an attacker will be approximately the same as that spent by the defender.
+
+This TLE implementation works offline, unlike **tlock**.
+
+Use custom options and set the desired "Time cost" value:
+
+```
+C0. Use custom settings? (Y/N, default=N): y
+    I: use custom settings: True
+    W: decryption will require the same [C1] and [C2] values!
+C1. Time cost (default=4): 1000000
+    I: time cost: 1,000,000
+```
+
+**Plausible TLE:** The adversary does not know the actual value of the time cost, so you can plausibly misrepresent the number of passes. The adversary cannot refute your claim until they attempt to decrypt the cryptoblob using the specified time cost value.
+
 # DEBUG MODE
 
-Start **tird** with the option **\--debug** to look under the hood while the program is running:
+**WARNING:** Debug mode is not intended for use in production!
 
-```
-$ tird --debug
-```
+Start **tird** with the option **\--debug** to look under the hood while the program is running.
 
-Enabling debug messages additionally shows:
+Enabling debug mode additionally shows:
 
 - File operations:
   - Opening and closing of file descriptors.
@@ -162,7 +219,7 @@ Enabling debug messages additionally shows:
 
 - The author does not have a background in cryptography.
 - The code has 0% test coverage.
-- **tird** has not been independently audited.
+- **tird** has not been independently security audited by humans.
 - **tird** is ineffective in a compromised environment; executing it in such cases may cause disastrous data leaks.
 - **tird** is unlikely to be effective when used with short and predictable keys.
 - Sensitive data may leak into swap space.
@@ -202,7 +259,7 @@ Please feel free to ask questions, leave feedback, or provide critiques in the D
 
 Alexey Avramov <hakavlad@gmail.com>
 
-# COPYRIGHT
+# LICENSE
 
 This project is licensed under the terms of the BSD Zero Clause License (0BSD):
 
