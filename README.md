@@ -205,6 +205,8 @@ For more details, refer to the [specification](https://github.com/hakavlad/tird/
 
 ## Encrypted Data Format
 
+<img src="https://i.imgur.com/xOiIlqa.jpeg" width="512" alt="PURB">
+
 The format of the encrypted data is quite simple and consists of ciphertext with a MAC tag, located *somewhere* among the surrounding random data:
 
 ```
