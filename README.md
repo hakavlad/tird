@@ -168,6 +168,8 @@ D2. Comments (optional, up to 512 B): foo file, secret data
 
 ## Input Keying Material
 
+<img src="https://i.imgur.com/n6OvtcI.jpeg" width="512" alt="IKM">
+
 `tird` provides the option to use passphrases and the contents of keyfiles to derive one-time keys.
 
 - **Keyfiles:** Specify none, one, or multiple keyfile paths. A keyfile path may be:
