@@ -15,6 +15,8 @@
 [![PyPI](https://img.shields.io/pypi/v/tird?color=blue&label=PyPI)](https://pypi.org/project/tird/)
 [![CodeQL](https://github.com/hakavlad/tird/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/hakavlad/tird/actions/workflows/github-code-scanning/codeql)
 [![Semgrep](https://github.com/hakavlad/tird/actions/workflows/semgrep.yml/badge.svg)](https://github.com/hakavlad/tird/actions/workflows/semgrep.yml)
+[![Bandit](https://github.com/hakavlad/tird/actions/workflows/bandit.yml/badge.svg)](https://github.com/hakavlad/tird/actions/workflows/bandit.yml)
+[![trivy](https://github.com/hakavlad/tird/actions/workflows/trivy.yml/badge.svg)](https://github.com/hakavlad/tird/actions/workflows/trivy.yml)
 
 <details>
   <summary>&nbsp;<b>Table of Contents</b></summary>
