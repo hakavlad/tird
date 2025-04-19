@@ -2950,6 +2950,12 @@ def set_custom_settings(action: ActionID) -> None:
             should_set_fake_mac = is_fake_mac()
             log_i(f'set fake MAC tag: {should_set_fake_mac}')
 
+            # Warn user that specifying a fake MAC tag makes
+            # integrity/authenticity checks impossible
+            if should_set_fake_mac:
+                log_w('then further integrity/authenticity checks '
+                      'are impossible!')
+
     # Log the settings if debugging is enabled
     if DEBUG and not is_custom_enabled:
         log_d(f'time cost: {argon2_time_cost:,}')
