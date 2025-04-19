@@ -2842,7 +2842,7 @@ def handle_mac_tag(action: ActionID, mac_message_size: int) -> bool:
 
             log_w('integrity/authenticity check:')
             log_w('\r        [FAIL]')
-            log_w('released plaintext can\'t be trusted!')
+            log_w('released plaintext cannot be trusted!')
             return False
 
         if DEBUG:
@@ -2862,7 +2862,7 @@ def handle_mac_tag(action: ActionID, mac_message_size: int) -> bool:
 
             log_w('integrity/authenticity check:')
             log_w('\r        [FAIL]')
-            log_w('released plaintext can\'t be trusted!')
+            log_w('released plaintext cannot be trusted!')
 
     mac_message_sum: int = INT_D['mac_message_sum']
 
