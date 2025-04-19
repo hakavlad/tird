@@ -2207,15 +2207,15 @@ def split_argon2_tag(argon2_tag: bytes) -> None:
 
     The expected structure of the Argon2 tag is as follows:
 
-    +————————————————+———————————————+————————————————+
-    |                | pad_key_rp:16 | Secret values  |
-    |                +———————————————+ that define    |
-    |                | pad_key_hf:16 | padding sizes  |
-    | argon2_tag:128 +———————————————+————————————————+
-    |                | enc_key:32    | Encryption key |
-    |                +———————————————+————————————————+
-    |                | mac_key:64    | MAC key        |
-    +————————————————+———————————————+————————————————+
+    +————————————————+——————————————+————————————————+
+    |                | pad_key_t:16 | Secret values  |
+    |                +——————————————+ that define    |
+    |                | pad_key_s:16 | padding sizes  |
+    | argon2_tag:128 +——————————————+————————————————+
+    |                | enc_key:32   | Encryption key |
+    |                +——————————————+————————————————+
+    |                | mac_key:64   | MAC key        |
+    +————————————————+——————————————+————————————————+
 
     Arguments:
         argon2_tag (bytes): The Argon2 tag containing the keys to
@@ -2234,8 +2234,8 @@ def split_argon2_tag(argon2_tag: bytes) -> None:
     argon2_tag_stream: BinaryIO = BytesIO(argon2_tag)
 
     # Extract keys from the stream using predefined sizes
-    pad_key_rp: bytes = argon2_tag_stream.read(PAD_KEY_SIZE)
-    pad_key_hf: bytes = argon2_tag_stream.read(PAD_KEY_SIZE)
+    pad_key_t: bytes = argon2_tag_stream.read(PAD_KEY_SIZE)
+    pad_key_s: bytes = argon2_tag_stream.read(PAD_KEY_SIZE)
     enc_key: bytes = argon2_tag_stream.read(ENC_KEY_SIZE)
     mac_key: bytes = argon2_tag_stream.read(MAC_KEY_SIZE)
 
@@ -2243,14 +2243,14 @@ def split_argon2_tag(argon2_tag: bytes) -> None:
     if DEBUG:
         log_d(
             f'derived keys:\n'
-            f'        pad_key_rp:  {pad_key_rp.hex()} ({len(pad_key_rp)} B)\n'
-            f'        pad_key_hf:  {pad_key_hf.hex()} ({len(pad_key_hf)} B)\n'
-            f'        enc_key:     {enc_key.hex()} ({len(enc_key)} B)\n'
-            f'        mac_key:     {mac_key.hex()} ({len(mac_key)} B)')
+            f'        pad_key_t:  {pad_key_t.hex()} ({len(pad_key_t)} B)\n'
+            f'        pad_key_s:  {pad_key_s.hex()} ({len(pad_key_s)} B)\n'
+            f'        enc_key:    {enc_key.hex()} ({len(enc_key)} B)\n'
+            f'        mac_key:    {mac_key.hex()} ({len(mac_key)} B)')
 
     # Store the extracted keys in the global dictionary `BYTES_D`
-    BYTES_D['pad_key_rp'] = pad_key_rp
-    BYTES_D['pad_key_hf'] = pad_key_hf
+    BYTES_D['pad_key_t'] = pad_key_t
+    BYTES_D['pad_key_s'] = pad_key_s
     BYTES_D['enc_key'] = enc_key
     BYTES_D['mac_key'] = mac_key
 
@@ -2261,7 +2261,7 @@ def split_argon2_tag(argon2_tag: bytes) -> None:
 
 def randomized_pad_from_constant_padded(
     constant_padded_size: int,
-    pad_key_rp: bytes,
+    pad_key_t: bytes,
     max_pad_size_percent: int,
 ) -> int:
     """
@@ -2289,9 +2289,9 @@ def randomized_pad_from_constant_padded(
         constant_padded_size (int): The size of the constant-padded data
             in bytes. This value is used to calculate the RPoTP size.
 
-        pad_key_rp (bytes): A byte string that influences the overall
-            RPoTP size. This key is converted to an integer to affect
-            the RPoTP size calculation.
+        pad_key_t (bytes): A byte string that influences the RPoTP size.
+            This key is converted to an integer to affect the RPoTP size
+            calculation.
 
         max_pad_size_percent (int): The maximum percentage of the
             constant-padded size that can be used for the RPoTP size
@@ -2302,12 +2302,12 @@ def randomized_pad_from_constant_padded(
     """
 
     # Convert the padding key from bytes to an integer
-    pad_key_rp_int: int = int.from_bytes(pad_key_rp, BYTEORDER)
+    pad_key_t_int: int = int.from_bytes(pad_key_t, BYTEORDER)
 
     # Calculate the RPoTP size based on the constant-padded size,
-    # pad_key_rp, and max padding percentage
+    # pad_key_t, and max padding percentage
     randomized_pad_size: int = (
-        constant_padded_size * pad_key_rp_int * max_pad_size_percent //
+        constant_padded_size * pad_key_t_int * max_pad_size_percent //
         (PAD_KEY_SPACE * 100)
     )
 
@@ -2331,9 +2331,9 @@ def randomized_pad_from_constant_padded(
         total_padded_size: int = constant_padded_size + randomized_pad_size
 
         log_d('getting randomized_pad_size')
-        log_d(f'pad_key_rp_int:                {pad_key_rp_int}')
-        log_d(f'pad_key_rp_int/PAD_KEY_SPACE:  '
-              f'{pad_key_rp_int / PAD_KEY_SPACE}')
+        log_d(f'pad_key_t_int:                {pad_key_t_int}')
+        log_d(f'pad_key_t_int/PAD_KEY_SPACE:  '
+              f'{pad_key_t_int / PAD_KEY_SPACE}')
         log_d(f'constant_padded_size:     {format_size(constant_padded_size)}')
         log_d(f'max_randomized_pad_size:  '
               f'{format_size(max_randomized_pad_size)}')
@@ -2357,7 +2357,7 @@ def randomized_pad_from_constant_padded(
 
 def randomized_pad_from_total_padded(
     total_padded_size: int,
-    pad_key_rp: bytes,
+    pad_key_t: bytes,
     max_pad_size_percent: int,
 ) -> int:
     """
@@ -2374,7 +2374,7 @@ def randomized_pad_from_total_padded(
             bytes. This parameter represents the total size of the
             cryptoblob and is used to calculate the total padding size.
 
-        pad_key_rp (bytes): A byte string representing a padding key.
+        pad_key_t (bytes): A byte string representing a padding key.
             This key is converted to an integer to influence the padding
             size calculation.
 
@@ -2387,13 +2387,13 @@ def randomized_pad_from_total_padded(
     """
 
     # Convert the padding key from bytes to an integer
-    pad_key_rp_int: int = int.from_bytes(pad_key_rp, BYTEORDER)
+    pad_key_t_int: int = int.from_bytes(pad_key_t, BYTEORDER)
 
     # Calculate the RPoTP size based on the padded size, padding key,
     # and maximum padding percentage
     randomized_pad_size: int = (
-        total_padded_size * pad_key_rp_int * max_pad_size_percent //
-        (pad_key_rp_int * max_pad_size_percent + PAD_KEY_SPACE * 100)
+        total_padded_size * pad_key_t_int * max_pad_size_percent //
+        (pad_key_t_int * max_pad_size_percent + PAD_KEY_SPACE * 100)
     )
 
     # If debugging is enabled, log detailed information about
@@ -2404,9 +2404,9 @@ def randomized_pad_from_total_padded(
             (randomized_pad_size * 100) / constant_padded_size
 
         log_d('getting randomized_pad_size')
-        log_d(f'pad_key_rp_int:                {pad_key_rp_int}')
-        log_d(f'pad_key_rp_int/PAD_KEY_SPACE:  '
-              f'{pad_key_rp_int / PAD_KEY_SPACE}')
+        log_d(f'pad_key_t_int:                {pad_key_t_int}')
+        log_d(f'pad_key_t_int/PAD_KEY_SPACE:  '
+              f'{pad_key_t_int / PAD_KEY_SPACE}')
         log_d(f'total_padded_size:     {format_size(total_padded_size)}')
         log_d(f'randomized_pad_size:   {format_size(randomized_pad_size)}, '
               f'{round(percent_of_constant_padded, 1)}% of '
@@ -2416,9 +2416,9 @@ def randomized_pad_from_total_padded(
     return randomized_pad_size
 
 
-def get_header_footer_pad_sizes(
+def split_total_pad_size(
     total_pad_size: int,
-    pad_key_hf: bytes,
+    pad_key_s: bytes,
 ) -> tuple[int, int]:
     """
     Calculates the sizes of the header and footer pads based on the
@@ -2440,9 +2440,9 @@ def get_header_footer_pad_sizes(
         total_pad_size (int): The total size of the pad to be used for
             calculating the header and footer pad sizes. This value
             must not be negative.
-        pad_key_hf (bytes): The key in byte format that will be
-            converted to an integer for pad size calculations. The
-            length of this byte key should be appropriate for the
+        pad_key_s (bytes): "split" key: The key in byte format that
+            will be converted to an integer for pad size calculations.
+            The length of this byte key should be appropriate for the
             intended use.
 
     Returns:
@@ -2457,10 +2457,10 @@ def get_header_footer_pad_sizes(
     """
 
     # Convert the padding key from bytes to an integer
-    pad_key_hf_int: int = int.from_bytes(pad_key_hf, BYTEORDER)
+    pad_key_s_int: int = int.from_bytes(pad_key_s, BYTEORDER)
 
     # Calculate the size of the header pad using the modulus operation
-    header_pad_size: int = pad_key_hf_int % (total_pad_size + 1)
+    header_pad_size: int = pad_key_s_int % (total_pad_size + 1)
 
     # Calculate the size of the footer pad by subtracting the header pad
     # size from the total pad size
@@ -2468,8 +2468,9 @@ def get_header_footer_pad_sizes(
 
     # If debugging is enabled, log detailed information about the padding sizes
     if DEBUG:
-        log_d('getting header_pad_size and footer_pad_size')
-        log_d(f'pad_key_hf_int:   {pad_key_hf_int}')
+        log_d('splitting total_pad_size: '
+              'getting header_pad_size and footer_pad_size')
+        log_d(f'pad_key_s_int:    {pad_key_s_int}')
 
         if total_pad_size:
             header_percent: float = (header_pad_size * 100) / total_pad_size
@@ -3445,7 +3446,7 @@ def encrypt_and_embed_handler(
         # Get randomized pad size from constant-padded size
         randomized_pad_size = randomized_pad_from_constant_padded(
             constant_padded_size,
-            BYTES_D['pad_key_rp'],
+            BYTES_D['pad_key_t'],
             INT_D['max_pad_size_percent'],
         )
 
@@ -3464,16 +3465,16 @@ def encrypt_and_embed_handler(
         # Get randomized pad size from total padded size
         randomized_pad_size = randomized_pad_from_total_padded(
             total_padded_size,
-            BYTES_D['pad_key_rp'],
+            BYTES_D['pad_key_t'],
             INT_D['max_pad_size_percent'],
         )
 
     total_pad_size = CONSTANT_PAD_SIZE + randomized_pad_size
 
     # Calculate header and footer padding sizes
-    header_pad_size, footer_pad_size = get_header_footer_pad_sizes(
+    header_pad_size, footer_pad_size = split_total_pad_size(
         total_pad_size,
-        BYTES_D['pad_key_hf'],
+        BYTES_D['pad_key_s'],
     )
 
     # Convert sizes to bytes for further authentication
@@ -3514,8 +3515,8 @@ def encrypt_and_embed_handler(
 
     del (
         BYTES_D['argon2_password'],
-        BYTES_D['pad_key_rp'],
-        BYTES_D['pad_key_hf'],
+        BYTES_D['pad_key_t'],
+        BYTES_D['pad_key_s'],
         BYTES_D['mac_key'],
     )
 
