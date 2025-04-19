@@ -21,7 +21,8 @@ from collections.abc import Callable
 from gc import collect
 from getpass import getpass
 from io import BytesIO
-from os import SEEK_CUR, SEEK_END, SEEK_SET, fsync, path, remove, walk
+from os import (SEEK_CUR, SEEK_END, SEEK_SET, fsync, ftruncate, path, remove,
+                walk)
 from secrets import compare_digest, token_bytes
 from signal import SIGINT, signal
 from sys import argv, exit, platform, version
@@ -530,34 +531,52 @@ def fsync_written_data() -> bool:
 def remove_output_path(action: ActionID) -> None:
     """
     Removes the output file path specified in the global `BIO_D`
-    dictionary if the user confirms the action.
+    dictionary after obtaining user confirmation and truncating the file
+    contents.
 
-    This function checks if the user wants to proceed with removing the
-    output file. If confirmed, it attempts to delete the file associated
-    with the output stream in the global `BIO_D` dictionary. It logs the
-    outcome of the operation, including any errors that may occur during
-    the removal process.
+    Steps:
+      1. Request user confirmation to proceed with the removal.
+      2. Attempt to truncate the contents of the output file to zero
+         length.
+      3. Ensure the file descriptor is properly closed after truncation.
+      4. Attempt to remove the file from the filesystem.
 
     Args:
-        action (ActionID): The action identifier used to log the context
-                           of the operation and may influence user
-                           prompts.
+        action (ActionID): The action identifier used for logging
+                           context and prompting the user for
+                           confirmation.
 
     Returns:
-        None
+        None: This function does not return a value. It may log messages
+              indicating the success or failure of the operations
+              performed.
     """
-
-    # Check if the user confirms the action to proceed with removal
     if proceed_request(PROCEED_REMOVE, action):
-        # Get the name of the output file
-        out_file_name: str = BIO_D['OUT'].name
+        # Get the file object and its name from the global dictionary
+        out_file_obj = BIO_D['OUT']
+        out_file_name: str = out_file_obj.name
 
-        # Attempt to remove the output file path
+        if DEBUG:
+            log_d('truncating output file')
+
+        # Try to truncate the file
+        try:
+            ftruncate(out_file_obj.fileno(), 0)
+            log_i('output file truncated')
+        except Exception as truncate_error:
+            log_e(f'{truncate_error}')
+
+        close_file(out_file_obj)
+
+        if DEBUG:
+            log_d(f'removing path {out_file_name!r}')
+
+        # Attempt to remove the file regardless of previous errors
         try:
             remove(out_file_name)
             log_i(f'path {out_file_name!r} removed')
-        except Exception as error:
-            log_e(f'{error}')
+        except Exception as remove_error:
+            log_e(f'{remove_error}')
             log_w(f'failed to remove path {out_file_name!r}!')
     else:
         log_i('output file path NOT removed')
@@ -4473,39 +4492,43 @@ def perform_file_action(action: ActionID) -> None:
 
 def post_action_clean_up(action: ActionID, success: bool) -> None:
     """
-    Cleans up resources and performs necessary actions after a specified
-    action.
+    Cleans up resources and performs additional tasks following the
+    execution of a specified action.
 
-    This function performs the following tasks:
-    1. Closes any open input and output files if they exist in the
-       `BIO_D` dictionary.
-    2. Evaluates the success of the action. If the action was not
-       successful or if an authentication failure occurred, it checks
-       if the provided action is related to creating a *new* output file
-       and offers to remove the output file path.
-    3. Clears the global dictionaries: `ANY_D`, `BIO_D`, `INT_D`,
-       `BOOL_D`, `BYTES_D`, and FLOAT_D.
-    4. Collects any remaining resources or performs additional cleanup
-       by calling the `collect` function.
+    The function performs the following steps:
+    1. Closes any open input and output files, if present in the BIO_D
+       dictionary.
+    2. Evaluates the outcome of the operation:
+      - If the action was unsuccessful or an authentication failure
+        occurred (as indicated by the presence of 'auth_fail' in BOOL_D),
+        and if the action does not pertain to creating a new output file
+        (i.e., the action is not EMBED, ENCRYPT_EMBED, or
+        OVERWRITE_W_RANDOM), the function remove_output_path is called
+        to remove the output file path.
+      - Otherwise, if the output file exists, it is closed.
+    3. Clears the global dictionaries: ANY_D, BIO_D, INT_D, BOOL_D,
+       BYTES_D, and FLOAT_D.
+    4. Invokes the collect function to collect garbage.
 
     Args:
-        action (ActionID): An integer representing the action that was
+        action (ActionID): An identifier representing the action
                            performed (e.g., ENCRYPT, DECRYPT).
-        success (Optional[bool]): A boolean indicating whether the
-                                  action was successful.
+        success (bool): A boolean indicating whether the action
+                        completed successfully.
 
     Returns:
         None
     """
+
     if 'IN' in BIO_D:
         close_file(BIO_D['IN'])
 
     if 'OUT' in BIO_D:
-        close_file(BIO_D['OUT'])
-
         if not success or 'auth_fail' in BOOL_D:
             if action not in (EMBED, ENCRYPT_EMBED, OVERWRITE_W_RANDOM):
                 remove_output_path(action)
+        else:
+            close_file(BIO_D['OUT'])
 
     ANY_D.clear()
     BIO_D.clear()
