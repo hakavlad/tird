@@ -217,6 +217,11 @@ The format of the encrypted data is quite simple and consists of ciphertext with
 +——————————————————————————————————————————————————+
 ```
 
+**The only data available is:**
+
+- This is random-looking data.
+- Its size.
+
 <details>
   <summary>&nbsp;<b>Show more detailed scheme</b></summary>
 
