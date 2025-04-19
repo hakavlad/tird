@@ -34,7 +34,6 @@ jobs:
         with:
           severity: 'CRITICAL,HIGH'
           exit-code: '1'
-          input: '.'
           format: 'table'
           scan-type: 'fs'  # Specify filesystem scan
 
