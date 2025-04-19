@@ -304,21 +304,31 @@ def open_file(
 
 def close_file(file_obj: BinaryIO) -> None:
     """
-    Closes the given file and logs the action if debugging is enabled.
-
-    This function closes the file and prints debug information if the
-    DEBUG flag is set.
+    The function attempts to close the provided file object. If the
+    DEBUG flag is set, it logs before and after the close operation. If,
+    after calling .close(), the file is not actually closed (i.e.
+    file_obj.closed is False), an error is logged.
 
     Args:
         file_obj (BinaryIO): The file object to close.
+
+    Returns:
+        None
     """
-    if DEBUG:
-        log_d(f'closing {file_obj}')
+    if not file_obj.closed:
+        if DEBUG:
+            log_d(f'closing {file_obj}')
 
-    file_obj.close()
+        file_obj.close()
 
-    if DEBUG and file_obj.closed:
-        log_d(f'{file_obj} closed')
+        if file_obj.closed:
+            if DEBUG:
+                log_d(f'{file_obj} closed')
+        else:
+            log_e(f'file descriptor of {file_obj} NOT closed')
+    else:
+        if DEBUG:
+            log_d(f'{file_obj} is already closed')
 
 
 def get_file_size(file_path: str) -> Optional[int]:
@@ -564,7 +574,7 @@ def remove_output_path(action: ActionID) -> None:
             ftruncate(out_file_obj.fileno(), 0)
             log_i('output file truncated')
         except Exception as truncate_error:
-            log_e(f'{truncate_error}')
+            log_e(f'cannot truncate output file: {truncate_error}')
 
         close_file(out_file_obj)
 
@@ -576,7 +586,7 @@ def remove_output_path(action: ActionID) -> None:
             remove(out_file_name)
             log_i(f'path {out_file_name!r} removed')
         except Exception as remove_error:
-            log_e(f'{remove_error}')
+            log_e(f'cannot remove output file path: {remove_error}')
             log_w(f'failed to remove path {out_file_name!r}!')
     else:
         log_i('output file path NOT removed')
