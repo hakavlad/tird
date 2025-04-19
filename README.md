@@ -134,6 +134,8 @@ A detailed description of these options with examples can be found [here](https:
 
 ## Debug Mode
 
+<img src="https://i.imgur.com/4bvMh50.jpeg" width="501" alt="Under the hood">
+
 > \[!WARNING]
 > Debug mode is not intended for use in production!
 
