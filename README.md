@@ -222,7 +222,7 @@ The format of the encrypted data is quite simple and consists of ciphertext with
 - This is random-looking data.
 - Its size.
 
-The ciphertext size and its location are hidden.
+The ciphertext size and its location within the cryptoblob are hidden.
 
 <details>
   <summary>&nbsp;<b>Show more detailed scheme</b></summary>
