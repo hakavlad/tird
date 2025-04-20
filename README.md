@@ -173,9 +173,9 @@ D2. Comments (optional, up to 512 B): foo file, secret data
 `tird` provides the option to use passphrases and the contents of keyfiles to derive one-time keys.
 
 - **Keyfiles:** Specify none, one, or multiple keyfile paths. A keyfile path may be:
-  - A regular file. The contents of the keyfile will be hashed, and its digest will be used for further key stretching and key derivation.
-  - A block device. Handled the same as a regular keyfile: contents will be hashed.
-  - A directory. All files within the directory will be hashed and used as keyfiles.
+  - <ins>A regular file</ins>. The contents of the keyfile will be hashed, and its digest will be used for further key stretching and key derivation.
+  - <ins>A block device</ins>. Handled the same as a regular keyfile: contents will be hashed.
+  - <ins>A directory</ins>. All files within the directory will be hashed and used as keyfiles.
 - **Passphrases:** Specify none, one, or multiple passphrases of up to 2048 bytes.
 
 The order of input does not matter.
