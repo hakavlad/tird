@@ -134,7 +134,7 @@ A detailed description of these options with examples can be found [here](https:
 
 ## Debug Mode
 
-<img src="https://i.imgur.com/4bvMh50.jpeg" width="501" alt="Under the hood">
+<img src="https://i.imgur.com/4bvMh50.jpeg" width="280" alt="Under the hood">
 
 > \[!WARNING]
 > Debug mode is not intended for use in production!
@@ -168,14 +168,14 @@ D2. Comments (optional, up to 512 B): foo file, secret data
 
 ## Input Keying Material
 
-<img src="https://i.imgur.com/n6OvtcI.jpeg" width="512" alt="IKM">
+<img src="https://i.imgur.com/n6OvtcI.jpeg" width="280" alt="IKM">
 
 `tird` provides the option to use passphrases and the contents of keyfiles to derive one-time keys.
 
 - **Keyfiles:** Specify none, one, or multiple keyfile paths. A keyfile path may be:
-  - <ins>A regular file</ins>. The contents of the keyfile will be hashed, and its digest will be used for further key stretching and key derivation.
-  - <ins>A block device</ins>. Handled the same as a regular keyfile: contents will be hashed.
-  - <ins>A directory</ins>. All files within the directory will be hashed and used as keyfiles.
+  - A <ins>regular file</ins>. The contents of the keyfile will be hashed, and its digest will be used for further key stretching and key derivation.
+  - A <ins>block device</ins>. Handled the same as a regular keyfile: contents will be hashed.
+  - A <ins>directory</ins>. All files within the directory will be hashed and used as keyfiles.
 - **Passphrases:** Specify none, one, or multiple passphrases of up to 2048 bytes.
 
 The order of input does not matter.
@@ -205,7 +205,7 @@ For more details, refer to the [specification](https://github.com/hakavlad/tird/
 
 ## Encrypted Data Format
 
-<img src="https://i.imgur.com/xOiIlqa.jpeg" width="512" alt="PURB">
+<img src="https://i.imgur.com/wAJyAJc.png" width="280" alt="256 shades of grey">
 
 The format of the encrypted data is quite simple and consists of ciphertext with a MAC tag, located *somewhere* among the surrounding random data:
 
@@ -221,6 +221,8 @@ The format of the encrypted data is quite simple and consists of ciphertext with
 
 - This is random-looking data.
 - Its size.
+
+The ciphertext size and its location are hidden.
 
 <details>
   <summary>&nbsp;<b>Show more detailed scheme</b></summary>
@@ -273,8 +275,6 @@ Data encrypted with `tird` cannot be distinguished from random data without know
 - Optional: hiding encrypted data in containers.
 
 ## Hidden File System and Container Format
-
-<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embedding.gif" width="800" alt="GIF: visualization of embedding">
 
 `tird` employs a technique that is [described](https://en.wikipedia.org/wiki/List_of_steganography_techniques#Digital) as follows:
 
@@ -360,7 +360,7 @@ If you are interested in hiding data outside the visible file system, then `tird
 
 ## Time-Lock Encryption
 
-<img src="https://i.imgur.com/65xm1mK.jpeg" width="512" alt="TLE image">
+<img src="https://i.imgur.com/65xm1mK.jpeg" width="280" alt="TLE image">
 
 Time-lock encryption (TLE) can be used to prevent an adversary from quickly accessing plaintexts in the event of an IKM compromise (in case of user coercion, for example). In our implementation, it is actually a PoW-based time-lock key derivation. The "Time cost" input option specifies the number of Argon2 passes. If you specify a sufficiently high number of passes, it will take a significant amount of time to perform them. However, an attacker will require the same amount of time when using similar hardware. The execution of Argon2 cannot be accelerated through parallelization, so it is expected that the time spent by an attacker will be approximately the same as that spent by the defender.
 
