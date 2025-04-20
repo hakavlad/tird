@@ -274,7 +274,7 @@ Data encrypted with `tird` cannot be distinguished from random data without know
 
 ## Hidden File System and Container Format
 
-<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embedding.gif" width="850" alt="GIF: visualization of embedding">
+<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embedding.gif" width="800" alt="GIF: visualization of embedding">
 
 `tird` employs a technique that is [described](https://en.wikipedia.org/wiki/List_of_steganography_techniques#Digital) as follows:
 
@@ -328,19 +328,19 @@ The next image visualizes how hard it is to distinguish one random data entry fr
 <br>
 
 *Empty container with random data:*
-<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/container.png" width="850" alt="Container">
+<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/container.png" width="800" alt="Container">
 
 *One cryptoblob embedded in the container:*
-<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embed1.png" width="850" alt="Embedded1">
+<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embed1.png" width="800" alt="Embedded1">
 
 *Two cryptoblobs embedded in the container:*
-<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embed2.png" width="850" alt="Embedded2">
+<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embed2.png" width="800" alt="Embedded2">
 
 *Three cryptoblobs embedded in the container:*
-<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embed3.png" width="850" alt="Embedded3">
+<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embed3.png" width="800" alt="Embedded3">
 
 *Animation: visualization of embedding:*
-<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embedding.gif" width="850" alt="GIF: visualization of embedding">
+<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embedding.gif" width="800" alt="GIF: visualization of embedding">
 
 </details>
 
