@@ -2210,22 +2210,24 @@ def split_argon2_tag(argon2_tag: bytes) -> None:
     Extracts and stores cryptographic keys from the provided Argon2 tag.
 
     This function takes an Argon2 tag that contains multiple
-    cryptographic keys and splits it into its components.
-    The extracted keys include a padding keys, an encryption key,
-    and a MAC key. The extracted keys are then stored in a global
-    dictionary `BYTES_D` for later use in cryptographic operations.
+    cryptographic keys and splits it into its components. The extracted
+    keys include a padding keys, a nonce key, an encryption key, and a
+    MAC key. The extracted keys are then stored in a global dictionary
+    `BYTES_D` for later use in cryptographic operations.
 
     The expected structure of the Argon2 tag is as follows:
 
-    +————————————————+——————————————+————————————————+
-    |                | pad_key_t:16 | Secret values  |
-    |                +——————————————+ that define    |
-    |                | pad_key_s:16 | padding sizes  |
-    | argon2_tag:128 +——————————————+————————————————+
-    |                | enc_key:32   | Encryption key |
-    |                +——————————————+————————————————+
-    |                | mac_key:64   | MAC key        |
-    +————————————————+——————————————+————————————————+
+    +————————————————+——————————————+———————————————+
+    |                | pad_key_t:10 | Secret values |
+    |                +——————————————+ that define   |
+    |                | pad_key_s:10 | padding sizes |
+    |                +——————————————+———————————————+
+    | argon2_tag:128 | nonce_key:12 | Secret values |
+    |                +——————————————+ for data      |
+    |                | enc_key:32   | encryption    |
+    |                +——————————————+———————————————+
+    |                | mac_key:64   | Auth key      |
+    +————————————————+——————————————+———————————————+
 
     Arguments:
         argon2_tag (bytes): The Argon2 tag containing the keys to
@@ -2241,13 +2243,21 @@ def split_argon2_tag(argon2_tag: bytes) -> None:
         log_d('splitting argon2_tag into separate keys')
 
     # Create a stream from the Argon2 byte tag for sequential reading
-    argon2_tag_stream: BinaryIO = BytesIO(argon2_tag)
+    with BytesIO(argon2_tag) as argon2_tag_stream:
+        # Extract keys from the stream using predefined sizes
+        pad_key_t: bytes = argon2_tag_stream.read(PAD_KEY_SIZE)
+        pad_key_s: bytes = argon2_tag_stream.read(PAD_KEY_SIZE)
+        nonce_key: bytes = argon2_tag_stream.read(NONCE_SIZE)
+        enc_key: bytes = argon2_tag_stream.read(ENC_KEY_SIZE)
+        mac_key: bytes = argon2_tag_stream.read(MAC_KEY_SIZE)
 
-    # Extract keys from the stream using predefined sizes
-    pad_key_t: bytes = argon2_tag_stream.read(PAD_KEY_SIZE)
-    pad_key_s: bytes = argon2_tag_stream.read(PAD_KEY_SIZE)
-    enc_key: bytes = argon2_tag_stream.read(ENC_KEY_SIZE)
-    mac_key: bytes = argon2_tag_stream.read(MAC_KEY_SIZE)
+    if DEBUG:
+        if argon2_tag != b''.join([
+            pad_key_t, pad_key_s,
+            nonce_key, enc_key,
+            mac_key,
+        ]):
+            raise RuntimeError
 
     # Log the extracted keys if debugging is enabled
     if DEBUG:
@@ -2255,12 +2265,14 @@ def split_argon2_tag(argon2_tag: bytes) -> None:
             f'derived keys:\n'
             f'        pad_key_t:  {pad_key_t.hex()} ({len(pad_key_t)} B)\n'
             f'        pad_key_s:  {pad_key_s.hex()} ({len(pad_key_s)} B)\n'
+            f'        nonce_key:  {nonce_key.hex()} ({len(nonce_key)} B)\n'
             f'        enc_key:    {enc_key.hex()} ({len(enc_key)} B)\n'
             f'        mac_key:    {mac_key.hex()} ({len(mac_key)} B)')
 
     # Store the extracted keys in the global dictionary `BYTES_D`
     BYTES_D['pad_key_t'] = pad_key_t
     BYTES_D['pad_key_s'] = pad_key_s
+    BYTES_D['nonce_key'] = nonce_key
     BYTES_D['enc_key'] = enc_key
     BYTES_D['mac_key'] = mac_key
 
@@ -2603,26 +2615,45 @@ def handle_padding(
 
 def init_nonce_counter() -> None:
     """
-    Initialize the nonce counter for the ChaCha20 encryption algorithm.
+    Initializes the nonce counter for the ChaCha20 encryption algorithm.
 
-    This function sets the nonce counter to its initial value (0)
-    in preparation for encryption operations.
+    This function retrieves the 'nonce_key' from the global BYTES_D
+    dictionary, which is expected to have been extracted earlier. The
+    nonce key (a byte string) is converted to an integer using the byte
+    order specified by the global variable BYTEORDER. This integer value
+    is then stored in the global INT_D dictionary under the key
+    'nonce_counter'.
 
-    The nonce counter is stored in a global dictionary, allowing
-    it to be accessed by other functions involved in the encryption
-    process. This function can be called multiple times, and each
-    invocation will reset the nonce counter to 0.
+    The integer stored in 'nonce_counter' serves as the initial nonce
+    value for encryption operations and will be incremented for each
+    subsequent encryption to ensure unique nonces.
 
-    If the DEBUG flag is enabled, the initialization of the nonce
-    counter will be logged for debugging purposes.
+    Note:
+      - The nonce counter gets reset to the initial value on each
+        invocation of this function.
+      - Ensure that BYTES_D['nonce_key'] contains the expected data
+        (e.g., 12 bytes) and that BYTEORDER is correctly defined.
+      - If DEBUG is enabled, the initialized nonce counter value is
+        logged for troubleshooting.
 
     Returns:
         None
     """
-    init_value: int = 0
 
+    # Retrieve the nonce key (a byte string) from the global
+    # BYTES_D dictionary
+    nonce_key: bytes = BYTES_D['nonce_key']
+
+    # Convert the nonce key from bytes to an integer using the specified
+    # byte order
+    init_value: int = int.from_bytes(nonce_key, BYTEORDER)
+
+    # Store the converted integer as the initial nonce counter in the
+    # INT_D dictionary
     INT_D['nonce_counter'] = init_value
 
+    # If debugging is enabled, log the initialized nonce counter value
+    # for troubleshooting
     if DEBUG:
         log_d(f'nonce counter initialized to {init_value}')
 
@@ -2647,14 +2678,24 @@ def get_incremented_nonce() -> bytes:
                NONCE_SIZE, represented in the specified byte order
                (BYTEORDER).
     """
-    INT_D['nonce_counter'] += 1
+
+    # Retrieve the current nonce counter from the INT_D dictionary
+    current_counter: int = INT_D['nonce_counter']
+
+    # Increment the current counter and wrap around using modulo
+    # to ensure it stays within the bounds of NONCE_SPACE
+    incremented_counter: int = (current_counter + 1) % NONCE_SPACE
+
+    # Update the nonce counter in the INT_D dictionary with the new value
+    INT_D['nonce_counter'] = incremented_counter
+
+    # Convert the incremented counter to bytes, using the specified size
+    # and byte order
+    incremented_nonce: bytes = \
+        incremented_counter.to_bytes(NONCE_SIZE, BYTEORDER)
 
     if DEBUG:
-        incremented_counter: int = INT_D['nonce_counter']
         log_d(f'nonce counter incremented to {incremented_counter}')
-
-    incremented_nonce: bytes = \
-        INT_D['nonce_counter'].to_bytes(NONCE_SIZE, BYTEORDER)
 
     return incremented_nonce
 
@@ -3527,6 +3568,7 @@ def encrypt_and_embed_handler(
         BYTES_D['argon2_password'],
         BYTES_D['pad_key_t'],
         BYTES_D['pad_key_s'],
+        BYTES_D['nonce_key'],
         BYTES_D['mac_key'],
     )
 
@@ -4851,6 +4893,7 @@ SALTS_SIZE: Final[int] = ONE_SALT_SIZE * 2
 # ChaCha20 constants
 ENC_KEY_SIZE: Final[int] = 32  # 256-bit key size
 NONCE_SIZE: Final[int] = 12  # 96-bit nonce size
+NONCE_SPACE: Final[int] = 256 ** NONCE_SIZE
 BLOCK_COUNTER_INIT_BYTES: Final[bytes] = \
     bytes(4)  # 32-bit block counter initialized to zero
 
@@ -4881,14 +4924,18 @@ CHECKSUM_SIZE: Final[int] = 32
 SIZE_BYTES_SIZE: Final[int] = 8  # Supports sizes up to 2^64-1
 
 # Padding constants
-PAD_KEY_SIZE: Final[int] = 16
+PAD_KEY_SIZE: Final[int] = 10
 PAD_KEY_SPACE: Final[int] = 256 ** PAD_KEY_SIZE
 MAX_PAD_SIZE_PERCENT_LIMIT: Final[int] = 10 ** 20
 CONSTANT_PAD_SIZE: Final[int] = 255
 
 # Argon2 constants
 ARGON2_MEM: Final[int] = 512 * M  # Memory size for Argon2 in bytes
-ARGON2_TAG_SIZE: Final[int] = PAD_KEY_SIZE * 2 + ENC_KEY_SIZE + MAC_KEY_SIZE
+ARGON2_TAG_SIZE: Final[int] = (
+    PAD_KEY_SIZE * 2 +
+    NONCE_SIZE + ENC_KEY_SIZE +
+    MAC_KEY_SIZE
+)
 
 MIN_VALID_UNPADDED_SIZE: Final[int] = \
     SALTS_SIZE + PROCESSED_COMMENTS_SIZE + MAC_TAG_SIZE
