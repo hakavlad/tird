@@ -36,10 +36,7 @@ from cryptography.hazmat.primitives.ciphers.algorithms import ChaCha20
 from nacl.hashlib import blake2b
 from nacl.pwhash import argon2id
 
-# pylint: disable=consider-using-with
 # pylint: disable=invalid-name
-# pylint: disable=broad-exception-caught
-# pylint: disable=broad-exception-raised
 # pylint: disable=too-many-arguments
 # pylint: disable=too-many-branches
 # pylint: disable=too-many-lines
