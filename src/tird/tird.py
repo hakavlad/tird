@@ -4930,7 +4930,7 @@ MAX_PAD_SIZE_PERCENT_LIMIT: Final[int] = 10 ** 20
 CONSTANT_PAD_SIZE: Final[int] = 255
 
 # Argon2 constants
-ARGON2_MEM: Final[int] = 512 * M  # Memory size for Argon2 in bytes
+ARGON2_MEM: Final[int] = G  # Memory size for Argon2 in bytes
 ARGON2_TAG_SIZE: Final[int] = (
     PAD_KEY_SIZE * 2 +
     NONCE_SIZE + ENC_KEY_SIZE +
