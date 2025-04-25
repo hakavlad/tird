@@ -4732,7 +4732,7 @@ APP_DEBUG_INFO: Final[str] = f'Python version {version}'
 # Warnings related to the application usage
 APP_WARNINGS: Final[tuple[str, ...]] = (
     'The author does not have a background in cryptography.',
-    'The code has 0% test coverage.',
+    'The code has 0% automated test coverage.',
     'tird has not been independently security audited by humans.',
     'tird is ineffective in a compromised environment; executing it in such '
     'cases may cause disastrous data leaks.',
@@ -4753,6 +4753,8 @@ APP_WARNINGS: Final[tuple[str, ...]] = (
     'encrypted information.',
     'tird protects data, not the user; it cannot prevent torture if you are '
     'under suspicion.',
+    'Key derivation consumes 1 GiB RAM, which may lead to performance issues '
+    'or crashes on low-memory systems.',
     'Development is not complete, and there may be backward compatibility '
     'issues.',
 )
