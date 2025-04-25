@@ -218,7 +218,7 @@ Enabling debug mode additionally shows:
 # WARNINGS
 
 - The author does not have a background in cryptography.
-- The code has 0% test coverage.
+- The code has 0% automated test coverage.
 - **tird** has not been independently security audited by humans.
 - **tird** is ineffective in a compromised environment; executing it in such cases may cause disastrous data leaks.
 - **tird** is unlikely to be effective when used with short and predictable keys.
@@ -231,6 +231,7 @@ Enabling debug mode additionally shows:
 - Overwriting file contents does not guarantee secure destruction of data on the media.
 - You cannot prove to an adversary that your random data does not contain encrypted information.
 - **tird** protects data, not the user; it cannot prevent torture if you are under suspicion.
+- Key derivation consumes 1 GiB RAM, which may lead to performance issues or crashes on low-memory systems.
 - Development is not complete, and there may be backward compatibility issues.
 
 # REQUIREMENTS
