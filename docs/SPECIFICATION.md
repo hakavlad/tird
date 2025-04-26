@@ -39,11 +39,15 @@
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [BCP 14](https://www.rfc-editor.org/info/bcp14) \[[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119)] \[[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174)] when, and only when, they appear in all capitals, as shown here.
 
-`||` denotes concatenation.
-`=` denotes assignment.
-`,` denotes separate parameters.
-`0x` followed by two hexadecimal characters denotes a byte value in the 0-255 range.
-`++` denotes incremented by one in little-endian.
+- `||` denotes byte string concatenation.
+- `=` denotes assignment.
+- `,` separates function parameters or list items.
+- `0x` prefix denotes a byte value in hexadecimal representation (e.g., `0xFF`).
+- `[N:M]` denotes a byte string slice from index N (inclusive) to M (exclusive).
+- `++` denotes counter increment (increase by 1).
+- `CSPRNG` denotes a Cryptographically Secure Pseudo-Random Number Generator (in `tird`, this is `secrets.token_bytes`).
+- `KiB`, `MiB`, `GiB` denote kibibytes, mebibytes, and gibibytes, respectively.
+- Byte order (endianness) for converting numbers to bytes and vice-versa is `little-endian`.
 
 ---
 
@@ -53,20 +57,22 @@ Payload consists of Comments up to 512 bytes and File contents from 0 bytes.
 
 ### Comments
 
-User can add comments to encrypt it with a cryptoblob.
-
-`0xFF` is used as a marker to separate user-entered comments from random data.
-
+- The user MAY provide an optional comment as a UTF-8 string.
+- The comment string is encoded into UTF-8 bytes.
+- A separator byte `0xFF` is appended to the encoded comments.
+- Random data (`CSPRNG`) is appended to the result.
+- The final byte string is **truncated** to a fixed size of `PROCESSED_COMMENTS_SIZE = 512` bytes. If the original comment (after UTF-8 encoding) is longer than 512 bytes, it will be truncated.
 ```
-processed_comments = (comments || 0xFF || random data)[:512]
+raw_comments_bytes = encode_utf8(user_comment)
+processed_comments = (raw_comments_bytes || 0xFF || read(CSPRNG, PROCESSED_COMMENTS_SIZE))[:PROCESSED_COMMENTS_SIZE]
 ```
+- If no comment is provided, `processed_comments` are generated in a special way (see `get_processed_comments` code) to minimize the chance of accidentally matching a valid comment structure, if the "fake MAC" option is *not* used. If "fake MAC" is used, `processed_comments` are simply filled with random bytes `read(CSPRNG, PROCESSED_COMMENTS_SIZE)`.
 
 ### Payload file contents
 
-The payload file could be:
-
-- regular file;
-- block device.
+- The main content for encryption/decryption or embedding/extraction.
+- Can be the contents of a regular file or a block device.
+- The size of the file contents can range from 0 bytes up to 2^64-864 bytes.
 
 ---
 
@@ -104,19 +110,13 @@ Cryptoblob structure:
 argon2_salt || header_pad || ciphertext || (computed_mac_tag|fake_mac_tag) || footer_pad || blake2_salt
 ```
 
-`argon2_salt`:
-
-`header_pad`:
-
-`ciphertext`:
-
-`computed_mac_tag`:
-
-`fake_mac_tag`:
-
-`footer_pad`:
-
-`blake2_salt`:
+- `argon2_salt`: Random salt for the Argon2id key derivation function.
+- `header_pad`:
+- `ciphertext`:
+- `computed_mac_tag`:
+- `fake_mac_tag`:
+- `footer_pad`:
+- `blake2_salt`: Random salt used during IKM hashing and for the final IKM digest list hashing with BLAKE2b.
 
 ---
 
@@ -136,17 +136,22 @@ User can specify none, one or multiple passphrases.
 
 ## Salt
 
-In actions 2, 6 (encryption):
+Two 16-byte salts are used in the process:
+
+1.  `argon2_salt`: Used as the salt for Argon2id.
+2.  `blake2_salt`: Used as the salt for hashing IKM (keyfiles, passphrases) and for the final hashing of the IKM digest list with BLAKE2b.
+
+- During encryption (actions 2, 6): Both salts are generated using `CSPRNG`.
 
 ```
 argon2_salt = read(CSPRNG, 16)
 blake2_salt = read(CSPRNG, 16)
 ```
 
-In actions 3, 7 (decryption):
+- During decryption (actions 3, 7): Salts are extracted from the cryptoblob.
 
 ```
-argon2_salt = cryptoblob[:16]
+argon2_salt = cryptoblob[0:16]
 blake2_salt = cryptoblob[-16:]
 ```
 
@@ -236,7 +241,7 @@ argon2_tag = Argon2(password = argon2_password, salt = argon2_salt, params)
 Argon2 params:
 
 Argon2id version number 19 (0x13)
-Memory:       512 MiB
+Memory:       1 GiB
 Passes:       4 by default
 Parallelism:  1 lane
 Tag length:   128 bytes
@@ -247,20 +252,23 @@ Number of passes may be specified by the user.
 ### 5. Splitting Argon2 tag, getting keys for padding, encryption, and authentication.
 
 ```
-+————————————————+———————————————+————————————————+
-|                | pad_key_rp:16 | Secret values  |
-|                +———————————————+ that define    |
-|                | pad_key_hf:16 | padding sizes  |
-| argon2_tag:128 +———————————————+————————————————+
-|                | enc_key:32    | Encryption key |
-|                +———————————————+————————————————+
-|                | mac_key:64    | MAC key        |
-+————————————————+———————————————+————————————————+
++————————————————+——————————————+———————————————+
+|                | pad_key_t:10 | Secret values |
+|                +——————————————+ that define   |
+|                | pad_key_s:10 | padding sizes |
+|                +——————————————+———————————————+
+| argon2_tag:128 | nonce_key:12 | Secret values |
+|                +——————————————+ for data      |
+|                | enc_key:32   | encryption    |
+|                +——————————————+———————————————+
+|                | mac_key:64   | Auth key      |
++————————————————+——————————————+———————————————+
 ```
 
 ```
-pad_key_rp = argon2_tag[0:16]
-pad_key_hf = argon2_tag[16:32]
+pad_key_t = argon2_tag[0:10]
+pad_key_s = argon2_tag[10:20]
+nonce_key = argon2_tag[20:32]
 enc_key = argon2_tag[32:64]
 mac_key = argon2_tag[64:128]
 ```
@@ -300,25 +308,25 @@ Relationships between different parts of the padding:
 
 ### Encryption
 
-`tird` uses ChaCha20 from \[[RFC 8439](https://www.rfc-editor.org/rfc/rfc8439)] with a counter nonce to encrypt a payload.
+`tird` uses ChaCha20 from \[[RFC 8439](https://www.rfc-editor.org/rfc/rfc8439)] with a counter nonce to encrypt payloads:
 
 ```
 ciphertext chunk = ChaCha20(plaintext chunk, key = enc_key, nonce++)
 ```
 
-`enc_key`: 256-bit encryption key is from Argon2 output.
-
-`nonce`: 96-bit nonce is bytes in little-endian from a counter.
+- `enc_key`: A 256-bit encryption key derived from the Argon2 tag.
+- `nonce`: A 96-bit value, represented as little-endian bytes, derived from a counter.
+- `nonce_key`: Used to initialize the counter and is not applied directly in encryption. The bytes of `nonce_key` are converted into the counter using little-endian interpretation.
 
 **Overview of nonce incrementation process:**
 
 |Counter|nonce|Data to encrypt|
 |-|-|-|
-|0| |None|
-|1|`0x010000000000000000000000`|Processed comments, size: 512 B|
-|2|`0x020000000000000000000000`|File contents chunk 0, size: 16 MiB|
-|3|`0x030000000000000000000000`|File contents chunk 1, size: 16 MiB|
-|4|`0x040000000000000000000000`|File contents last chunk, size: 1 B to 16 MiB|
+|34435133717986765730821818475|`0x6bc85d1d0cefef573313446f`|(The `nonce_key` is not directly used for encryption)|
+|34435133717986765730821818476|`0x6cc85d1d0cefef573313446f`|Processed comments, size: 512 B|
+|34435133717986765730821818477|`0x6dc85d1d0cefef573313446f`|File contents chunk 0, size: 16 MiB|
+|34435133717986765730821818478|`0x6ec85d1d0cefef573313446f`|File contents chunk 1, size: 16 MiB|
+|34435133717986765730821818479|`0x6fc85d1d0cefef573313446f`|File contents last chunk, size: 1 B to 16 MiB|
 
 ### MAC
 
