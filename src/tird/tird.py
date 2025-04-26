@@ -2187,7 +2187,7 @@ def derive_keys() -> bool:
             password=BYTES_D['argon2_password'],
             salt=BYTES_D['argon2_salt'],
             opslimit=INT_D['argon2_time_cost'],
-            memlimit=ARGON2_MEM,
+            memlimit=ARGON2_MEMORY_COST,
         )
     except RuntimeError as error:
         log_e(f'{error}')
@@ -4929,7 +4929,7 @@ MAX_PAD_SIZE_PERCENT_LIMIT: Final[int] = 10 ** 20
 CONSTANT_PAD_SIZE: Final[int] = 255
 
 # Argon2 constants
-ARGON2_MEM: Final[int] = G  # Memory size for Argon2 in bytes
+ARGON2_MEMORY_COST: Final[int] = G  # In bytes
 ARGON2_TAG_SIZE: Final[int] = (
     PAD_KEY_SIZE * 2 +
     NONCE_SIZE + ENC_KEY_SIZE +
