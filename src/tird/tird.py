@@ -1008,9 +1008,10 @@ def get_output_file_exist(
             log_e('output file path not specified')
             continue
 
-        # Check if the output file path is the same as the input file path
-        if out_file_path == in_file_path:
-            log_e('input and output files must not be at the same path')
+        # Check if the real output file path is the same as the real
+        # input file path
+        if path.realpath(out_file_path) == path.realpath(in_file_path):
+            log_e('input and output files must not be at the same real path')
             continue
 
         # Log the real path if in DEBUG mode
