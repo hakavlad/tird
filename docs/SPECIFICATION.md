@@ -249,7 +249,7 @@ Tag length:   128 bytes
 
 Number of passes may be specified by the user.
 
-### 5. Splitting Argon2 tag, getting keys for padding, encryption, and authentication.
+### 5. Splitting Argon2 tag, getting keys for padding, encryption, and authentication
 
 ```
 +————————————————+——————————————+———————————————+
@@ -291,9 +291,9 @@ Relationships between different parts of the padding:
 +———————————————————+—————————————————————+
 ```
 
-`pad_key_rp` defines `randomized_pad_size`.
+`pad_key_t` ("total") defines `randomized_pad_size`.
 
-`pad_key_hf` defines proportions between `header_pad_size` and `footer_pad_size`.
+`pad_key_s` ("split") defines proportions between `header_pad_size` and `footer_pad_size`.
 
 
 `randomized_pad_size` in cryptoblob structurte:
