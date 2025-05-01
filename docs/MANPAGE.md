@@ -218,12 +218,12 @@ Enabling debug mode additionally shows:
 # WARNINGS
 
 - The author does not have a background in cryptography.
-- The code has 0% automated test coverage.
+- The code has no automated test coverage.
 - **tird** has not been independently security audited by humans.
 - **tird** is ineffective in a compromised environment; executing it in such cases may cause disastrous data leaks.
 - **tird** is unlikely to be effective when used with short and predictable keys.
-- Sensitive data may leak into swap space.
 - **tird** does not erase its sensitive data from memory after use.
+- Sensitive data may leak into swap space.
 - **tird** always releases unverified plaintext, violating the Cryptographic Doom Principle; decrypted output is untrusted until the MAC tag is verified.
 - Padding contents are never authenticated; authentication only applies to the ciphertext, salts, and certain sizes.
 - Padding sizes depend on secret values.
