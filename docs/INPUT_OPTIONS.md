@@ -172,7 +172,7 @@ A0. Select an option [0-9]: 8
 Selecting action `2` with debug messages enabled:
 ```
 $ tird --debug
-    W: debug mode enabled! Sensitive data will be displayed!
+    W: debug mode enabled! Sensitive data will be exposed!
 
                        MENU
     ———————————————————————————————————————————
@@ -186,11 +186,20 @@ A0. Select an option [0-9]: 2
     I: action #2:
         encrypt file contents and comments;
         write cryptoblob to new file
+    W: debug mode enabled! Sensitive data will be exposed!
 ```
 
 </details>
 
 ---
+
+
+
+
+
+
+
+
 
 
 
@@ -351,6 +360,7 @@ Context: actions `2`|`6`:
 ```
 C3. Set fake MAC tag? (Y/N, default=N): 1
     I: set fake MAC tag: True
+    W: then further integrity/authenticity checks are impossible!
 ```
 
 </details>
@@ -572,9 +582,9 @@ D3. Output (encrypted) file: random.bin
 Context: action `2` with debug messages enabled:
 ```
 D3. Output (encrypted) file: random.bin
-    D: real path: '/tmpfs/test/random.bin'
-    D: opening file 'random.bin' in mode 'wb'
+    D: opening file 'random.bin' in mode 'xb'
     D: opened file object: <_io.BufferedWriter name='random.bin'>
+    D: real path: '/tmpfs/test/random.bin'
     I: new empty file 'random.bin' created
 ```
 
@@ -590,9 +600,9 @@ D3. Output (decrypted) file: plain.txt
 Context: actions `3`|`7` with debug messages enabled:
 ```
 D3. Output (decrypted) file: plain.txt
-    D: real path: '/tmpfs/test/plain.txt'
-    D: opening file 'plain.txt' in mode 'wb'
+    D: opening file 'plain.txt' in mode 'xb'
     D: opened file object: <_io.BufferedWriter name='plain.txt'>
+    D: real path: '/tmpfs/test/plain.txt'
     I: new empty file 'plain.txt' created
 ```
 
@@ -627,9 +637,9 @@ D3. Output file: random.bin
 Context: actions `5`|`8` with debug messages enabled:
 ```
 D3. Output file: random.bin
-    D: real path: '/tmpfs/test/random.bin'
-    D: opening file 'random.bin' in mode 'wb'
+    D: opening file 'random.bin' in mode 'xb'
     D: opened file object: <_io.BufferedWriter name='random.bin'>
+    D: real path: '/tmpfs/test/random.bin'
     I: new empty file 'random.bin' created
 ```
 
@@ -1157,7 +1167,6 @@ Context: action `4`:
     W: output file will be partially overwritten!
 P0. Proceed overwriting? (Y/N): 1
     I: reading message from input and writing it over output
-
 ```
 
 Context: action `6`:
@@ -1183,11 +1192,60 @@ P0. Proceed overwriting? (Y/N): n
     I: stopped by user request
 ```
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Context: actions `2`-`9`:
 ```
     I: removing output file path
 P0. Proceed removing? (Y/N, default=Y):
-    I: path 'file.bin' removed
+    I: output file truncated
+    I: path 'test.bin' removed
+    I: action completed
 ```
+
+```
+    I: removing output file path
+P0. Proceed removing? (Y/N, default=Y): n
+    I: output file path NOT removed
+    I: action completed
+```
+
+Context: actions `2`-`9` with debug mode enabled:
+```
+    I: removing output file path
+P0. Proceed removing? (Y/N, default=Y):
+    D: truncating output file
+    I: output file truncated
+    D: closing <_io.BufferedWriter name='test.bin'>
+    D: <_io.BufferedWriter name='test.bin'> closed
+    D: removing path 'test.bin'
+    I: path 'test.bin' removed
+    I: action completed
+```
+
+
+
+
+
+
+
+
+
+
+
+
 
 </details>
