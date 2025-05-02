@@ -4749,7 +4749,7 @@ if platform == 'win32':
 
 
 # Version of the application
-APP_VERSION: Final[str] = '0.19.0'
+APP_VERSION: Final[str] = '0.20.0'
 
 # Information string for the application
 APP_INFO: Final[str] = f"""tird v{APP_VERSION}
