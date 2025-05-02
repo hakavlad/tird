@@ -606,11 +606,10 @@ def remove_output_path(action: ActionID) -> None:
               indicating the success or failure of the operations
               performed.
     """
-    if proceed_request(PROCEED_REMOVE, action):
-        # Get the file object and its name from the global dictionary
-        out_file_obj = BIO_D['OUT']
-        out_file_name: str = out_file_obj.name
+    out_file_obj: BinaryIO = BIO_D['OUT']
+    out_file_name: str = out_file_obj.name
 
+    if proceed_request(PROCEED_REMOVE, action):
         if DEBUG:
             log_d('truncating output file')
 
@@ -634,6 +633,7 @@ def remove_output_path(action: ActionID) -> None:
             log_e(f'cannot remove output file path: {remove_error}')
             log_w(f'failed to remove path {out_file_name!r}!')
     else:
+        close_file(out_file_obj)
         log_i('output file path NOT removed')
 
 
