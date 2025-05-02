@@ -4726,7 +4726,7 @@ APP_INFO: Final[str] = f"""tird v{APP_VERSION}
         Homepage: https://github.com/hakavlad/tird"""
 
 # Debug information string for the Python version
-APP_DEBUG_INFO: Final[str] = f'Python version {version}'
+APP_DEBUG_INFO: Final[str] = f'Python version {version!r}'
 
 # Warnings related to the application usage
 APP_WARNINGS: Final[tuple[str, ...]] = (
