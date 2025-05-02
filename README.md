@@ -134,8 +134,6 @@ A detailed description of these options with examples can be found [here](https:
 
 ## Debug Mode
 
-<img src="https://i.imgur.com/4bvMh50.jpeg" width="280" alt="Under the hood">
-
 > \[!WARNING]
 > Debug mode is not intended for use in production!
 
@@ -167,8 +165,6 @@ D2. Comments (optional, up to 512 B): foo file, secret data
 ```
 
 ## Input Keying Material
-
-<img src="https://i.imgur.com/n6OvtcI.jpeg" width="280" alt="IKM">
 
 `tird` provides the option to use passphrases and the contents of keyfiles to derive one-time keys.
 
