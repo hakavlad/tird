@@ -193,19 +193,6 @@ A0. Select an option [0-9]: 2
 
 ---
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 ## C0. Use custom settings?
 
 **Used in:** Actions `2`|`3`|`6`|`7`
@@ -236,8 +223,6 @@ C0. Use custom settings? (Y/N, default=N):
     D: set fake MAC tag: False
 ```
 
-
-
 Context: actions `2`|`6`:
 ```
 C0. Use custom settings? (Y/N, default=N): y
@@ -254,13 +239,6 @@ C0. Use custom settings? (Y/N, default=N): y
 </details>
 
 ---
-
-
-
-
-
-
-
 
 ## C1. Time cost
 
@@ -293,11 +271,6 @@ C1. Time cost (default=4): 1000
 
 ---
 
-
-
-
-
-
 ## C2. Max padding size
 
 **Used in:** Actions `2`|`3`|`6`|`7`
@@ -328,12 +301,6 @@ C2. Max padding size, % (default=20): 1000
 </details>
 
 ---
-
-
-
-
-
-
 
 ## C3. Set fake MAC tag?
 
@@ -366,12 +333,6 @@ C3. Set fake MAC tag? (Y/N, default=N): 1
 </details>
 
 ---
-
-
-
-
-
-
 
 ## D1. Input file path
 
@@ -406,7 +367,6 @@ D1. File to encrypt: secret.zip
     D: max_total_padded_size:    23,228,484 B (22.2 MiB)
 ```
 
-
 Context: action `3`:
 ```
 D1. File to decrypt: file.bin
@@ -421,7 +381,6 @@ D1. File to decrypt: file.bin
     D: opened file object: <_io.BufferedReader name='file.bin'>
     I: path: 'file.bin'; size: 32,973,056 B (31.4 MiB)
 ```
-
 
 Context: action `4`:
 ```
@@ -438,7 +397,6 @@ D1. File to embed: file.bin
     I: path: 'file.bin'; size: 32,973,056 B (31.4 MiB)
 ```
 
-
 Context: actions `5`|`7`:
 ```
 D1. Container: file.bin
@@ -453,7 +411,6 @@ D1. Container: file.bin
     D: opened file object: <_io.BufferedReader name='file.bin'>
     I: path: 'file.bin'; size: 32,973,056 B (31.4 MiB)
 ```
-
 
 Context: action `6`:
 ```
@@ -476,12 +433,6 @@ D1. File to encrypt and embed: file.bin
 </details>
 
 ---
-
-
-
-
-
-
 
 ## D2. Comments
 
@@ -512,9 +463,6 @@ D2. Comments (optional, up to 512 B):
     I: comments will be shown as [None]
 ```
 
-
-
-
 Short comments (up to 512 bytes):
 ```
 D2. Comments (optional, up to 512 B): zip archive with some secret data
@@ -528,9 +476,6 @@ D2. Comments (optional, up to 512 B): zip archive with some secret data
     D: processed_comments: [b'zip archive with some secret data\xff\x0b\xee\x83\x07\x856\x1cWUR\xd4\xc9\x829^\xb3\x93\xac\n\x83\xb5\xcf\xdaE\xdb\x9e6\r\xb90a\x169hW\x06\x03\x19\xc5r\xa5\x96\x17\x9e\xa4\xd5j\xaaS{\x1b\x9a\xc1-\x03]JV\x03\xa7\xb5F\x1e^\xc1\x04Bq[iP\xa40\xe9\xc4\xf3p\xc56\xb4p\xa81hy#\x94\xb3\xfa\xd5\xa1\xeaQ\x14U\xc6~\xff3\x03\xa8\x1f)\x7f#\x8cm<\x8cjR\xcc\xcd\x02\x85\xc5k\x9a\xee!\xc1\x11+A_\xd8I\xe0\xeb\x8av\x8d\x8d&X\x1d\xe8\xd9a\xe70*l\x18\xa1\x952\xa8\n\t\xed\x86\x01\x87\xeb\x1c\x06\xc7\x11\x9e?\x80q\xc2\xf4<\x8d\xa4$\xcaYZ\x12\xbbj\x91n\xf3\xf5%\x88\x81\x843i\xf7\xf0f\xce\xd1\xef\x03W\xe7\xe0}\xdb\xc0\xf3\xb5\xc9\xa8\x11c\xb5\xf9T\xb2\xb7/\xcf\xa9x]\xa4\xab\xc14F\x1f\xec\xee}\xd3\x0bMi\xad\xa3%\x94A\xda,\xf6\xfc:\xf6\x8f\x7f\x1d\r\x1b4P\x0fu%k\x9a1\x18\xfdi\xf1\xae;oPF\xe0\xe6V\x07\x11\xa8sr\xd4\xbb\xb8]\xf4\x8c?K|\xfc\x06|B\x8eM3\xa5\x99@\x1ce\xf5\xd7\xdd\x10\xfeT\x11\xbc\x06!\xbd^$\xe4\xc3\xf1\xcckH\xad\x9ca\xddr\xbe\xfa~\x1f\xdb\xcd\xef\xb1\'\x99\xa6SI\xea\xd8m19\xc9\xbb\xf5{\xce.\xd00\xd9\xfa\xb2kc\xfe|\xec\x05j\x80\x07,\x193\x88`\xd8\xd5k"&\xcc\xc9"\xf6P\xf8\x8d\xd2\xcf\x8b|\xc9\x9f\xfe\xdc\xaa\xa8\x03P\xf0\xc8\xb2\xbf\x07\x9dj\x19]\xcb\xbf\xf58\xdb\x01\xba\xd5?j\xa11\x98OH\rl\xffxN\xdc\x08\xd9Yp\x82\x88\xbcE!_\xcfz\xa5\x82\x8f\x06\xc6\xa0\x94\x9e"\xbd\xaa*C\x1e\xc8\x8dt\xae\x9a\xe4c\xf2vl\xbf6\x80\xd36#\xc2\x9f?\xc5nl\xeb\x8a0)\x84%\x9e\x00K]\x99\x1du*d\xe5\x9d\x7fY\x19'], size: 512 B
     I: comments will be shown as ['zip archive with some secret data']
 ```
-
-
-
 
 Comments longer than 512 bytes:
 ```
@@ -551,12 +496,6 @@ D2. Comments (optional, up to 512 B): Argon2 erzeugt einen großen Vektor im Arb
 </details>
 
 ---
-
-
-
-
-
-
 
 ## D3. Output file path
 
@@ -588,9 +527,6 @@ D3. Output (encrypted) file: random.bin
     I: new empty file 'random.bin' created
 ```
 
-
-
-
 Context: actions `3`|`7`:
 ```
 D3. Output (decrypted) file: plain.txt
@@ -605,9 +541,6 @@ D3. Output (decrypted) file: plain.txt
     D: real path: '/tmpfs/test/plain.txt'
     I: new empty file 'plain.txt' created
 ```
-
-
-
 
 Context: actions `4`|`6`:
 ```
@@ -626,8 +559,6 @@ D3. File to overwrite (container): file.bin
     I: size: 32,973,056 B (31.4 MiB)
 ```
 
-
-
 Context: actions `5`|`8`:
 ```
 D3. Output file: random.bin
@@ -642,8 +573,6 @@ D3. Output file: random.bin
     D: real path: '/tmpfs/test/random.bin'
     I: new empty file 'random.bin' created
 ```
-
-
 
 Context: action `9`:
 ```
@@ -663,11 +592,6 @@ D3. File to overwrite: /dev/sdc
 </details>
 
 ---
-
-
-
-
-
 
 ## D4. Output file size
 
@@ -697,11 +621,6 @@ D4. Output file size in bytes: 32
 </details>
 
 ---
-
-
-
-
-
 
 ## D5. Start position
 
@@ -745,11 +664,6 @@ D5. Start position [0; 32973056], default=0: 2623552
 </details>
 
 ---
-
-
-
-
-
 
 ## D6. End position
 
@@ -797,13 +711,6 @@ D6. End position [4423; 32973056], default=32973056: 543432
 
 ---
 
-
-
-
-
-
-
-
 ## K1. Keyfile path
 
 **Used in:** Actions `2`|`3`|`6`|`7`
@@ -842,9 +749,6 @@ K2. Passphrase (optional):
         0ac1630e2e062acd137b422a65f31279cd7f9fe7dbc0464e5516e4b7f16e6b9a044304a02a773e39d67f680e0e88c0911f849807dfff3b3d5e8f79c3758072e4
     I: deriving one-time keys
 ```
-
-
-
 
 Specifying only `keyfile.bin`:
 ```
@@ -886,8 +790,6 @@ K2. Passphrase (optional):
         f42d66b64b43103c4dc5c06f806dc8ff51650b448db56b6a788068a4db9b5915173336041c0b1f28f7547587b6b96c4f861fbba7e1c859106addf55d0365bb87
     I: deriving one-time keys
 ```
-
-
 
 Specifying `keydir` and `/bin/sh` as keyfile paths:
 ```
@@ -964,8 +866,6 @@ K1. Keyfile path (optional): /bin/sh
     I: keyfile accepted
 ```
 
-
-
 Possible errors and warnings:
 ```
 K1. Keyfile path (optional): /
@@ -990,10 +890,6 @@ K1. Keyfile path (optional): emptydir
 </details>
 
 ---
-
-
-
-
 
 ## K2. Passphrase
 
@@ -1044,7 +940,6 @@ K2. Confirm passphrase:
         6620fb4dfabf8e838bf86d8297792cc80eedcf080eb83d7d754b3a7ff44164dd7d12350cb8133663abbae6596d1bb67da13b8f78c6aa33cd2f51a32de965af67
     I: passphrase accepted
 ```
-
 
 Specify one passphrase, then fail to confirm passphrase, then specify another passphrase:
 ```
@@ -1107,7 +1002,6 @@ K2. Confirm passphrase:
     I: passphrase accepted
 ```
 
-
 How NFC normalization can affect passphrase length (debug messages enabled):
 ```
     W: entered passphrases will be displayed!
@@ -1139,10 +1033,6 @@ K2. Confirm passphrase:
 </details>
 
 ---
-
-
-
-
 
 ## P0. Proceed?
 
@@ -1192,21 +1082,6 @@ P0. Proceed overwriting? (Y/N): n
     I: stopped by user request
 ```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 Context: actions `2`-`9`:
 ```
     I: removing output file path
@@ -1236,16 +1111,13 @@ P0. Proceed removing? (Y/N, default=Y):
     I: action completed
 ```
 
+```
+    I: removing output file path
+P0. Proceed removing? (Y/N, default=Y): N
+    D: closing <_io.BufferedWriter name='test.bin'>
+    D: <_io.BufferedWriter name='test.bin'> closed
+    I: output file path NOT removed
 
-
-
-
-
-
-
-
-
-
-
+```
 
 </details>
