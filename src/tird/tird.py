@@ -23,6 +23,13 @@ from getpass import getpass
 from io import BytesIO
 from os import (SEEK_CUR, SEEK_END, SEEK_SET, fsync, ftruncate, path, remove,
                 walk)
+
+try:
+    from resource import RLIMIT_CORE, setrlimit
+    RESOURCE_MODULE_AVAILABLE = True
+except ModuleNotFoundError:
+    RESOURCE_MODULE_AVAILABLE = False
+
 from secrets import compare_digest, token_bytes
 from signal import SIGINT, signal
 from sys import argv, exit, platform, version
@@ -4666,6 +4673,28 @@ def signal_handler(signum: int, frame: Optional[FrameType]) -> NoReturn:
         exit(0)
 
 
+def prevent_coredump() -> None:
+    """
+    Prevents the generation of core dumps by setting the core dump size
+    limit to 0.
+
+    This function uses the setrlimit system call to disable the core
+    dump generation by setting both the soft and hard limits for
+    RLIMIT_CORE to 0. This is useful in scenarios where creating a core
+    dump could lead to unintentional exposure of sensitive information
+    (e.g., cryptographic keys) in case of a process crash.
+
+    Note:
+        This function is intended for use on POSIX-compliant operating
+        systems.
+    """
+    try:
+        setrlimit(RLIMIT_CORE, (0, 0))
+    except (OSError, ValueError) as error:
+        if DEBUG:
+            log_e(f'{error}')
+
+
 def main() -> NoReturn:
     """
     Main entry point for the application.
@@ -4685,10 +4714,13 @@ def main() -> NoReturn:
         when the user presses Ctrl+C), allowing for a clean exit from
         the application.
     """
-    signal(SIGINT, signal_handler)
-
     if DEBUG:
         log_w(DEBUG_WARNING)
+
+    if RESOURCE_MODULE_AVAILABLE:
+        prevent_coredump()
+
+    signal(SIGINT, signal_handler)
 
     while True:
         action: ActionID = select_action()
