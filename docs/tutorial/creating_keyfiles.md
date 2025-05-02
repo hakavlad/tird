@@ -59,7 +59,8 @@ D4. Output file size in bytes: 32
 
 ```
     I: writing random data
-    I: written 100.0%; 32 B in 0.0s; avg 0.9 MiB/s
+    I: written 100.0%; 32 B in 0.0s; avg 1.2 MiB/s
+    I: writing completed; total of 32 B written
     I: action completed
 ```
 
@@ -83,7 +84,8 @@ D3. Output file: key
 D4. Output file size in bytes: 32
     I: size: 32 B
     I: writing random data
-    I: written 100.0%; 32 B in 0.0s; avg 0.9 MiB/s
+    I: written 100.0%; 32 B in 0.0s; avg 1.2 MiB/s
+    I: writing completed; total of 32 B written
     I: action completed
 ```
 
@@ -104,16 +106,18 @@ D4. Output file size in bytes: 32
 A0. Select an option [0-9]: 8
     I: action #8:
         create file of specified size with random data
+    W: debug mode enabled! Sensitive data will be exposed!
 D3. Output file: key
-    D: real path: '/tmpfs/test/key'
-    D: opening file 'key' in mode 'wb'
+    D: opening file 'key' in mode 'xb'
     D: opened file object: <_io.BufferedWriter name='key'>
+    D: real path: '/tmpfs/test/key'
     I: new empty file 'key' created
 D4. Output file size in bytes: 32
     I: size: 32 B
     I: writing random data
     D: written 32 B to <_io.BufferedWriter name='key'>; position moved from 0 to 32
-    I: written 100.0%; 32 B in 0.0s; avg 0.6 MiB/s
+    I: written 100.0%; 32 B in 0.0s; avg 0.3 MiB/s
+    I: writing completed; total of 32 B written
     D: closing <_io.BufferedWriter name='key'>
     D: <_io.BufferedWriter name='key'> closed
     I: action completed
