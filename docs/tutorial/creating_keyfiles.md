@@ -15,6 +15,12 @@
 > \[!IMPORTANT]
 > Keyfiles must be kept secret!
 
+> \[!WARNING]
+> Changing even 1 bit of the contents of a keyfile will result in completely incorrect decryption! Keyfiles must not be damaged! Ensure their integrity!
+
+> \[!TIP]
+> Destroying all copies of keyfiles can be used as a precaution to prevent correct decryption, for example, in the event of coercion threats.
+
 Answer 3 questions to create a keyfile:
 
 ```
