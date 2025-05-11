@@ -15,7 +15,19 @@
 <table>
 
 <tr><td>➤</td><td><b>
+<a href="https://github.com/hakavlad/tird/blob/main/docs/tutorial/basics.md">Basics: Start, Exit, Info, Debug</a>
+</b></td></tr>
+
+<tr><td>➤</td><td><b>
 <a href="https://github.com/hakavlad/tird/blob/main/docs/tutorial/creating_keyfiles.md">Creating Keyfiles with Random Data</a>
+</b></td></tr>
+
+<tr><td>➤</td><td><b>
+<a href="https://github.com/hakavlad/tird/blob/main/docs/tutorial/encrypting_files.md">Encrypting Files</a>
+</b></td></tr>
+
+<tr><td>➤</td><td><b>
+<a href="https://github.com/hakavlad/tird/blob/main/docs/tutorial/writing_iso_image.md">Creating a Bootable USB Drive from an ISO Image</a>
 </b></td></tr>
 
 </table>
