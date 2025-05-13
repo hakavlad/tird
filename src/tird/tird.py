@@ -11,11 +11,21 @@ Requirements:
 Dependencies:
 - cryptography >= 2.1 (ChaCha20)
 - PyNaCl >= 1.2.0 (Argon2/BLAKE2)
+- colorama >= 0.4.6 (only on Windows)
 
 SPDX-License-Identifier: 0BSD
 
 Homepage: https://github.com/hakavlad/tird
 """
+
+# pylint: disable=invalid-name
+# pylint: disable=too-many-arguments
+# pylint: disable=too-many-branches
+# pylint: disable=too-many-lines
+# pylint: disable=too-many-locals
+# pylint: disable=too-many-positional-arguments
+# pylint: disable=too-many-return-statements
+# pylint: disable=too-many-statements
 
 from collections.abc import Callable
 from gc import collect
@@ -43,14 +53,8 @@ from cryptography.hazmat.primitives.ciphers.algorithms import ChaCha20
 from nacl.hashlib import blake2b
 from nacl.pwhash import argon2id
 
-# pylint: disable=invalid-name
-# pylint: disable=too-many-arguments
-# pylint: disable=too-many-branches
-# pylint: disable=too-many-lines
-# pylint: disable=too-many-locals
-# pylint: disable=too-many-positional-arguments
-# pylint: disable=too-many-return-statements
-# pylint: disable=too-many-statements
+if platform == 'win32':
+    from colorama import just_fix_windows_console
 
 
 # Define a type alias for action identifiers
@@ -4738,14 +4742,14 @@ def main() -> NoReturn:
 
 
 # ANSI escape codes for terminal text formatting
-BOL: str = '\x1b[1m'  # Bold text
-ERR: str = '\x1b[1;97;101m'  # Bold white text, red background
-WAR: str = '\x1b[1;93;40m'  # Bold yellow text, black background
-RES: str = '\x1b[0m'  # Reset formatting to default
+BOL: Final[str] = '\x1b[1m'  # Bold text
+ERR: Final[str] = '\x1b[1;97;101m'  # Bold white text, red background
+WAR: Final[str] = '\x1b[1;93;40m'  # Bold yellow text, black background
+RES: Final[str] = '\x1b[0m'  # Reset formatting to default
 
 # Adjust ANSI codes for Windows platform, which does not support them
 if platform == 'win32':
-    BOL = ERR = WAR = RES = ''
+    just_fix_windows_console()
 
 
 # Version of the application
