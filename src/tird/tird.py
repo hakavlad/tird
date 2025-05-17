@@ -11,7 +11,7 @@ Requirements:
 Dependencies:
 - cryptography >= 2.1 (ChaCha20)
 - PyNaCl >= 1.2.0 (Argon2/BLAKE2)
-- colorama >= 0.4.6 (only on Windows)
+- colorama >= 0.4.6 (Windows-specific)
 
 SPDX-License-Identifier: 0BSD
 
@@ -209,35 +209,33 @@ def format_time(total_s: float) -> str:
     return formatted_time
 
 
-def log_progress(total_data_size: int) -> None:
+def log_progress() -> None:
     """
     Logs the progress of a data writing operation.
 
     This function calculates and logs the percentage of completion, the
     amount of data written, the elapsed time since the start of the
-    operation, and the average writing speed in MiB/s. If no data has
-    been written or if the total data size is zero, it logs a message
-    indicating that 0 bytes have been written.
-
-    Args:
-        total_data_size (int): The total size of the data to be written,
-                               in bytes. Must be a non-negative integer.
-                               If this is zero, a message indicating
-                               that 0 bytes have been written will be
-                               logged.
+    operation, and the average writing speed in MiB/s. The total data
+    size and the current written amount are now obtained from a global
+    dictionary, where INT_D['total_out_data_size'] represents the total
+    size of the data to be written and INT_D['written_sum'] the total
+    data written so far.
 
     Returns:
         None
 
     Note:
-        This function relies on global variables FLOAT_D and INT_D,
-        where FLOAT_D['start_time'] is the start time of the operation
-        and INT_D['written_sum'] is the total amount of data written
-        so far.
+        This function relies on global variables FLOAT_D and INT_D.
+        FLOAT_D['start_time'] is the start time of the operation,
+        INT_D['written_sum'] is the total amount of data written so far,
+        and INT_D['total_out_data_size'] is the total size of the data
+        to be written. If INT_D['total_out_data_size'] is zero, a
+        message indicating that 0 bytes have been written will be logged
+        to avoid division by zero.
     """
 
     # Check if the total data size is zero to avoid division by zero
-    if not total_data_size:
+    if not INT_D['total_out_data_size']:
         log_i('written 0 B')
         return
 
@@ -245,7 +243,8 @@ def log_progress(total_data_size: int) -> None:
     elapsed_time: float = monotonic() - FLOAT_D['start_time']
 
     # Calculate the percentage of data written
-    percentage: float = INT_D['written_sum'] / total_data_size * 100
+    percentage: float = \
+        INT_D['written_sum'] / INT_D['total_out_data_size'] * 100
 
     # Format the amount of data written for logging
     formatted_written: str = short_format_size(INT_D['written_sum'])
@@ -265,20 +264,17 @@ def log_progress(total_data_size: int) -> None:
           f'avg {average_speed:,} MiB/s')
 
 
-def log_progress_if_time_elapsed(total_data_size: int) -> None:
+def log_progress_if_time_elapsed() -> None:
     """
     Logs the progress of an operation if the specified time interval has
     passed.
 
     This function checks the elapsed time since the last progress log.
     If the time since the last log exceeds the defined minimum progress
-    interval (MIN_PROGRESS_INTERVAL), it logs the current progress based
-    on the total data size provided and updates the last progress log time.
-
-    Parameters:
-        total_data_size (int): The total size of the data being
-                               processed, which is used to calculate and
-                               log the progress.
+    interval (MIN_PROGRESS_INTERVAL), it logs the current progress. Note
+    that the total data size and progress information are obtained from
+    global dictionaries, so there is no function parameter for
+    total_data_size.
 
     Returns:
         None
@@ -288,29 +284,28 @@ def log_progress_if_time_elapsed(total_data_size: int) -> None:
     if monotonic() - FLOAT_D['last_progress_time'] >= MIN_PROGRESS_INTERVAL:
 
         # Log the current progress based on the total data size
-        log_progress(total_data_size)
+        log_progress()
 
         # Update the last progress log time to the current time
         FLOAT_D['last_progress_time'] = monotonic()
 
 
-def log_progress_final(total_data_size: int) -> None:
+def log_progress_final() -> None:
     """
     Logs the final progress of the writing operation.
 
-    This function logs the total size of data written upon completion
-    of the writing process.
-
-    Parameters:
-        total_data_size (int): The total size of the data written in
-                               bytes.
+    This function logs the total progress of the data writing operation
+    by first invoking log_progress() to log the latest progress details
+    and then logging a final message indicating that the writing has
+    completed and the total amount of data written (obtained from the
+    global dictionary) in bytes.
 
     Returns:
         None
     """
-    log_progress(total_data_size)
+    log_progress()
 
-    log_i(f'writing completed; total of {total_data_size:,} B written')
+    log_i(f'writing completed; total of {INT_D["written_sum"]:,} B written')
 
 
 # Handle files and paths
@@ -323,7 +318,7 @@ def open_file(
 ) -> Optional[BinaryIO]:
     """
     Opens a file in the specified mode and returns the file object.
-    Handles exceptionsvrelated to file operations.
+    Handles exceptions related to file operations.
 
     Args:
         file_path (str): The path to the file.
@@ -362,8 +357,8 @@ def close_file(file_obj: BinaryIO) -> None:
     """
     The function attempts to close the provided file object. If the
     DEBUG flag is set, it logs before and after the close operation. If,
-    after calling .close(), the file is not actually closed (i.e.
-    file_obj.closed is False), an error is logged.
+    after calling .close(), file_obj.closed remains False, then an error
+    is logged.
 
     Args:
         file_obj (BinaryIO): The file object to close.
@@ -442,8 +437,8 @@ def seek_position(
             - SEEK_CUR: Current file position
 
     Returns:
-        bool: True if the seek operation was successful, False
-              otherwise.
+        bool: True if the seek operation was successful,
+              False otherwise.
     """
     if DEBUG:
         current_pos: int = file_obj.tell()
@@ -517,28 +512,35 @@ def write_data(data: bytes) -> bool:
     error handling.
 
     This function performs a single atomic write operation to the
-    pre-opened output file stored in the global BIO_D dictionary. It's
+    pre-opened output file stored in the global BIO_D dictionary. It is
     designed for reliability in cryptographic operations where partial
-    writes must be avoided.
+    writes must be avoided. The function also updates the cumulative
+    written data sum and logs overall progress based on the total
+    progress of the writing operation.
 
     Args:
         data (bytes): Binary data to write.
 
     Returns:
         bool: True if all bytes were successfully written, False if:
-              - OS-level write error occurred (disk full, permission
-                denied, etc.).
-              - File object is not properly initialized in BIO_D['OUT'].
+              - An OS-level write error occurred (e.g., disk full,
+                permission denied, etc.).
+              - The file object is not properly initialized in
+                BIO_D['OUT'].
               - DEBUG enabled and position tracking fails.
 
     Side Effects:
-        - Advances file position by len(data) bytes on success.
-        - Modifies INT_D['written_sum'] for progress tracking if DEBUG
-          enabled.
+        - Advances the file position by len(data) bytes on success.
+        - Updates INT_D['written_sum'] to keep track of the cumulative
+          number of bytes written.
+        - Logs the current progress of the writing operation via
+          log_progress_if_time_elapsed().
+        - In DEBUG mode, logs the file position before and after the
+          write for position validation.
 
     Notes:
-        - For proper error recovery, caller should close/remove the
-          output file on False.
+        - For proper error recovery, the caller should close or remove
+          the output file if False is returned.
         - Does NOT perform fsync() - use fsync_written_data() for
           persistence guarantees.
         - DEBUG mode adds position validation but doesn't affect write
@@ -559,6 +561,10 @@ def write_data(data: bytes) -> bool:
         end_pos: int = file_obj.tell()
         log_d(f'written {format_size(end_pos - start_pos)} to {file_obj}; '
               f'position moved from {start_pos:,} to {end_pos:,}')
+
+    INT_D['written_sum'] += len(data)
+
+    log_progress_if_time_elapsed()
 
     return True
 
@@ -604,7 +610,8 @@ def remove_output_path(action: ActionID) -> None:
       1. Request user confirmation to proceed with the removal.
       2. Attempt to truncate the contents of the output file to zero
          length.
-      3. Ensure the file descriptor is properly closed after truncation.
+      3. Attempt to close the file descriptor after attempting
+         truncation.
       4. Attempt to remove the file from the filesystem.
 
     Args:
@@ -1551,9 +1558,10 @@ def get_processed_comments() -> bytes:
             # Just generate random bytes if the fake MAC option is enabled
             processed_comments = token_bytes(PROCESSED_COMMENTS_SIZE)
         else:
-            # Continuously generate random bytes until a valid comment is
-            # obtained. This ensures that the generated bytes do not decode
-            # into a meaningful UTF-8 string.
+            # Continuously generate random bytes until they do not decode into
+            # a valid UTF-8 string. This ensures that the generated bytes
+            # cannot be interpreted as meaningful text by
+            # decode_processed_comments().
             while True:
                 processed_comments = token_bytes(PROCESSED_COMMENTS_SIZE)
 
@@ -2567,43 +2575,25 @@ def split_total_pad_size(
     return header_pad_size, footer_pad_size
 
 
-def handle_padding(
-    pad_size: int,
-    action: ActionID,
-    output_data_size: int,
-) -> bool:
+def handle_padding(pad_size: int, action: ActionID) -> bool:
     """
     Handles padding operations by either writing random data or seeking
     through padding.
 
     For encryption actions (ENCRYPT, ENCRYPT_EMBED):
-    - Writes `pad_size` bytes of random data to the output file in chunks.
-    - Updates progress at regular intervals.
-
+      - Writes `pad_size` bytes of random data to the output file in
+        chunks.
     For decryption actions (DECRYPT, EXTRACT_DECRYPT):
-    - Seeks forward by `pad_size` bytes in the input file.
+      - Seeks forward by `pad_size` bytes in the input file.
 
     Args:
         pad_size (int): The total size of the padding to be handled.
         action (ActionID): The action to be performed (ENCRYPT or
             ENCRYPT_EMBED for writing data, DECRYPT or EXTRACT_DECRYPT
             for seeking).
-        output_data_size (int): The total size of the output data, used
-            for progress calculation.
 
     Returns:
         bool: True if the operation was successful, False otherwise.
-
-    Notes:
-        - The function uses `token_bytes` to generate random data
-          chunks.
-        - Progress is printed at intervals defined by
-          `MIN_PROGRESS_INTERVAL`.
-        - This function relies on global variables INT_D, FLOAT_D,
-          and BIO_D, where INT_D['written_sum'] tracks the amount of
-          data written, FLOAT_D['last_progress_time'] is used for
-          progress tracking, and BIO_D['IN'] is the input stream for
-          seeking.
     """
 
     # Check if the action is to write data
@@ -2622,10 +2612,6 @@ def handle_padding(
             if not write_data(chunk):
                 return False
 
-            INT_D['written_sum'] += len(chunk)
-
-            log_progress_if_time_elapsed(output_data_size)
-
         # If there is remaining data to write, handle it
         if num_remaining_bytes:
 
@@ -2635,10 +2621,6 @@ def handle_padding(
             # Attempt to write the remaining chunk; return False if it fails
             if not write_data(chunk):
                 return False
-
-            INT_D['written_sum'] += len(chunk)
-
-            log_progress_if_time_elapsed(output_data_size)
 
     else:  # If the action is to seek (DECRYPT or EXTRACT_DECRYPT)
         # Attempt to seek to the specified position; return False if it fails
@@ -2920,8 +2902,6 @@ def handle_mac_tag(action: ActionID, mac_message_size: int) -> bool:
 
         if DEBUG:
             log_d('MAC tag written')
-
-        INT_D['written_sum'] += len(mac_tag)
 
     else:  # Decryption actions (DECRYPT, EXTRACT_DECRYPT)
         retrieved_mac_tag: Optional[bytes] = \
@@ -3640,6 +3620,8 @@ def encrypt_and_embed_handler(
     else:  # Decryption actions (DECRYPT, EXTRACT_DECRYPT)
         out_data_size = contents_size
 
+    INT_D['total_out_data_size'] = out_data_size
+
     # Debug logging for sizes
     if DEBUG:
         log_d(f'payload file contents size:  {format_size(contents_size)}')
@@ -3662,8 +3644,6 @@ def encrypt_and_embed_handler(
         if not write_data(BYTES_D['argon2_salt']):
             return False
 
-        INT_D['written_sum'] += len(BYTES_D['argon2_salt'])
-
         if DEBUG:
             log_d('argon2_salt written')
     else:
@@ -3679,7 +3659,7 @@ def encrypt_and_embed_handler(
         h_pad_start_pos: int = BIO_D['OUT'].tell()
 
     # Write or skip header_pad
-    if not handle_padding(header_pad_size, action, out_data_size):
+    if not handle_padding(header_pad_size, action):
         return False
 
     if action in (ENCRYPT, ENCRYPT_EMBED):
@@ -3706,8 +3686,6 @@ def encrypt_and_embed_handler(
 
         if not write_data(enc_processed_comments):
             return False
-
-        INT_D['written_sum'] += len(enc_processed_comments)
 
     else:  # DECRYPT, EXTRACT_DECRYPT
         enc_processed_comments = \
@@ -3741,12 +3719,12 @@ def encrypt_and_embed_handler(
 
     # Process complete chunks
     for _ in range(num_complete_chunks):
-        if not file_chunk_handler(action, RW_CHUNK_SIZE, out_data_size):
+        if not file_chunk_handler(action, RW_CHUNK_SIZE):
             return False
 
     # Process any remaining bytes
     if num_remaining_bytes:
-        if not file_chunk_handler(action, num_remaining_bytes, out_data_size):
+        if not file_chunk_handler(action, num_remaining_bytes):
             return False
 
     if DEBUG:
@@ -3769,7 +3747,7 @@ def encrypt_and_embed_handler(
 
     # Log progress for decryption actions
     if action in (DECRYPT, EXTRACT_DECRYPT):
-        log_progress_final(out_data_size)
+        log_progress_final()
 
     # Handle the MAC tag for integrity/authenticity verification
     # ----------------------------------------------------------------------- #
@@ -3787,7 +3765,7 @@ def encrypt_and_embed_handler(
         f_pad_start_pos: int = BIO_D['OUT'].tell()
 
         # Write or skip footer_pad
-        if not handle_padding(footer_pad_size, action, out_data_size):
+        if not handle_padding(footer_pad_size, action):
             return False
 
         f_pad_end_pos: int = BIO_D['OUT'].tell()
@@ -3805,12 +3783,10 @@ def encrypt_and_embed_handler(
         if not write_data(BYTES_D['blake2_salt']):
             return False
 
-        INT_D['written_sum'] += len(BYTES_D['blake2_salt'])
-
         if DEBUG:
             log_d('blake2_salt written')
 
-        log_progress_final(out_data_size)
+        log_progress_final()
 
     # Validate the total written size against the expected output size
     # ----------------------------------------------------------------------- #
@@ -4059,6 +4035,8 @@ def embed_handler(action: ActionID, start_pos: int, message_size: int) -> bool:
     # Initialize the total written bytes counter
     INT_D['written_sum'] = 0
 
+    INT_D['total_out_data_size'] = message_size
+
     # Calculate the number of complete chunks and remaining bytes
     num_complete_chunks: int = message_size // RW_CHUNK_SIZE
     num_remaining_bytes: int = message_size % RW_CHUNK_SIZE
@@ -4075,10 +4053,6 @@ def embed_handler(action: ActionID, start_pos: int, message_size: int) -> bool:
 
         hash_obj.update(message_chunk)  # Update the checksum with the chunk
 
-        INT_D['written_sum'] += len(message_chunk)
-
-        log_progress_if_time_elapsed(message_size)
-
     # Write any remaining bytes that do not fit into a full chunk
     if num_remaining_bytes:
         message_chunk = read_data(BIO_D['IN'], num_remaining_bytes)
@@ -4092,9 +4066,7 @@ def embed_handler(action: ActionID, start_pos: int, message_size: int) -> bool:
         # Update the checksum with the last chunk
         hash_obj.update(message_chunk)
 
-        INT_D['written_sum'] += len(message_chunk)
-
-    log_progress_final(message_size)
+    log_progress_final()
 
     # Validate the total written size against the expected output size
     if INT_D['written_sum'] != message_size:
@@ -4216,6 +4188,8 @@ def create_with_random_handler(out_file_size: int) -> bool:
     # Initialize the total written bytes counter
     INT_D['written_sum'] = 0
 
+    INT_D['total_out_data_size'] = out_file_size
+
     # Calculate the number of complete chunks and remaining bytes to write
     num_complete_chunks: int = out_file_size // RW_CHUNK_SIZE
     num_remaining_bytes: int = out_file_size % RW_CHUNK_SIZE
@@ -4225,13 +4199,9 @@ def create_with_random_handler(out_file_size: int) -> bool:
         # Generate a chunk of random data
         chunk: bytes = token_bytes(RW_CHUNK_SIZE)
 
-        # Write the remaining bytes to the output file
+        # Write the generated chunk to the output file
         if not write_data(chunk):
             return False
-
-        INT_D['written_sum'] += len(chunk)
-
-        log_progress_if_time_elapsed(out_file_size)
 
     # Write any remaining bytes that do not fit into a full chunk
     if num_remaining_bytes:
@@ -4241,9 +4211,7 @@ def create_with_random_handler(out_file_size: int) -> bool:
         if not write_data(chunk):
             return False
 
-        INT_D['written_sum'] += len(chunk)
-
-    log_progress_final(out_file_size)
+    log_progress_final()
 
     # Validate the total written size against the expected output size
     if INT_D['written_sum'] != out_file_size:
@@ -4409,6 +4377,8 @@ def overwrite_with_random_handler(start_pos: int, data_size: int) -> bool:
     # Initialize the total written bytes counter
     INT_D['written_sum'] = 0
 
+    INT_D['total_out_data_size'] = data_size
+
     # Calculate the number of complete chunks and remaining bytes to write
     num_complete_chunks: int = data_size // RW_CHUNK_SIZE
     num_remaining_bytes: int = data_size % RW_CHUNK_SIZE
@@ -4421,10 +4391,6 @@ def overwrite_with_random_handler(start_pos: int, data_size: int) -> bool:
         if not write_data(chunk):  # Write the chunk to the output file
             return False
 
-        INT_D['written_sum'] += len(chunk)
-
-        log_progress_if_time_elapsed(data_size)
-
     # Write any remaining bytes that do not fit into a full chunk
     if num_remaining_bytes:
         # Generate the last chunk of random data
@@ -4433,9 +4399,7 @@ def overwrite_with_random_handler(start_pos: int, data_size: int) -> bool:
         if not write_data(chunk):
             return False
 
-        INT_D['written_sum'] += len(chunk)
-
-    log_progress_final(data_size)
+    log_progress_final()
 
     # Validate the total written size against the expected output size
     if INT_D['written_sum'] != data_size:
@@ -4464,11 +4428,7 @@ def overwrite_with_random_handler(start_pos: int, data_size: int) -> bool:
 # --------------------------------------------------------------------------- #
 
 
-def file_chunk_handler(
-    action: ActionID,
-    chunk_size: int,
-    out_data_size: int,
-) -> bool:
+def file_chunk_handler(action: ActionID, chunk_size: int) -> bool:
     """
     Processes a chunk of data by reading, encrypting or decrypting,
     writing, and logging progress.
@@ -4481,20 +4441,10 @@ def file_chunk_handler(
     Args:
         action (ActionID): The action to perform on the data chunk.
         chunk_size (int): The size of the data chunk to be processed.
-        out_data_size (int): The total size of the output data, used for
-                             progress logging.
 
     Returns:
         bool: True if the chunk was processed successfully, False
               otherwise.
-
-    Notes:
-        - The function updates the MAC based on the action being
-          performed (encryption or decryption).
-        - Progress is logged at intervals defined by
-          MIN_PROGRESS_INTERVAL.
-        - The function handles both encryption and decryption actions,
-          updating the MAC accordingly.
     """
     in_chunk: Optional[bytes] = read_data(BIO_D['IN'], chunk_size)
 
@@ -4505,10 +4455,6 @@ def file_chunk_handler(
 
     if not write_data(out_chunk):
         return False
-
-    INT_D['written_sum'] += len(out_chunk)
-
-    log_progress_if_time_elapsed(out_data_size)
 
     # Update MAC with the encrypted chunk
     if action in (ENCRYPT, ENCRYPT_EMBED):
