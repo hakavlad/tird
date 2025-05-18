@@ -47,6 +47,7 @@ classifiers = [
 dependencies = [
     "cryptography>=2.1",
     "pynacl>=1.2.0",
+    "colorama>=0.4.6; sys_platform == 'win32'",
 ]
 requires-python = ">=3.9.2"
 
