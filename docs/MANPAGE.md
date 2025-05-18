@@ -239,6 +239,7 @@ Enabling debug mode additionally shows:
 - Python >= 3.9.2
 - cryptography >= 2.1
 - PyNaCl >= 1.2.0
+- colorama >= 0.4.6 (Windows-specific)
 
 # TUTORAL
 
