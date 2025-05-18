@@ -429,6 +429,7 @@ C1. Time cost (default=4): 1000000
 - Python >= 3.9.2
 - [cryptography](https://pypi.org/project/cryptography/) >= 2.1 (provides `ChaCha20`)
 - [PyNaCl](https://pypi.org/project/PyNaCl/) >= 1.2.0 (provides `Argon2` and `BLAKE2`)
+- [colorama](https://pypi.org/project/colorama/) >= 0.4.6 (Windows-specific)
 
 ## Installation
 
