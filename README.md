@@ -474,7 +474,7 @@ $ sudo make install-deb
 
 Standalone executables (made with [PyInstaller](https://pyinstaller.org/en/stable/)) are also available (see [Releases](https://github.com/hakavlad/tird/releases)) for Windows and Linux (amd64). Please use at your own risk.
 
-![tird.exe](https://i.imgur.com/OEjFcKk.png)
+![tird.exe](https://i.imgur.com/Qk52kx8.png)
 
 <details>
   <summary>&nbsp;<b>How to Verify Signatures</b></summary>
