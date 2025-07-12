@@ -44,7 +44,7 @@
 > - [Tradeoffs and Limitations](#tradeoffs-and-limitations)
 > - [Warnings](#warnings)
 
-> - [AI reports](#ai-reports)
+> - [LLM reports](#llm-reports)
 
 > - [Requirements](#requirements)
 > - [Installation](#installation)
@@ -65,7 +65,7 @@ With `tird`, you can:
 
 1. Create files filled with random data to use as containers or keyfiles.
 2. Overwrite the contents of block devices and regular files with random data. This can be used to prepare containers and to destroy residual data.
-3. Encrypt file contents and comments with modern cryptographic primitives. The encrypted data format (called cryptoblob) is a [padded uniform random blob (PURB)](https://en.wikipedia.org/wiki/PURB_(cryptography)): it looks like random data and has a randomized size. This reduces metadata leakage from file format and length, and also allows cryptoblobs to be hidden among random data. You can use keyfiles and passphrases at your choice to enhance security.
+3. Encrypt file contents and comments. The encrypted data format (called cryptoblob) is a [padded uniform random blob (PURB)](https://en.wikipedia.org/wiki/PURB_(cryptography)): it looks like random data and has a randomized size. This reduces metadata leakage from file format and length, and also allows cryptoblobs to be hidden among random data. You can use keyfiles and passphrases at your choice to enhance security.
 4. Create [steganographic](https://en.wikipedia.org/wiki/Steganography) (hidden, undetectable) user-driven file systems inside container files and block devices. Unlike [VeraCrypt](https://veracrypt.fr) and [Shufflecake](https://shufflecake.net/) containers, `tird` containers do not contain headers at all; the user specifies the location of the data in the container and is responsible for ensuring that this location is separated from the container.
 5. Prevent or resist [coercive](https://en.wikipedia.org/wiki/Coercion) attacks (keywords: [key disclosure law](https://en.wikipedia.org/wiki/Key_disclosure_law), [rubber-hose cryptanalysis](https://en.wikipedia.org/wiki/Deniable_encryption), [xkcd 538](https://xkcd.com/538/)). `tird` provides some forms of [plausible deniability](https://en.wikipedia.org/wiki/Plausible_deniability) out of the box, even if you encrypt files without hiding them in containers.
 
@@ -416,7 +416,7 @@ C1. Time cost (default=4): 1000000
 - ⚠️ Key derivation consumes 1 GiB RAM, which may lead to performance issues or crashes on low-memory systems.
 - ⚠️ Development is not complete, and there may be backward compatibility issues.
 
-## AI reports
+## LLM reports
 
 <img src="https://i.imgur.com/Ab8rSlc.jpeg" width="200" alt="">
 
