@@ -16,7 +16,7 @@ With **tird**, you can:
 
 1. Create files filled with random data to use as containers or keyfiles.
 2. Overwrite the contents of devices and regular files with random data. This can be used to prepare containers and to destroy residual data.
-3. Encrypt file contents and comments with modern cryptographic primitives. The encrypted file format (called cryptoblob) is a padded uniform random blob (PURB): it looks like random data and has a randomized size. This reduces metadata leakage from file format and length, and also allows cryptoblobs to be hidden among random data. You can use keyfiles and passphrases at your choice to enhance security.
+3. Encrypt file contents and comments. The encrypted file format (called cryptoblob) is a padded uniform random blob (PURB): it looks like random data and has a randomized size. This reduces metadata leakage from file format and length, and also allows cryptoblobs to be hidden among random data. You can use keyfiles and passphrases at your choice.
 4. Create steganographic (hidden, undetectable) user-driven file systems inside container files and devices. Unlike VeraCrypt and Shufflecake containers, **tird** containers do not contain headers at all; the user specifies the location of the data in the container and is responsible for ensuring that this location is separated from the container.
 5. Prevent or resist coercive attacks (keywords: key disclosure law, rubber-hose cryptanalysis, xkcd 538). **tird** provides some forms of plausible deniability out of the box, even if you encrypt files without hiding them in containers.
 
@@ -28,7 +28,7 @@ enable debug mode
 
 # USAGE
 
-You don't need to memorize command-line options to use tird. This tool features a prompt-based CLI: simply start it, select a menu option, and answer the questions that will follow.
+You don't need to memorize command-line options to use **tird**. This tool features a prompt-based CLI: simply start it, select a menu option, and answer the questions that will follow.
 
 ```
 $ tird
