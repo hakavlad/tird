@@ -65,6 +65,17 @@ class KeyfileScanError(Exception):
     """Exception raised by keyfile directory scanning errors."""
 
 
+# ANSI escape codes for terminal text formatting
+BOL: Final[str] = '\x1b[1m'  # Bold text
+ERR: Final[str] = '\x1b[1;97;101m'  # Bold white text, red background
+WAR: Final[str] = '\x1b[1;93;40m'  # Bold yellow text, black background
+RES: Final[str] = '\x1b[0m'  # Reset formatting to default
+
+# Adjust ANSI codes for Windows platform, which does not support them
+if platform == 'win32':
+    just_fix_windows_console()
+
+
 # Formatting output messages and logging
 # --------------------------------------------------------------------------- #
 
@@ -74,9 +85,9 @@ def log_e(error_message: str) -> None:
     print(f'    {ERR}E: {error_message}{RES}')
 
 
-def log_w(warning_message: str) -> None:
+def log_w(warning_message: str, prefix: str = f'    {WAR}W: ') -> None:
     """Logs a message at the Warning level."""
-    print(f'    {WAR}W: {warning_message}{RES}')
+    print(f'{prefix}{warning_message}{RES}')
 
 
 def log_i(info_message: str) -> None:
@@ -2911,7 +2922,7 @@ def handle_mac_tag(action: ActionID, mac_message_size: int) -> bool:
             BOOL_D['auth_fail'] = True
 
             log_w('integrity/authenticity check:')
-            log_w('\r        [FAIL]')
+            log_w('[FAIL]', prefix=f'        {WAR}')
             log_w('released plaintext cannot be trusted!')
             return False
 
@@ -2931,7 +2942,7 @@ def handle_mac_tag(action: ActionID, mac_message_size: int) -> bool:
                 log_d('computed MAC tag is not equal to retrieved MAC tag')
 
             log_w('integrity/authenticity check:')
-            log_w('\r        [FAIL]')
+            log_w('[FAIL]', prefix=f'        {WAR}')
             log_w('released plaintext cannot be trusted!')
 
     mac_message_sum: int = INT_D['mac_message_sum']
@@ -4685,17 +4696,6 @@ def main() -> NoReturn:
 
 # Define constants
 # --------------------------------------------------------------------------- #
-
-
-# ANSI escape codes for terminal text formatting
-BOL: Final[str] = '\x1b[1m'  # Bold text
-ERR: Final[str] = '\x1b[1;97;101m'  # Bold white text, red background
-WAR: Final[str] = '\x1b[1;93;40m'  # Bold yellow text, black background
-RES: Final[str] = '\x1b[0m'  # Reset formatting to default
-
-# Adjust ANSI codes for Windows platform, which does not support them
-if platform == 'win32':
-    just_fix_windows_console()
 
 
 # Version of the application
