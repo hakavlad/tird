@@ -158,10 +158,10 @@ The payload that will be encrypted during cryptoblob creation consists of:
 Specifying the payload in the UI looks as follows:
 
 ```
-D1. File to encrypt: foo
-    I: path: 'foo'; size: 1 B
-D2. Comments (optional, up to 512 B): foo file, secret data
-    I: comments will be shown as ['foo file, secret data']
+D1. File to encrypt: list.txt
+    I: path: 'list.txt'; size: 6,493 B (6.3 KiB)
+D2. Comments (optional, up to 512 B): Epstein client list, txt
+    I: comments will be shown as ['Epstein client list, txt']
 ```
 
 ## Input Keying Material
