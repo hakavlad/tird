@@ -5,7 +5,8 @@
   📑&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md">Specification</a> &nbsp;
   📄&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md">Input&nbsp;Options</a> &nbsp;
   📖&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md">Tutorial</a> &nbsp;
-  ❓&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/FAQ.md">FAQ</a>
+  ❓&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/FAQ.md">FAQ</a> &nbsp;
+  📥&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/INSTALLATION.md">Installation</a>
 </h4>
 
 ---
@@ -30,7 +31,7 @@ $ tird
 A0. Select an option [0-9]:
 ```
 
-## Exit 
+## Exit
 
 Select action `0` from the menu, or press `Ctrl+C`.
 
@@ -65,7 +66,7 @@ A0. Select an option [0-9]: ^C
     I: caught signal 2
 ```
 
-## Info & Warnings 
+## Info & Warnings
 
 To get the application version, a brief description, a link to the homepage, and a list of warnings, select action `1`.
 
@@ -124,6 +125,5 @@ $ tird --debug
     6. Encrypt & Embed   7. Extract & Decrypt
     8. Create w/ Random  9. Overwrite w/ Random
     ———————————————————————————————————————————
-A0. Select an option [0-9]: 
+A0. Select an option [0-9]:
 ```
-

@@ -5,7 +5,8 @@
   📑&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md">Specification</a> &nbsp;
   📄&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md">Input&nbsp;Options</a> &nbsp;
   📖&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md">Tutorial</a> &nbsp;
-  ❓&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/FAQ.md">FAQ</a>
+  ❓&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/FAQ.md">FAQ</a> &nbsp;
+  📥&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/INSTALLATION.md">Installation</a>
 </h4>
 
 ---
@@ -31,7 +32,7 @@ A0. Select an option [0-9]:
 D1. File to embed:
 D3. File to overwrite (container):
 D5. Start position:
-P0. Proceed overwriting? (Y/N): 
+P0. Proceed overwriting? (Y/N):
 ```
 
 #### 1. Launch the app with `sudo` and select option (action) `4`
@@ -286,4 +287,3 @@ P0. Proceed overwriting? (Y/N): 1
 ```
 
 </details>
-
