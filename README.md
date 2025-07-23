@@ -3,13 +3,39 @@
   <img src="https://raw.githubusercontent.com/hakavlad/tird/main/images/logo2.png" width="800" alt="Logo">
 </p>
 
-<h3 align="left">
-  📜&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md">man&nbsp;page</a> &nbsp;
-  📑&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md">Specification</a> &nbsp;
-  📄&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md">Input&nbsp;Options</a> &nbsp;
-  📖&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md">Tutorial</a> &nbsp;
-  ❓&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/FAQ.md">FAQ</a>
-</h3><br>
+<table>
+
+<tr>
+<td>&nbsp;📜&nbsp;</td>
+<td><b>&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md">man page</a></b></td>
+</tr>
+
+<tr>
+<td>&nbsp;📑&nbsp;</td>
+<td><b>&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md">Specification</a></b></td>
+</tr>
+
+<tr>
+<td>&nbsp;📄&nbsp;</td>
+<td><b>&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md">Input&nbsp;Options</a>&nbsp;&nbsp;&nbsp;</b></td>
+</tr>
+
+<tr>
+<td>&nbsp;📖&nbsp;</td>
+<td><b>&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md">Tutorial</a></b></td>
+</tr>
+
+<tr>
+<td>&nbsp;❓&nbsp;</td>
+<td><b>&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/FAQ.md">FAQ</a></b></td>
+</tr>
+
+<tr>
+<td>&nbsp;📥&nbsp;</td>
+<td><b>&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/INSTALLATION.md">Installation</a></b></td>
+</tr>
+
+</table>
 
 [![Releases](https://img.shields.io/github/v/release/hakavlad/tird?color=blue&label=Release)](https://github.com/hakavlad/tird/releases)
 [![PyPI](https://img.shields.io/pypi/v/tird?color=blue&label=PyPI)](https://pypi.org/project/tird/)
@@ -47,7 +73,6 @@
 > - [LLM reports](#llm-reports)
 
 > - [Requirements](#requirements)
-> - [Installation](#installation)
 
 > - [TODO](#todo)
 > - [Feedback](#feedback)
@@ -431,64 +456,6 @@ C1. Time cost (default=4): 1000000
 - [cryptography](https://pypi.org/project/cryptography/) >= 2.1 (provides `ChaCha20`)
 - [PyNaCl](https://pypi.org/project/PyNaCl/) >= 1.2.0 (provides `Argon2` and `BLAKE2`)
 - [colorama](https://pypi.org/project/colorama/) >= 0.4.6 (Windows-specific)
-
-## Installation
-
-### Installation from PyPI
-
-Install `python3` and `python3-pip` (or `python-pip`), then run
-
-```bash
-$ pip install tird
-```
-
-### Building and Installing the Package on Debian-based Linux Distros
-
-It's easy to build a deb package for Debian and Ubuntu-based distros with the latest git snapshot.
-
-1. Install the build dependencies:
-
-```bash
-$ sudo apt install make fakeroot
-```
-
-2. Clone the repository (if `git` is already installed) and enter the directory:
-
-```bash
-$ git clone https://github.com/hakavlad/tird.git && cd tird
-```
-
-3. Build the package:
-
-```bash
-$ make build-deb
-```
-
-4. Install or reinstall the package:
-
-```bash
-$ sudo make install-deb
-```
-
-### Standalone Executables
-
-Standalone executables (made with [PyInstaller](https://pyinstaller.org/en/stable/)) are also available (see [Releases](https://github.com/hakavlad/tird/releases)) for Windows and Linux (amd64). Please use at your own risk.
-
-![tird.exe](https://i.imgur.com/Qk52kx8.png)
-
-<details>
-  <summary>&nbsp;<b>How to Verify Signatures</b></summary>
-
-Use [Minisign](https://jedisct1.github.io/minisign/) to verify signatures. You can find my public key [here](https://github.com/hakavlad/hakavlad).
-
-For example:
-
-```
-$ minisign -Vm  tird-v0.21.1-linux-amd64.zip -P RWQLYkPbRQ8b56zEe8QdbjLFqC9UrjOaYxW5JxwsWV7v0ct/F/XfJlel
-```
-
-This requires the signature `tird-v0.21.1-linux-amd64.zip.minisig` to be present in the same directory.
-</details>
 
 ## TODO
 
