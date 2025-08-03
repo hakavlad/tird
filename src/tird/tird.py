@@ -3643,6 +3643,8 @@ def encrypt_and_embed_handler(
         log_e('invalid combination of input values')
         return False
 
+    log_i(f'data size to write: {format_size(out_data_size)}')
+
     # Write argon2_salt if encrypting
     # ----------------------------------------------------------------------- #
 
@@ -3658,7 +3660,7 @@ def encrypt_and_embed_handler(
         if DEBUG:
             log_d('argon2_salt written')
     else:
-        log_i('reading cryptoblob, writing unverified plaintext')
+        log_i('reading cryptoblob, writing UNVERIFIED plaintext')
 
     # Handle header padding
     # ----------------------------------------------------------------------- #
@@ -3713,7 +3715,7 @@ def encrypt_and_embed_handler(
         decoded_comments: Optional[str] = \
             decode_processed_comments(processed_comments)
 
-        log_i(f'unverified decrypted comments:\n        {[decoded_comments]}')
+        log_i(f'UNVERIFIED decrypted comments:\n        {[decoded_comments]}')
 
     if DEBUG:
         log_d('handling comments completed')
@@ -3836,7 +3838,7 @@ def encrypt_and_embed_handler(
         h_pad_size: str = format_size(header_pad_size)
         f_pad_size: str = format_size(footer_pad_size)
 
-        log_i(f'location of padding in output file (may be ignored):\n'
+        log_i(f'pockets (padding) location in output file:\n'
               f'        [{h_pad_start_pos}:{h_pad_end_pos}] — {h_pad_size}\n'
               f'        [{f_pad_start_pos}:{f_pad_end_pos}] — {f_pad_size}')
 
