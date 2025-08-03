@@ -82,9 +82,12 @@ $ sudo make install-deb
 
 ---
 
-## Installing on Linux via `sudo make install`
+## Installing on Linux with `make install`
 
-This is a universal installation method for GNU/Linux distributions that makes the script available to run with root privileges. You will need the `make` utility and two dependencies of `tird` itself. You should install the dependencies, clone the repository (or download a release), change into the project directory, and run `sudo make install`. The script and its man page will be installed in `/usr/local`.
+- This is a universal installation method for GNU/Linux distributions that makes the script available to run with root privileges.
+- You will need the `make` utility and two dependencies of `tird` itself.
+- You should install the dependencies, clone the repository (or download a release), change into the project directory, and run `sudo make install`.
+- The script and its man page will be installed in `/usr/local`.
 
 ### Install Dependencies
 
