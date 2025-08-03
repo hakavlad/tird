@@ -1066,7 +1066,6 @@ Context: action `6`:
 P0. Proceed overwriting? (Y/N): 1
     I: deriving one-time keys
     I: keys derived in 1.9s
-    I: reading plaintext, writing cryptoblob
 ```
 
 Context: action `9`:
@@ -1118,7 +1117,6 @@ P0. Proceed removing? (Y/N, default=Y): N
     D: closing <_io.BufferedWriter name='test.bin'>
     D: <_io.BufferedWriter name='test.bin'> closed
     I: output file path NOT removed
-
 ```
 
 </details>
