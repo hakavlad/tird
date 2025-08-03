@@ -28,7 +28,7 @@ Install `python3` and `python3-pip` (or `python-pip`), then run
 $ pip install --user tird
 ```
 
-The drawback of this installation method is that the package will only be available to the user who installed it and won't be accessible when using sudo.
+The drawback of this installation method is that the package will only be available to the user who installed it and won't be accessible when using `sudo`.
 
 ---
 
