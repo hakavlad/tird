@@ -56,25 +56,25 @@ This requires the signature `tird-v0.21.1-linux-amd64.zip.minisig` to be present
 
 It's easy to build a deb package for Debian and Ubuntu-based distros with the latest git snapshot.
 
-1. Install the build dependencies:
+**1. Install the build dependencies:**
 
 ```bash
 $ sudo apt install make fakeroot
 ```
 
-2. Clone the repository (if `git` is already installed) and enter the directory:
+**2. Clone the repository and enter the directory:**
 
 ```bash
 $ git clone https://github.com/hakavlad/tird.git && cd tird
 ```
 
-3. Build the package:
+**3. Build the package:**
 
 ```bash
 $ make build-deb
 ```
 
-4. Install or reinstall the package:
+**4. Install or reinstall the package:**
 
 ```bash
 $ sudo make install-deb
@@ -117,7 +117,7 @@ $ sudo zypper install make python3-cryptography python3-PyNaCl
 
 ### Clone and Install
 
-Latest stable release:
+Latest stable release (recommended):
 
 ```bash
 $ git clone --branch v0.21.1 --depth 1 https://github.com/hakavlad/tird.git && cd tird
