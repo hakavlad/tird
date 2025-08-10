@@ -97,7 +97,7 @@ With `tird`, you can:
 > \[!WARNING]
 > Users of `tird` **must** carefully read and understand the "[Warnings](#warnings)" section in the `README.md`. The tool's security relies heavily on the user's understanding of its limitations and operating it in a secure environment, especially regarding key management, debug mode usage, and interpreting MAC verification results.
 
-<i>— <a href="https://g.co/gemini/share/627c17c844b9">Gemini</a></i>
+<i>— <a href="https://gemini.google.com/share/627c17c844b9">Gemini</a></i>
 
 ## Goals
 
@@ -445,16 +445,15 @@ C1. Time cost (default=4): 1000000
 
 <img src="https://i.imgur.com/Ab8rSlc.jpeg" width="200" alt="">
 
-- [Tird Code Security Audit Report (v0.19.0)](https://g.co/gemini/share/6390743bb873); Target: [d016bd5](https://github.com/hakavlad/tird/tree/d016bd51571cd24ea0b21b8959dc01c4e7a69bee); Date: April 13, 2025; Auditor: Gemini 2.5 Pro
-- [Security Audit Report: tird.py (v0.19.0)](https://g.co/gemini/share/82c80109c0c9); Target: [105f2dd](https://github.com/hakavlad/tird/tree/105f2ddbcace2802e2372f25c7aaae028ae4b357); Date: April 24, 2025; Auditor: Gemini 2.5 Pro
-- [Tird Security Review (v0.20.0)](https://g.co/gemini/share/754c591bab98); Target: [ba504f9](https://github.com/hakavlad/tird/tree/ba504f92f5f40a8557ab4e1e5c6cc7fbc689a0cd); Date: May 4, 2025; Auditor: Gemini 2.5 Pro
-- [Code Security Audit Report: tird.py v0.20.0](https://g.co/gemini/share/2540bff735ed); Target: [f9f973d](https://github.com/hakavlad/tird/tree/f9f973dfd1bef4be5ae2421f3da38229eba1728c); Date: May 24, 2025; Auditor: Gemini 2.5 Pro
+- [Tird Code Security Audit Report (v0.19.0)](https://gemini.google.com/share/6390743bb873); Target: [d016bd5](https://github.com/hakavlad/tird/tree/d016bd51571cd24ea0b21b8959dc01c4e7a69bee); Date: April 13, 2025; Auditor: Gemini 2.5 Pro (experimental)
+- [Security Audit Report: tird.py (v0.19.0)](https://gemini.google.com/share/82c80109c0c9); Target: [105f2dd](https://github.com/hakavlad/tird/tree/105f2ddbcace2802e2372f25c7aaae028ae4b357); Date: April 24, 2025; Auditor: Gemini 2.5 Pro (experimental)
+- [Tird Security Review (v0.20.0)](https://gemini.google.com/share/754c591bab98); Target: [ba504f9](https://github.com/hakavlad/tird/tree/ba504f92f5f40a8557ab4e1e5c6cc7fbc689a0cd); Date: May 4, 2025; Auditor: Gemini 2.5 Pro (experimental)
 
 ## Requirements
 
 - Python >= 3.9.2
-- [cryptography](https://pypi.org/project/cryptography/) >= 2.1 (provides `ChaCha20`)
-- [PyNaCl](https://pypi.org/project/PyNaCl/) >= 1.2.0 (provides `Argon2` and `BLAKE2`)
+- [cryptography](https://pypi.org/project/cryptography/) >= 2.1 (provides a fast `ChaCha20` implementation)
+- [PyNaCl](https://pypi.org/project/PyNaCl/) >= 1.2.0 (provides fast implementations of `Argon2` and `BLAKE2`)
 - [colorama](https://pypi.org/project/colorama/) >= 0.4.6 (Windows-specific)
 
 ## TODO
