@@ -9,8 +9,8 @@ Requirements:
 - Python >= 3.9.2
 
 Dependencies:
-- cryptography >= 2.1 (ChaCha20)
-- PyNaCl >= 1.2.0 (Argon2/BLAKE2)
+- cryptography >= 2.1 (ChaCha20, HKDF-SHA-256)
+- PyNaCl >= 1.2.0 (Argon2id, BLAKE2b)
 - colorama >= 0.4.6 (Windows-specific)
 
 SPDX-License-Identifier: 0BSD
@@ -30,7 +30,6 @@ Homepage: https://github.com/hakavlad/tird
 from collections.abc import Callable
 from gc import collect
 from getpass import getpass
-from io import BytesIO
 from os import (SEEK_CUR, SEEK_END, SEEK_SET, fsync, ftruncate, path, remove,
                 walk)
 
@@ -48,8 +47,11 @@ from types import FrameType
 from typing import Any, BinaryIO, Final, Literal, NoReturn, Optional
 from unicodedata import normalize
 
+from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher
 from cryptography.hazmat.primitives.ciphers.algorithms import ChaCha20
+from cryptography.hazmat.primitives.hashes import SHA256
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from nacl.hashlib import blake2b
 from nacl.pwhash import argon2id
 
@@ -2245,8 +2247,8 @@ def derive_keys() -> bool:
     the Argon2 password stored in the global `BYTES_D` dictionary. It
     uses the Argon2 key derivation function with specified parameters
     such as salt, time cost, and memory limit. After deriving the Argon2
-    tag, it is passed to the `split_argon2_tag()` function for further
-    processing.
+    tag, it is passed to the `derive_working_keys()` function for
+    further processing.
 
     The function logs the process, including the time taken to derive
     the keys and the values of the derived keys if the DEBUG flag is
@@ -2256,7 +2258,7 @@ def derive_keys() -> bool:
         bool: True if the keys were successfully derived, False if an
               error occurred during the key derivation process.
     """
-    log_i('deriving one-time keys')
+    log_i('deriving keys (time‑consuming)')
 
     start_time: float = monotonic()
 
@@ -2272,7 +2274,7 @@ def derive_keys() -> bool:
         log_e(f'{error}')
         return False
 
-    split_argon2_tag(argon2_tag)
+    derive_working_keys(argon2_tag)
 
     end_time: float = monotonic()
 
@@ -2281,74 +2283,89 @@ def derive_keys() -> bool:
     return True
 
 
-def split_argon2_tag(argon2_tag: bytes) -> None:
+def hkdf_sha256(input_key: bytes, info: bytes, length: int) -> bytes:
     """
-    Extracts and stores cryptographic keys from the provided Argon2 tag.
+    HKDF-SHA-256 wrapper using empty salt.
 
-    This function takes an Argon2 tag that contains multiple
-    cryptographic keys and splits it into its components. The extracted
-    keys include a padding keys, a nonce key, an encryption key, and a
-    MAC key. The extracted keys are then stored in a global dictionary
-    `BYTES_D` for later use in cryptographic operations.
+    Args:
+        input_key (bytes): Input keying material (HKDF `IKM`).
+        info (bytes): Context‑specific info (HKDF `info`),
+                      can be any length.
+        length (int): Number of bytes to derive (must be > 0).
 
-    The expected structure of the Argon2 tag is as follows:
+    Returns:
+        bytes: Derived key of exactly `length` bytes.
+    """
+    hkdf: HKDF = HKDF(
+        algorithm=SHA256(),
+        length=length,
+        salt=None,
+        info=info,
+        backend=default_backend()
+    )
+    derived_key: bytes = hkdf.derive(input_key)
 
-    +————————————————+——————————————+———————————————+
-    |                | pad_key_t:10 | Secret values |
-    |                +——————————————+ that define   |
-    |                | pad_key_s:10 | padding sizes |
-    |                +——————————————+———————————————+
-    | argon2_tag:128 | nonce_key:12 | Secret values |
-    |                +——————————————+ for data      |
-    |                | enc_key:32   | encryption    |
-    |                +——————————————+———————————————+
-    |                | mac_key:64   | Auth key      |
-    +————————————————+——————————————+———————————————+
+    return derived_key
 
-    Arguments:
-        argon2_tag (bytes): The Argon2 tag containing the keys to
-                            extract. Must be provided as a byte string.
+
+def derive_working_keys(argon2_tag: bytes) -> None:
+    """
+    Uses `argon2_tag` as HKDF IKM and derives four purpose‑specific keys
+    (pad total, pad split, encryption, MAC) with distinct `info` labels.
+    Derived keys are stored in the global BYTES_D dictionary under keys:
+    'pad_key_t', 'pad_key_s', 'enc_key', 'mac_key'.
+
+    Args:
+        argon2_tag (bytes): Raw Argon2 output used as HKDF input.
 
     Returns:
         None
+
+    Side effects:
+        - Writes derived keys into BYTES_D.
     """
 
     # Log the raw Argon2 tag in hexadecimal format if debugging is enabled
     if DEBUG:
         log_d(f'argon2_tag:\n        {argon2_tag.hex()} ({len(argon2_tag)} B)')
-        log_d('splitting argon2_tag into separate keys')
+        log_d('deriving working keys with HKDF-SHA-256')
 
-    # Create a stream from the Argon2 byte tag for sequential reading
-    with BytesIO(argon2_tag) as argon2_tag_stream:
-        # Extract keys from the stream using predefined sizes
-        pad_key_t: bytes = argon2_tag_stream.read(PAD_KEY_SIZE)
-        pad_key_s: bytes = argon2_tag_stream.read(PAD_KEY_SIZE)
-        nonce_key: bytes = argon2_tag_stream.read(NONCE_SIZE)
-        enc_key: bytes = argon2_tag_stream.read(ENC_KEY_SIZE)
-        mac_key: bytes = argon2_tag_stream.read(MAC_KEY_SIZE)
+    pad_key_t: bytes = hkdf_sha256(
+        input_key=argon2_tag,
+        info=HKDF_INFO_PAD_TOTAL,
+        length=PAD_KEY_SIZE,
+    )
 
-    if DEBUG:
-        if argon2_tag != b''.join([
-            pad_key_t, pad_key_s,
-            nonce_key, enc_key,
-            mac_key,
-        ]):
-            raise RuntimeError
+    pad_key_s: bytes = hkdf_sha256(
+        input_key=argon2_tag,
+        info=HKDF_INFO_PAD_SPLIT,
+        length=PAD_KEY_SIZE,
+    )
 
-    # Log the extracted keys if debugging is enabled
+    enc_key: bytes = hkdf_sha256(
+        input_key=argon2_tag,
+        info=HKDF_INFO_ENCRYPT,
+        length=ENC_KEY_SIZE,
+    )
+
+    mac_key: bytes = hkdf_sha256(
+        input_key=argon2_tag,
+        info=HKDF_INFO_MAC,
+        length=MAC_KEY_SIZE,
+    )
+
+    # Log the derived keys if debugging is enabled
     if DEBUG:
         log_d(
             f'derived keys:\n'
             f'        pad_key_t:  {pad_key_t.hex()} ({len(pad_key_t)} B)\n'
             f'        pad_key_s:  {pad_key_s.hex()} ({len(pad_key_s)} B)\n'
-            f'        nonce_key:  {nonce_key.hex()} ({len(nonce_key)} B)\n'
             f'        enc_key:    {enc_key.hex()} ({len(enc_key)} B)\n'
             f'        mac_key:    {mac_key.hex()} ({len(mac_key)} B)')
 
     # Store the extracted keys in the global dictionary `BYTES_D`
     BYTES_D['pad_key_t'] = pad_key_t
     BYTES_D['pad_key_s'] = pad_key_s
-    BYTES_D['nonce_key'] = nonce_key
     BYTES_D['enc_key'] = enc_key
     BYTES_D['mac_key'] = mac_key
 
@@ -2647,45 +2664,26 @@ def handle_padding(pad_size: int, action: ActionID) -> bool:
 
 def init_nonce_counter() -> None:
     """
-    Initializes the nonce counter for the ChaCha20 encryption algorithm.
+    Initialize the nonce counter for the ChaCha20 encryption algorithm.
 
-    This function retrieves the 'nonce_key' from the global BYTES_D
-    dictionary, which is expected to have been extracted earlier. The
-    nonce key (a byte string) is converted to an integer using the byte
-    order specified by the global variable BYTEORDER. This integer value
-    is then stored in the global INT_D dictionary under the key
-    'nonce_counter'.
+    This function sets the nonce counter to its initial value (0)
+    in preparation for encryption operations.
 
-    The integer stored in 'nonce_counter' serves as the initial nonce
-    value for encryption operations and will be incremented for each
-    subsequent encryption to ensure unique nonces.
+    The nonce counter is stored in a global dictionary, allowing
+    it to be accessed by other functions involved in the encryption
+    process. This function can be called multiple times, and each
+    invocation will reset the nonce counter to 0.
 
-    Note:
-      - The nonce counter gets reset to the initial value on each
-        invocation of this function.
-      - Ensure that BYTES_D['nonce_key'] contains the expected data
-        (e.g., 12 bytes) and that BYTEORDER is correctly defined.
-      - If DEBUG is enabled, the initialized nonce counter value is
-        logged for troubleshooting.
+    If the DEBUG flag is enabled, the initialization of the nonce
+    counter will be logged for debugging purposes.
 
     Returns:
         None
     """
+    init_value: int = 0
 
-    # Retrieve the nonce key (a byte string) from the global
-    # BYTES_D dictionary
-    nonce_key: bytes = BYTES_D['nonce_key']
-
-    # Convert the nonce key from bytes to an integer using the specified
-    # byte order
-    init_value: int = int.from_bytes(nonce_key, BYTEORDER)
-
-    # Store the converted integer as the initial nonce counter in the
-    # INT_D dictionary
     INT_D['nonce_counter'] = init_value
 
-    # If debugging is enabled, log the initialized nonce counter value
-    # for troubleshooting
     if DEBUG:
         log_d(f'nonce counter initialized to {init_value}')
 
@@ -2710,24 +2708,14 @@ def get_incremented_nonce() -> bytes:
                NONCE_SIZE, represented in the specified byte order
                (BYTEORDER).
     """
-
-    # Retrieve the current nonce counter from the INT_D dictionary
-    current_counter: int = INT_D['nonce_counter']
-
-    # Increment the current counter and wrap around using modulo
-    # to ensure it stays within the bounds of NONCE_SPACE
-    incremented_counter: int = (current_counter + 1) % NONCE_SPACE
-
-    # Update the nonce counter in the INT_D dictionary with the new value
-    INT_D['nonce_counter'] = incremented_counter
-
-    # Convert the incremented counter to bytes, using the specified size
-    # and byte order
-    incremented_nonce: bytes = \
-        incremented_counter.to_bytes(NONCE_SIZE, BYTEORDER)
+    INT_D['nonce_counter'] += 1
 
     if DEBUG:
+        incremented_counter: int = INT_D['nonce_counter']
         log_d(f'nonce counter incremented to {incremented_counter}')
+
+    incremented_nonce: bytes = \
+        INT_D['nonce_counter'].to_bytes(NONCE_SIZE, BYTEORDER)
 
     return incremented_nonce
 
@@ -2767,8 +2755,7 @@ def encrypt_decrypt(input_data: bytes) -> bytes:
         catastrophic breakdown of the ChaCha20 cipher's security.
 
         If debug mode is enabled, additional information regarding the
-        chunk size and nonce used for
-        each operation is logged.
+        chunk size and nonce used for each operation is logged.
     """
 
     # Retrieve the incremented nonce value as queried by ChaCha20
@@ -3601,7 +3588,6 @@ def encrypt_and_embed_handler(
         BYTES_D['argon2_password'],
         BYTES_D['pad_key_t'],
         BYTES_D['pad_key_s'],
-        BYTES_D['nonce_key'],
         BYTES_D['mac_key'],
     )
 
@@ -4875,7 +4861,6 @@ SALTS_SIZE: Final[int] = ONE_SALT_SIZE * 2
 # ChaCha20 constants
 ENC_KEY_SIZE: Final[int] = 32  # 256-bit key size
 NONCE_SIZE: Final[int] = 12  # 96-bit nonce size
-NONCE_SPACE: Final[int] = 256 ** NONCE_SIZE
 BLOCK_COUNTER_INIT_BYTES: Final[bytes] = \
     bytes(4)  # 32-bit block counter initialized to zero
 
@@ -4896,28 +4881,31 @@ PERSON_KEYFILE: Final[bytes] = \
     b'K' * PERSON_SIZE  # 0x4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b
 PERSON_PASSPHRASE: Final[bytes] = \
     b'P' * PERSON_SIZE  # 0x50505050505050505050505050505050
-IKM_DIGEST_SIZE: Final[int] = 64
-MAC_KEY_SIZE: Final[int] = 64
+IKM_DIGEST_SIZE: Final[int] = 32
+MAC_KEY_SIZE: Final[int] = 32
 MAC_TAG_SIZE: Final[int] = MAC_KEY_SIZE
 CHECKSUM_SIZE: Final[int] = 32
+
+# HKDF info labels (public, stable identifiers used as HKDF info)
+# Used to derive specific working keys from the Argon2 tag
+HKDF_INFO_ENCRYPT: Final[bytes] = b'ENCRYPT'
+HKDF_INFO_MAC: Final[bytes] = b'MAC'
+HKDF_INFO_PAD_TOTAL: Final[bytes] = b'PAD_TOTAL'
+HKDF_INFO_PAD_SPLIT: Final[bytes] = b'PAD_SPLIT'
 
 # Defines the byte size of the byte string that specifies
 # the length of the data being passed to the MAC function.
 SIZE_BYTES_SIZE: Final[int] = 8  # Supports sizes up to 2^64-1
 
 # Padding constants
-PAD_KEY_SIZE: Final[int] = 10
+PAD_KEY_SIZE: Final[int] = 16
 PAD_KEY_SPACE: Final[int] = 256 ** PAD_KEY_SIZE
 MAX_PAD_SIZE_PERCENT_LIMIT: Final[int] = 10 ** 20
 CONSTANT_PAD_SIZE: Final[int] = 255
 
 # Argon2 constants
 ARGON2_MEMORY_COST: Final[int] = G  # In bytes
-ARGON2_TAG_SIZE: Final[int] = (
-    PAD_KEY_SIZE * 2 +
-    NONCE_SIZE + ENC_KEY_SIZE +
-    MAC_KEY_SIZE
-)
+ARGON2_TAG_SIZE: Final[int] = 32
 
 MIN_VALID_UNPADDED_SIZE: Final[int] = \
     SALTS_SIZE + PROCESSED_COMMENTS_SIZE + MAC_TAG_SIZE
