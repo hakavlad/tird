@@ -177,7 +177,7 @@ Enabling debug mode additionally shows:
 
 The payload that will be encrypted during cryptoblob creation consists of:
 
-- **Contents of one file:** This may be a regular file or a block device (an entire disk or partition). Maximum size: 16 exbibytes minus 864 bytes.
+- **Contents of one file:** This may be a regular file or a block device (an entire disk or partition). Maximum size: 16 exbibytes minus 832 bytes.
 - **Comments (optional):** An arbitrary string of up to 512 bytes. Decrypted comments will be displayed during decryption.
 
 Specifying the payload in the UI looks as follows:
@@ -220,7 +220,8 @@ The following cryptographic primitives are utilized by `tird`:
 
 - `ChaCha20` cipher ([RFC 8439](https://www.rfc-editor.org/rfc/rfc8439.html)) for data encryption.
 - `BLAKE2` ([RFC 7693](https://www.rfc-editor.org/rfc/rfc7693.html)) for hashing and authentication.
-- `Argon2` memory-hard function ([RFC 9106](https://www.rfc-editor.org/rfc/rfc9106.html)) for key stretching and key derivation.
+- `Argon2` memory-hard function ([RFC 9106](https://www.rfc-editor.org/rfc/rfc9106.html)) for key stretching.
+- `HKDF` ([RFC 5869](https://www.rfc-editor.org/rfc/rfc5869.html)) for key derivation
 
 For more details, refer to the [specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md).
 
@@ -263,7 +264,7 @@ The ciphertext size and its location within the cryptoblob are hidden.
 |     - Encrypted payload file contents, 0+ B        |
 +————————————————————————————————————————————————————+
 | BLAKE2 or CSPRNG output:                           |
-|     MAC tag or Fake MAC tag, 64 B                  |
+|     MAC tag or Fake MAC tag, 32 B                  |
 +————————————————————————————————————————————————————+
 | CSPRNG output:                                     |
 |     Randomized padding (footer padding): 0-20% of  |
@@ -407,7 +408,7 @@ C1. Time cost (default=4): 1000000
   - ASCII armored output.
   - [Reed–Solomon error correction](https://en.wikipedia.org/wiki/Reed%E2%80%93Solomon_error_correction).
   - Splitting the output into chunks.
-  - The use of [standard streams](https://en.wikipedia.org/wiki/Standard_streams) for processing files.
+  - Use of [standard streams](https://en.wikipedia.org/wiki/Standard_streams) for processing files (not intended for automated scripts).
   - Low-level block device reading and writing on MS Windows. As a result, these devices cannot be used as keyfiles, cannot be overwritten, and cannot be encrypted or embedded.
 - `tird` does not provide:
   - A graphical user interface.
@@ -452,7 +453,7 @@ C1. Time cost (default=4): 1000000
 ## Requirements
 
 - Python >= 3.9.2
-- [cryptography](https://pypi.org/project/cryptography/) >= 2.1 (provides a fast `ChaCha20` implementation)
+- [cryptography](https://pypi.org/project/cryptography/) >= 2.1 (provides `HKDF` and a fast `ChaCha20` implementation)
 - [PyNaCl](https://pypi.org/project/PyNaCl/) >= 1.2.0 (provides fast implementations of `Argon2` and `BLAKE2`)
 - [colorama](https://pypi.org/project/colorama/) >= 0.4.6 (Windows-specific)
 
