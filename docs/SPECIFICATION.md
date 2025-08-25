@@ -65,6 +65,7 @@ Payload consists of Comments up to 512 bytes and File contents from 0 bytes.
 - The final byte string is **truncated** to a fixed size of `PROCESSED_COMMENTS_SIZE = 512` bytes. If the original comment (after UTF-8 encoding) is longer than 512 bytes, it will be truncated.
 ```
 raw_comments_bytes = encode_utf8(user_comment)
+
 processed_comments = (raw_comments_bytes || 0xFF || read(CSPRNG, PROCESSED_COMMENTS_SIZE))[:PROCESSED_COMMENTS_SIZE]
 ```
 - If no comment is provided, `processed_comments` are generated in a special way (see `get_processed_comments` code) to minimize the chance of accidentally matching a valid comment structure, if the "fake MAC" option is *not* used. If "fake MAC" is used, `processed_comments` are simply filled with random bytes `read(CSPRNG, PROCESSED_COMMENTS_SIZE)`.
@@ -146,6 +147,7 @@ Two 16-byte salts are used in the process:
 
 ```
 argon2_salt = read(CSPRNG, 16)
+
 blake2_salt = read(CSPRNG, 16)
 ```
 
@@ -153,6 +155,7 @@ blake2_salt = read(CSPRNG, 16)
 
 ```
 argon2_salt = cryptoblob[0:16]
+
 blake2_salt = cryptoblob[-16:]
 ```
 
@@ -166,7 +169,7 @@ There are 5 steps:
 2. Sorting IKM digest list, getting sorted IKM digest list.
 3. Hashing sorted IKM digest list, getting Argon2 password.
 4. Key stretching with Argon2, getting Argon2 tag.
-5. Splitting Argon2 tag, getting keys for padding, encryption, and authentication.
+5. Deriving keys for padding, encryption, and authentication from Argon2 tag.
 
 
 ### 1. Collecting and handling keyfiles and passphrases, getting IKM digest list
@@ -309,8 +312,8 @@ ciphertext chunk = ChaCha20(plaintext chunk, key = enc_key, nonce++)
 **Overview of nonce incrementation process:**
 
 |Counter|nonce|Data to encrypt|
-|-|—|-|
-|0|-|(initial counter value; not used for encryption)|
+|-|-|-|
+|0|—|(initial counter value; not used for encryption)|
 |1|`0x010000000000000000000000`|Processed comments, size: 512 B|
 |2|`0x020000000000000000000000`|File contents chunk 0, size: 16 MiB|
 |3|`0x030000000000000000000000`|File contents chunk 1, size: 16 MiB|
