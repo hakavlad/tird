@@ -2258,7 +2258,7 @@ def derive_keys() -> bool:
         bool: True if the keys were successfully derived, False if an
               error occurred during the key derivation process.
     """
-    log_i('deriving keys (time‑consuming)')
+    log_i('deriving keys (time-consuming)')
 
     start_time: float = monotonic()
 
@@ -2289,7 +2289,7 @@ def hkdf_sha256(input_key: bytes, info: bytes, length: int) -> bytes:
 
     Args:
         input_key (bytes): Input keying material (HKDF `IKM`).
-        info (bytes): Context‑specific info (HKDF `info`),
+        info (bytes): Context-specific info (HKDF `info`),
                       can be any length.
         length (int): Number of bytes to derive (must be > 0).
 
@@ -2310,7 +2310,7 @@ def hkdf_sha256(input_key: bytes, info: bytes, length: int) -> bytes:
 
 def derive_working_keys(argon2_tag: bytes) -> None:
     """
-    Uses `argon2_tag` as HKDF IKM and derives four purpose‑specific keys
+    Uses `argon2_tag` as HKDF IKM and derives four purpose-specific keys
     (pad total, pad split, encryption, MAC) with distinct `info` labels.
     Derived keys are stored in the global BYTES_D dictionary under keys:
     'pad_key_t', 'pad_key_s', 'enc_key', 'mac_key'.
