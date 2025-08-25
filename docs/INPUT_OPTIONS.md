@@ -747,8 +747,8 @@ K2. Passphrase (optional):
     D: hashing digest list
     D: list containing 0 digests hashed
     D: argon2_password:
-        0ac1630e2e062acd137b422a65f31279cd7f9fe7dbc0464e5516e4b7f16e6b9a044304a02a773e39d67f680e0e88c0911f849807dfff3b3d5e8f79c3758072e4
-    I: deriving one-time keys
+        0ac1630e2e062acd137b422a65f31279cd7f9fe7dbc0464e5516e4b7f16e6b9a
+    I: deriving keys (time-consuming)
 ```
 
 Specifying only `keyfile.bin`:
@@ -759,7 +759,7 @@ K1. Keyfile path (optional): keyfile.bin
     I: keyfile accepted
 K1. Keyfile path (optional):
 K2. Passphrase (optional):
-    I: deriving one-time keys
+    I: deriving keys (time-consuming)
 ```
 
 The same with debug messages enabled:
@@ -775,7 +775,7 @@ K1. Keyfile path (optional): keyfile.bin
     D: closing <_io.BufferedReader name='keyfile.bin'>
     D: <_io.BufferedReader name='keyfile.bin'> closed
     D: digest of 'keyfile.bin' contents:
-        78f791ed96c78b8dad4489853e8893694c2ab2ef9b057b646dc4d653d8f5598cbb86623a812f84937d10d1af7e67a5492c3c8f02873f9b180150b68afd8bb081
+        78f791ed96c78b8dad4489853e8893694c2ab2ef9b057b646dc4d653d8f5598c
     I: keyfile accepted
 K1. Keyfile path (optional):
     W: entered passphrases will be displayed!
@@ -784,12 +784,12 @@ K2. Passphrase (optional):
     D: 1 IKM digests collected
     D: sorting IKM digests
     D: sorted IKM digests:
-      - 78f791ed96c78b8dad4489853e8893694c2ab2ef9b057b646dc4d653d8f5598cbb86623a812f84937d10d1af7e67a5492c3c8f02873f9b180150b68afd8bb081
+      - 78f791ed96c78b8dad4489853e8893694c2ab2ef9b057b646dc4d653d8f5598c
     D: hashing digest list
     D: list containing 1 digests hashed
     D: argon2_password:
-        f42d66b64b43103c4dc5c06f806dc8ff51650b448db56b6a788068a4db9b5915173336041c0b1f28f7547587b6b96c4f861fbba7e1c859106addf55d0365bb87
-    I: deriving one-time keys
+        f42d66b64b43103c4dc5c06f806dc8ff51650b448db56b6a788068a4db9b5915
+    I: deriving keys (time-consuming)
 ```
 
 Specifying `keydir` and `/bin/sh` as keyfile paths:
@@ -835,7 +835,7 @@ K1. Keyfile path (optional): keydir
     D: closing <_io.BufferedReader name='keydir/keyfile.bin'>
     D: <_io.BufferedReader name='keydir/keyfile.bin'> closed
     D: digest of 'keydir/keyfile.bin' contents:
-        d4fe1f52c510f69363a47db7c37511ae2673c61b5aa341ba69cc58c9d103e23f30c7db3fba04a1efdcddef7b207e8734217c6d3bd35e8958bb4bf547be0d7b5a
+        d4fe1f52c510f69363a47db7c37511ae2673c61b5aa341ba69cc58c9d103e23f
     D: reading and hashing contents of 'keydir/x/111'
     D: opening file 'keydir/x/111' in mode 'rb'
     D: opened file object: <_io.BufferedReader name='keydir/x/111'>
@@ -843,7 +843,7 @@ K1. Keyfile path (optional): keydir
     D: closing <_io.BufferedReader name='keydir/x/111'>
     D: <_io.BufferedReader name='keydir/x/111'> closed
     D: digest of 'keydir/x/111' contents:
-        e7221ae7ac1108885745c85e2fecd31dce6c305e4e6e088d0a2ee0c760919402f8194bf004590d27ef6fc122d9fdf1b89d15f6705f322c69ce306429b453cf7e
+        30c7db3fba04a1efdcddef7b207e8734217c6d3bd35e8958bb4bf547be0d7b5a
     D: reading and hashing contents of 'keydir/x/444'
     D: opening file 'keydir/x/444' in mode 'rb'
     D: opened file object: <_io.BufferedReader name='keydir/x/444'>
@@ -851,7 +851,7 @@ K1. Keyfile path (optional): keydir
     D: closing <_io.BufferedReader name='keydir/x/444'>
     D: <_io.BufferedReader name='keydir/x/444'> closed
     D: digest of 'keydir/x/444' contents:
-        015c474606ebf8b5488f0bf103a7b8b77433efacf25504a1ad85c0018e7a8cb770b319865e0dc3c52140cd900d14d3c77a1d1f281cabc5625a99e83ae05111b4
+        015c474606ebf8b5488f0bf103a7b8b77433efacf25504a1ad85c0018e7a8cb7
     I: 3 keyfiles accepted
 K1. Keyfile path (optional): /bin/sh
     D: real path: '/usr/bin/dash'
@@ -863,7 +863,7 @@ K1. Keyfile path (optional): /bin/sh
     D: closing <_io.BufferedReader name='/bin/sh'>
     D: <_io.BufferedReader name='/bin/sh'> closed
     D: digest of '/bin/sh' contents:
-        7db1cc29b7bc3341cf12438ecc272dd5cfa0bd12d98f5ff1ff18fd1b7e958119fc74571c746d60855838d2fd16f4ea3a77e9f28bb17c918c3f2be75a676505bf
+        70b319865e0dc3c52140cd900d14d3c77a1d1f281cabc5625a99e83ae05111b4
     I: keyfile accepted
 ```
 
@@ -938,7 +938,7 @@ K2. Confirm passphrase:
         b'correct horse battery staple'
     D: length: 28 B
     D: passphrase digest:
-        6620fb4dfabf8e838bf86d8297792cc80eedcf080eb83d7d754b3a7ff44164dd7d12350cb8133663abbae6596d1bb67da13b8f78c6aa33cd2f51a32de965af67
+        6620fb4dfabf8e838bf86d8297792cc80eedcf080eb83d7d754b3a7ff44164dd
     I: passphrase accepted
 ```
 
@@ -999,7 +999,7 @@ K2. Confirm passphrase:
         b'5555'
     D: length: 4 B
     D: passphrase digest:
-        931362faccd5621fbcaa3a1a1b9a6982463ca2b2437e958ba4de6803517e72689f47ba86951d9e669a16dfed348c5a1f6b38d00d914ac485296a444a8bb0362b
+        931362faccd5621fbcaa3a1a1b9a6982463ca2b2437e958ba4de6803517e7268
     I: passphrase accepted
 ```
 
@@ -1027,7 +1027,7 @@ K2. Confirm passphrase:
         b'\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9\xc3\xa9'
     D: length: 20 B
     D: passphrase digest:
-        9275cb031c5871d1ee97a62e0e786cfa287c733b16bb2204f644d171615ee61c11dd8a36107210f1b948fc6d1beeb7cabc61fb01e0967cf26534b26665e6713d
+        9275cb031c5871d1ee97a62e0e786cfa287c733b16bb2204f644d171615ee61c
     I: passphrase accepted
 ```
 
@@ -1064,7 +1064,7 @@ Context: action `6`:
 ```
     W: output file will be overwritten from 3785 to maximum 39568924!
 P0. Proceed overwriting? (Y/N): 1
-    I: deriving one-time keys
+    I: deriving keys (time-consuming)
     I: keys derived in 1.9s
 ```
 

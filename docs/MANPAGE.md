@@ -88,7 +88,7 @@ There are 5 groups of input options: A (Action), C (Custom), D (Data), K (Keys),
 
 The payload that will be encrypted during cryptoblob creation consists of:
 
-- **Contents of one file:** This may be a regular file or a block device (an entire disk or partition). Maximum size: 16 exbibytes minus 864 bytes.
+- **Contents of one file:** This may be a regular file or a block device (an entire disk or partition). Maximum size: 16 exbibytes minus 832 bytes.
 - **Comments (optional):** An arbitrary string of up to 512 bytes. Decrypted comments will be displayed during decryption.
 
 Specifying the payload in the UI looks as follows:
@@ -133,7 +133,7 @@ You can encrypt files and embed cryptoblobs into containers starting at arbitrar
 - It is **headerless** because containers do not contain any headers; all data about cryptoblob locations must be stored separately by the user.
 - The starting position of the cryptoblob in the container is **user-defined**, and the **user must** store both the starting and ending positions separately from the container. This is why it is called a **user-driven file system**.
 
-Any file, disk, or partition larger than the minimum cryptoblob size (863 B) can be a valid container. Cryptoblobs can be embedded into any area.
+Any file, disk, or partition larger than the minimum cryptoblob size (831 B) can be a valid container. Cryptoblobs can be embedded into any area.
 
 **Examples of valid containers include:**
 
@@ -206,7 +206,7 @@ Enabling debug mode additionally shows:
   - ASCII armored output.
   - Reed–Solomon error correction.
   - Splitting the output into chunks.
-  - The use of standard streams for processing files.
+  - Use of standard streams for processing files (not intended for automated scripts).
   - Low-level block device reading and writing on MS Windows. As a result, these devices cannot be used as keyfiles, cannot be overwritten, and cannot be encrypted or embedded.
 - **tird** does not provide:
   - A graphical user interface.

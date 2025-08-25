@@ -128,7 +128,7 @@ of:
 .IP \[bu] 2
 \f[B]Contents of one file:\f[R] This may be a regular file or a block
 device (an entire disk or partition).
-Maximum size: 16 exbibytes minus 864 bytes.
+Maximum size: 16 exbibytes minus 832 bytes.
 .IP \[bu] 2
 \f[B]Comments (optional):\f[R] An arbitrary string of up to 512 bytes.
 Decrypted comments will be displayed during decryption.
@@ -206,7 +206,7 @@ starting and ending positions separately from the container.
 This is why it is called a \f[B]user-driven file system\f[R].
 .PP
 Any file, disk, or partition larger than the minimum cryptoblob size
-(863 B) can be a valid container.
+(831 B) can be a valid container.
 Cryptoblobs can be embedded into any area.
 .PP
 \f[B]Examples of valid containers include:\f[R]
@@ -323,7 +323,8 @@ Reed\[en]Solomon error correction.
 .IP \[bu] 2
 Splitting the output into chunks.
 .IP \[bu] 2
-The use of standard streams for processing files.
+Use of standard streams for processing files (not intended for automated
+scripts).
 .IP \[bu] 2
 Low-level block device reading and writing on MS Windows.
 As a result, these devices cannot be used as keyfiles, cannot be

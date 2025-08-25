@@ -221,7 +221,7 @@ The following cryptographic primitives are utilized by `tird`:
 - `ChaCha20` cipher ([RFC 8439](https://www.rfc-editor.org/rfc/rfc8439.html)) for data encryption.
 - `BLAKE2` ([RFC 7693](https://www.rfc-editor.org/rfc/rfc7693.html)) for hashing and authentication.
 - `Argon2` memory-hard function ([RFC 9106](https://www.rfc-editor.org/rfc/rfc9106.html)) for key stretching.
-- `HKDF` ([RFC 5869](https://www.rfc-editor.org/rfc/rfc5869.html)) for key derivation
+- `HKDF` ([RFC 5869](https://www.rfc-editor.org/rfc/rfc5869.html)) for key derivation.
 
 For more details, refer to the [specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md).
 

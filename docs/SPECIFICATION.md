@@ -73,7 +73,7 @@ processed_comments = (raw_comments_bytes || 0xFF || read(CSPRNG, PROCESSED_COMME
 
 - The main content for encryption/decryption or embedding/extraction.
 - Can be the contents of a regular file or a block device.
-- The size of the file contents can range from 0 bytes up to 2^64-864 bytes.
+- The size of the file contents can range from 0 bytes up to 2^64-832 bytes.
 
 ---
 
@@ -96,7 +96,7 @@ Cryptoblob structure:
 |     - Encrypted payload file contents, 0+ B        |
 +————————————————————————————————————————————————————+
 | BLAKE2 or CSPRNG output:                           |
-|     MAC tag or Fake MAC tag, 64 B                  |
+|     MAC tag or Fake MAC tag, 32 B                  |
 +————————————————————————————————————————————————————+
 | CSPRNG output:                                     |
 |     Randomized padding (footer padding): 0-20% of  |
@@ -177,10 +177,10 @@ encoded,
 truncated
 passphrase  keyfile1  keyfile2  <-- input keying material (IKM)
     |          |         |
-    |          |         |  <------ salted and personalized BLAKE2b-512
+    |          |         |  <------ salted and personalized BLAKE2b-256
     v          v         v
 passphrase  keyfile1  keyfile2  <-- IKM digests
-digest:64  digest:64  digest:64
+digest:32  digest:32  digest:32
         \      |      /
          v     v     v
          [digest list]
@@ -191,7 +191,7 @@ digest:64  digest:64  digest:64
 1. Read keyfile contents and get its disgest:
 
 ```
-keyfile_digest = BLAKE2b-512(keyfile_contents, salt = blake2_salt, person = PERSON_KEYFILE)
+keyfile_digest = BLAKE2b-256(keyfile_contents, salt = blake2_salt, person = PERSON_KEYFILE)
 ```
 
 `PERSON_KEYFILE`: the UTF-8 encoding of "KKKKKKKKKKKKKKKK" (`0x4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b`, 16 bytes).
@@ -208,10 +208,10 @@ keyfile_digest = BLAKE2b-512(keyfile_contents, salt = blake2_salt, person = PERS
 
 4. Confirm passphrase. Compare in constant time.
 
-5. Get passhrase digest:
+5. Get passphrase digest:
 
 ```
-passphrase_digest = BLAKE2b-512(encoded_passphrase, salt = blake2_salt, person = PERSON_PASSPHRASE)
+passphrase_digest = BLAKE2b-256(encoded_passphrase, salt = blake2_salt, person = PERSON_PASSPHRASE)
 ```
 
 `PERSON_PASSPHRASE`: the UTF-8 encoding of "PPPPPPPPPPPPPPPP" (`0x50505050505050505050505050505050`, 16 bytes).
@@ -229,7 +229,7 @@ sorted_digest_list = sorted(digest_list)
 ### 3. Hashing sorted IKM digest list, getting Argon2 password
 
 ```
-argon2_password = BLAKE2b-512(sorted_ikm_digest_list, salt = blake2_salt)
+argon2_password = BLAKE2b-256(sorted_ikm_digest_list, salt = blake2_salt)
 ```
 
 ### 4. Key stretching with Argon2, getting Argon2 tag
@@ -245,33 +245,21 @@ Argon2id version number 19 (0x13)
 Memory:       1 GiB
 Passes:       4 by default
 Parallelism:  1 lane
-Tag length:   128 bytes
+Tag length:   32 bytes
 ```
 
 Number of passes may be specified by the user.
 
-### 5. Splitting Argon2 tag, getting keys for padding, encryption, and authentication
+### 5. Deriving keys for padding, encryption, and authentication from Argon2 tag
 
 ```
-+————————————————+——————————————+———————————————+
-|                | pad_key_t:10 | Secret values |
-|                +——————————————+ that define   |
-|                | pad_key_s:10 | padding sizes |
-|                +——————————————+———————————————+
-| argon2_tag:128 | nonce_key:12 | Secret values |
-|                +——————————————+ for data      |
-|                | enc_key:32   | encryption    |
-|                +——————————————+———————————————+
-|                | mac_key:64   | Auth key      |
-+————————————————+——————————————+———————————————+
-```
+pad_key_t = HKDF-SHA-256(ikm = argon2_tag, salt = empty, info = "PAD_TOTAL")
 
-```
-pad_key_t = argon2_tag[0:10]
-pad_key_s = argon2_tag[10:20]
-nonce_key = argon2_tag[20:32]
-enc_key = argon2_tag[32:64]
-mac_key = argon2_tag[64:128]
+pad_key_s = HKDF-SHA-256(ikm = argon2_tag, salt = empty, info = "PAD_SPLIT")
+
+enc_key = HKDF-SHA-256(ikm = argon2_tag, salt = empty, info = "ENCRYPT")
+
+mac_key = HKDF-SHA-256(ikm = argon2_tag, salt = empty, info = "MAC")
 ```
 
 ---
@@ -297,7 +285,7 @@ Relationships between different parts of the padding:
 `pad_key_s` ("split") defines proportions between `header_pad_size` and `footer_pad_size`.
 
 
-`randomized_pad_size` in cryptoblob structurte:
+`randomized_pad_size` in cryptoblob structure:
 
 ```
 +——————————————————————+—————————————————————+
@@ -315,19 +303,18 @@ Relationships between different parts of the padding:
 ciphertext chunk = ChaCha20(plaintext chunk, key = enc_key, nonce++)
 ```
 
-- `enc_key`: A 256-bit encryption key derived from the Argon2 tag.
-- `nonce`: A 96-bit value, represented as little-endian bytes, derived from a counter.
-- `nonce_key`: Used to initialize the counter and is not applied directly in encryption. The bytes of `nonce_key` are converted into the counter using little-endian interpretation.
+- `enc_key`: A 256-bit encryption key derived with HKDF-SHA-256.
+- `nonce`: A 96-bit value, represented as bytes, derived from a counter. Сounter starts at 0, but counter=0 is reserved (first used value is 1).
 
 **Overview of nonce incrementation process:**
 
 |Counter|nonce|Data to encrypt|
-|-|-|-|
-|34435133717986765730821818475|`0x6bc85d1d0cefef573313446f`|(The `nonce_key` is not directly used for encryption)|
-|34435133717986765730821818476|`0x6cc85d1d0cefef573313446f`|Processed comments, size: 512 B|
-|34435133717986765730821818477|`0x6dc85d1d0cefef573313446f`|File contents chunk 0, size: 16 MiB|
-|34435133717986765730821818478|`0x6ec85d1d0cefef573313446f`|File contents chunk 1, size: 16 MiB|
-|34435133717986765730821818479|`0x6fc85d1d0cefef573313446f`|File contents last chunk, size: 1 B to 16 MiB|
+|-|—|-|
+|0|-|(initial counter value; not used for encryption)|
+|1|`0x010000000000000000000000`|Processed comments, size: 512 B|
+|2|`0x020000000000000000000000`|File contents chunk 0, size: 16 MiB|
+|3|`0x030000000000000000000000`|File contents chunk 1, size: 16 MiB|
+|4|`0x040000000000000000000000`|File contents last chunk, size: 1 B to 16 MiB|
 
 ### MAC
 
@@ -336,11 +323,11 @@ mac_message = argon2_salt || blake2_salt || total_padded_size_bytes || header_pa
 ```
 
 ```
-computed_mac_tag = BLAKE2b-512(mac_message, key = mac_key)
+computed_mac_tag = BLAKE2b-256(mac_message, key = mac_key)
 ```
 
 ```
-fake_mac_tag = read(CSPRNG, 64)
+fake_mac_tag = read(CSPRNG, 32)
 ```
 
 ---
@@ -389,7 +376,7 @@ output file contents = read(CSPRNG, size)
 
 ## Overwriting file contents with random data
 
-Owerwrite file contents with random data from the start position to the end position.
+Overwrite file contents with random data from the start position to the end position.
 
 Use chunks up to 16 MiB.
 
