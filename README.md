@@ -3,6 +3,10 @@
   <img src="https://raw.githubusercontent.com/hakavlad/tird/main/images/logo2.png" width="800" alt="Logo">
 </p>
 
+> Cryptography without steganography is like vodka without beer.
+
+*— Russian saying*
+
 <table>
 
 <tr>
