@@ -47,10 +47,10 @@ Use [Minisign](https://jedisct1.github.io/minisign/) to verify signatures. You c
 For example:
 
 ```bash
-$ minisign -Vm  tird-v0.21.1-linux-amd64.zip -P RWQLYkPbRQ8b56zEe8QdbjLFqC9UrjOaYxW5JxwsWV7v0ct/F/XfJlel
+$ minisign -Vm  tird-v0.22.0-linux-amd64.zip -P RWQLYkPbRQ8b56zEe8QdbjLFqC9UrjOaYxW5JxwsWV7v0ct/F/XfJlel
 ```
 
-This requires the signature `tird-v0.21.1-linux-amd64.zip.minisig` to be present in the same directory.
+This requires the signature `tird-v0.22.0-linux-amd64.zip.minisig` to be present in the same directory.
 </details>
 
 ---
@@ -123,7 +123,7 @@ $ sudo zypper install make python3-cryptography python3-PyNaCl
 Latest stable release (recommended):
 
 ```bash
-$ git clone --branch v0.21.1 --depth 1 https://github.com/hakavlad/tird.git && cd tird
+$ git clone --branch v0.22.0 --depth 1 https://github.com/hakavlad/tird.git && cd tird
 $ sudo make install
 ```
 

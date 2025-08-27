@@ -124,7 +124,7 @@ argon2_salt || header_pad || ciphertext || (computed_mac_tag|fake_mac_tag) || fo
 
 ## Input keying material
 
-`tird` can use passhrases and contents of keyfiles to derive one-time keys.
+`tird` can use passphrases and contents of keyfiles to derive one-time keys.
 
 ### Keyfiles
 
