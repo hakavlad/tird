@@ -18,7 +18,7 @@ license = "0BSD"
 maintainers = [
     { name = "Alexey Avramov", email = "hakavlad@gmail.com" },
 ]
-description = "Encrypt files and hide encrypted data"
+description = "A tool for encrypting files and hiding encrypted data"
 readme = { file = "README.md", content-type = "text/markdown" }
 keywords = [
     "data-hiding",
