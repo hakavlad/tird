@@ -21,17 +21,15 @@ maintainers = [
 description = "A file encryption tool focused on minimizing metadata and hiding encrypted data"
 readme = { file = "README.md", content-type = "text/markdown" }
 keywords = [
+    "data-hiding",
+    "deniable-encryption",
     "encryption",
     "file-encryption",
-    "hiding",
-    "data-hiding",
     "plausible-deniability",
-    "deniable-encryption",
     "purb",
-    "time-lock",
-    "undetectable",
     "stealth",
     "steganography",
+    "time-lock",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
