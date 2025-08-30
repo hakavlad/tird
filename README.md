@@ -1,6 +1,6 @@
 
 <p align="left">
-  <img src="https://raw.githubusercontent.com/hakavlad/tird/main/images/logo2.png" width="800" alt="Logo">
+  <img src="https://raw.githubusercontent.com/hakavlad/tird/main/images/logo4.png" width="800" alt="Logo">
 </p>
 
 > Cryptography without steganography is like vodka without beer.
