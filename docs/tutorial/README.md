@@ -31,4 +31,8 @@
 <a href="https://github.com/hakavlad/tird/blob/main/docs/tutorial/writing_iso_image.md">Creating a Bootable USB Drive from an ISO Image</a>
 </b></td></tr>
 
+<tr><td>➤</td><td><b>
+<a href="https://github.com/hakavlad/tird/blob/main/docs/tutorial/TLE.md">Time-Lock Encryption</a>
+</b></td></tr>
+
 </table>
