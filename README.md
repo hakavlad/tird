@@ -224,8 +224,8 @@ The following cryptographic primitives are utilized by `tird`:
 
 - `ChaCha20` cipher ([RFC 8439](https://www.rfc-editor.org/rfc/rfc8439.html)) for data encryption.
 - `BLAKE2` ([RFC 7693](https://www.rfc-editor.org/rfc/rfc7693.html)) for hashing and authentication.
-- `Argon2` [memory-hard function](https://en.wikipedia.org/wiki/Memory-hard_function) ([RFC 9106](https://www.rfc-editor.org/rfc/rfc9106.html)) for [key stretching](https://en.wikipedia.org/wiki/Key_stretching).
-- `HKDF` ([RFC 5869](https://www.rfc-editor.org/rfc/rfc5869.html)) for [key derivation](https://en.wikipedia.org/wiki/Key_derivation_function) ([domain separation](https://github.com/SalusaSecondus/CryptoGotchas/blob/master/domain_separation.md)).
+- `Argon2` memory-hard function ([RFC 9106](https://www.rfc-editor.org/rfc/rfc9106.html)) for key stretching.
+- `HKDF` ([RFC 5869](https://www.rfc-editor.org/rfc/rfc5869.html)) for key derivation.
 
 For more details, refer to the [specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md).
 
@@ -392,7 +392,7 @@ Time-lock encryption (TLE) can be used to prevent an adversary from quickly acce
 
 This TLE implementation works offline, unlike [tlock](https://github.com/drand/tlock).
 
-Use custom options and set the desired "Time cost" value:
+Use custom settings to set the desired "Time cost" value:
 
 ```
 C0. Use custom settings? (Y/N, default=N): y

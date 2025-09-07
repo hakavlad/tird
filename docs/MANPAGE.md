@@ -171,7 +171,7 @@ Time-lock encryption (TLE) can be used to prevent an adversary from quickly acce
 
 This TLE implementation works offline, unlike **tlock**.
 
-Use custom options and set the desired "Time cost" value:
+Use custom settings to set the desired "Time cost" value:
 
 ```
 C0. Use custom settings? (Y/N, default=N): y
