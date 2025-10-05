@@ -196,55 +196,31 @@ For more details, refer to the [specification](https://github.com/hakavlad/tird/
 
 <img src="https://i.imgur.com/wAJyAJc.png" width="280" alt="256 shades of grey">
 
-The format of the encrypted data is quite simple and consists of ciphertext with a MAC tag, located *somewhere* among the surrounding random data:
+The cryptoblob structure:
 
 ```
-+—————————————+————————————+—————————+—————————————+
-| Random data | Ciphertext | MAC tag | Random data |
-+—————————————+————————————+—————————+—————————————+
-|               Random-looking data                |
-+——————————————————————————————————————————————————+
++————————————————————————————————————————————————————————+
+| CSPRNG output:                                         |
+|     Salt for key stretching used with Argon2 (16 B)    |
++————————————————————————————————————————————————————————+
+| ChaCha20 output:                                       |
+|     Ecrypted pad_ikm (8 B)                             |
++————————————————————————————————————————————————————————+
+| CSPRNG output:                                         |
+|     Randomized padding (0-25% of the unpadded size)    |
++————————————————————————————————————————————————————————+
+| ChaCha20/BLAKE2 output:                                |
+|     Encrypted payload file contents + MAC tags (0+ B)  |
++————————————————————————————————————————————————————————+
+| ChaCha20/BLAKE2 output:                                |
+|     Encrypted padded comments (1 KiB) + MAC tag (32 B) |
++————————————————————————————————————————————————————————+
+| CSPRNG output:                                         |
+|     Salt for prehashing IKM used with BLAKE2 (16 B)    |
++————————————————————————————————————————————————————————+
 ```
 
-**The only data available is:**
-
-- This is random-looking data.
-- Its size.
-
-The ciphertext size and its location within the cryptoblob are hidden.
-
-<details>
-  <summary>&nbsp;<b>Show more detailed scheme</b></summary>
-
-```
-+————————————————————————————————————————————————————+
-| CSPRNG output:                                     |
-|     Salt for key stretching used with Argon2, 16 B |
-+————————————————————————————————————————————————————+
-| CSPRNG output:                                     |
-|     Randomized padding (header padding): 0-20% of  |
-|     the (unpadded size + 255 B) by default         |
-+————————————————————————————————————————————————————+
-| ChaCha20 output:                                   |
-|     Ciphertext, 512+ B, consists of:               |
-|     - Encrypted constant-padded comments, 512 B    |
-|     - Encrypted payload file contents, 0+ B        |
-+————————————————————————————————————————————————————+
-| BLAKE2 or CSPRNG output:                           |
-|     MAC tag or Fake MAC tag, 32 B                  |
-+————————————————————————————————————————————————————+
-| CSPRNG output:                                     |
-|     Randomized padding (footer padding): 0-20% of  |
-|     the (unpadded size + 255 B) by default         |
-+————————————————————————————————————————————————————+
-| CSPRNG output:                                     |
-|     Salt for prehashing IKM used with BLAKE2, 16 B |
-+————————————————————————————————————————————————————+
-```
-
-</details>
-
-Data encrypted with `tird` cannot be distinguished from random data without knowledge of the keys. It also does not contain identifiable headers. `tird` produces cryptoblobs that contain bilateral [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with uniform random data (PURBs). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data. Bilateral padding also conceals the exact location of the ciphertext and MAC tag within the cryptoblob.
+Data encrypted with `tird` cannot be distinguished from random data without knowledge of the keys. It also does not contain identifiable headers. `tird` produces cryptoblobs that contain [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with uniform random data (PURBs). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data.
 
 ## Low Observability and Minimizing Metadata
 
@@ -355,11 +331,12 @@ Time-lock encryption (TLE) can be used to prevent an adversary from quickly acce
 
 This TLE implementation works offline, unlike [tlock](https://github.com/drand/tlock).
 
-Use custom settings to set the desired "Time cost" value:
+Set the desired "Time cost" value:
 
 ```
-C1. Time cost (default=4): 1000000
+K3. Time cost (default=4): 1000000
     I: time cost: 1,000,000
+    W: decryption will require the same "Time cost" value!
 ```
 
 **Plausible TLE:** The adversary does not know the actual value of the time cost, so you can plausibly misrepresent the number of passes. The adversary cannot refute your claim until they attempt to decrypt the cryptoblob using the specified time cost value.
