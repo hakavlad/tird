@@ -23,32 +23,22 @@
   <summary>&nbsp;<b>Table of Contents</b></summary>
 
 > - [About](#about)
+> - [Warnings](#warnings)
 > - [Goals](#goals)
-
 > - [Usage](#usage)
 > - [Input Options](#input-options)
-> - [Debug Mode](#debug-mode)
-
 > - [Payload](#payload)
 > - [Input Keying Material](#input-keying-material)
-
 > - [Cryptographic Primitives](#cryptographic-primitives)
 > - [Encrypted Data Format](#encrypted-data-format)
-
 > - [Low Observability and Minimizing Metadata](#low-observability-and-minimizing-metadata)
-
 > - [Hidden File System and Container Format](#hidden-file-system-and-container-format)
 > - [Storing and Carrying Concealed Encrypted Data](#storing-and-carrying-concealed-encrypted-data)
-
 > - [Time-Lock Encryption](#time-lock-encryption)
-
 > - [Tradeoffs and Limitations](#tradeoffs-and-limitations)
-> - [Warnings](#warnings)
-
+> - [Debug Mode](#debug-mode)
 > - [LLM reports](#llm-reports)
-
 > - [Requirements](#requirements)
-
 > - [TODO](#todo)
 > - [Feedback](#feedback)
 
@@ -73,6 +63,28 @@ With `tird`, you can:
 > Users of `tird` **must** carefully read and understand the "[Warnings](#warnings)" section in the `README.md`. The tool's security relies heavily on the user's understanding of its limitations and operating it in a secure environment, especially regarding key management, debug mode usage, and interpreting MAC verification results.
 
 <i>— <a href="https://gemini.google.com/share/627c17c844b9">Gemini</a></i>
+
+## Warnings
+
+> Crypto can help, but it won’t save you from misuse, vulnerabilities, social engineering, or physical threats.
+
+<i>— <a href="https://loup-vaillant.fr/articles/rolling-your-own-crypto">Loup Vaillant</a></i>
+
+<img src="https://i.imgur.com/g84qgw8.jpeg" width="600" alt="DANGER MINES">
+
+- ⚠️ The author does not have a background in cryptography.
+- ⚠️ The code has no automated test coverage.
+- ⚠️ `tird` has not been independently security audited by humans.
+- ⚠️ `tird` is ineffective in a compromised environment; executing it in such cases may cause disastrous data leaks.
+- ⚠️ `tird` is unlikely to be effective when used with short and predictable keys.
+- ⚠️ `tird` does not erase its sensitive data from memory after use.
+- ⚠️ Sensitive data may leak into swap space.
+- ⚠️ `tird` does not sort digests of keyfiles and passphrases in constant-time.
+- ⚠️ Overwriting file contents does not guarantee secure destruction of data on the media.
+- ⚠️ You cannot prove to an adversary that your random data does not contain encrypted information.
+- ⚠️ `tird` protects data, not the user; it cannot prevent torture if you are under suspicion.
+- ⚠️ Key derivation consumes 1 GiB RAM, which may lead to performance issues or crashes on low-memory systems.
+- ⚠️ Development is not complete, and there may be backward compatibility issues.
 
 ## Goals
 
@@ -105,48 +117,28 @@ A0. Select an option [0-9]:
 
 ## Input Options
 
-There are 5 groups of input options: A (Action), C (Custom), D (Data), K (Keys), P (Proceed). They are numbered for ease of description.
+There are 5 groups of input options: A (Action), D (Data), K (Keys), P (Proceed). They are numbered for ease of description.
 
 ```
-+——————————————————————————+————————————————————————+
-| A0. Select an option     | A. Select an action    |
-+——————————————————————————+————————————————————————+
-| C0. Use custom settings? |                        |
-| C1. Time cost            | C. Set custom settings |
-| C2. Max padding size     |                        |
-| C3. Set fake MAC tag?    |                        |
-+——————————————————————————+————————————————————————+
-| D1. Input file path      |                        |
-| D2. Comments             | D. Enter data,         |
-| D3. Output file path     |    data location,      |
-| D4. Output file size     |    data size           |
-| D5. Start position       |                        |
-| D6. End position         |                        |
-+——————————————————————————+————————————————————————+
-| K1. Keyfile path         | K. Specify input       |
-| K2. Passphrase           |    keying material     |
-+——————————————————————————+————————————————————————+
-| P0. Proceed?             | P. Confirm to continue |
-+——————————————————————————+————————————————————————+
++——————————————————————+————————————————————————+
+| A0. Select an option | A. Select an action    |
++——————————————————————+————————————————————————+
+| D1. Input file path  |                        |
+| D2. Comments         | D. Enter data,         |
+| D3. Output file path |    data location,      |
+| D4. Output file size |    data size           |
+| D5. Start position   |                        |
+| D6. End position     |                        |
++——————————————————————+————————————————————————+
+| K1. Keyfile path     | K. Enter values        |
+| K2. Passphrase       |    related to          |
+| K3. Time cost        |    key derivation      |
++——————————————————————+————————————————————————+
+| P0. Proceed?         | P. Confirm to continue |
++——————————————————————+————————————————————————+
 ```
 
 A detailed description of these options with examples can be found [here](https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md).
-
-## Debug Mode
-
-> \[!WARNING]
-> Debug mode is not intended for use in production!
-
-Start `tird` with the `--debug` option to look under the hood while the program is running.
-
-Enabling debug mode additionally shows:
-
-- File operations:
-  - Opening and closing of file descriptors.
-  - Real paths to opened files.
-  - Movement of file pointers.
-- Byte strings related to cryptographic operations: salts, passphrases, digests, keys, nonces, and tags.
-- Some other information, including various sizes.
 
 ## Payload
 
@@ -366,9 +358,6 @@ This TLE implementation works offline, unlike [tlock](https://github.com/drand/t
 Use custom settings to set the desired "Time cost" value:
 
 ```
-C0. Use custom settings? (Y/N, default=N): y
-    I: use custom settings: True
-    W: decryption will require the same [C1] and [C2] values!
 C1. Time cost (default=4): 1000000
     I: time cost: 1,000,000
 ```
@@ -392,27 +381,21 @@ C1. Time cost (default=4): 1000000
 - `tird` does not fake file access, modification, and creation timestamps (atime, mtime, ctime).
 - `tird`'s encryption speed is not very high (up to 420 MiB/s in my tests).
 
-## Warnings
+## Debug Mode
 
-> Crypto can help, but it won’t save you from misuse, vulnerabilities, social engineering, or physical threats.
+> \[!WARNING]
+> Debug mode is not intended for use in production!
 
-<i>— <a href="https://loup-vaillant.fr/articles/rolling-your-own-crypto">Loup Vaillant</a></i>
+Start `tird` with the `--debug` option to look under the hood while the program is running.
 
-<img src="https://i.imgur.com/g84qgw8.jpeg" width="600" alt="DANGER MINES">
+Enabling debug mode additionally shows:
 
-- ⚠️ The author does not have a background in cryptography.
-- ⚠️ The code has no automated test coverage.
-- ⚠️ `tird` has not been independently security audited by humans.
-- ⚠️ `tird` is ineffective in a compromised environment; executing it in such cases may cause disastrous data leaks.
-- ⚠️ `tird` is unlikely to be effective when used with short and predictable keys.
-- ⚠️ `tird` does not erase its sensitive data from memory after use.
-- ⚠️ Sensitive data may leak into swap space.
-- ⚠️ `tird` does not sort digests of keyfiles and passphrases in constant-time.
-- ⚠️ Overwriting file contents does not guarantee secure destruction of data on the media.
-- ⚠️ You cannot prove to an adversary that your random data does not contain encrypted information.
-- ⚠️ `tird` protects data, not the user; it cannot prevent torture if you are under suspicion.
-- ⚠️ Key derivation consumes 1 GiB RAM, which may lead to performance issues or crashes on low-memory systems.
-- ⚠️ Development is not complete, and there may be backward compatibility issues.
+- File operations:
+  - Opening and closing of file descriptors.
+  - Real paths to opened files.
+  - Movement of file pointers.
+- Byte strings related to cryptographic operations: salts, passphrases, digests, keys, nonces, and tags.
+- Some other information, including various sizes.
 
 ## LLM reports
 
