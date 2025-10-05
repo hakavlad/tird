@@ -97,6 +97,18 @@ With `tird`, you can:
 - **Stable Format:** Ensuring a stable encryption format with no [cryptographic agility](https://en.wikipedia.org/wiki/Cryptographic_agility) for long-term data storage.
 - **Simplicity:** Ensuring simplicity and avoiding [feature creep](https://en.wikipedia.org/wiki/Feature_creep): refusal to implement features that are not directly related to primary security goals.
 
+## Features 
+
+- PURB-format encrypted blobs — padded size, uniform random contents; metadata-limited (only total size leaks — no headers, types, or plaintext hints). 
+- Fully committing ChaCha20-BLAKE2b AEAD — modern, fast authenticated encryption.
+- Strong key stretching: Argon2id (libsodium "sensitive" profile) — 1 GiB memory, 1 lane, 4 passes (default and minimum).
+- Encrypted & padded comments — hide metadata; no plaintext hints about content.
+- Arbitrary key material — derive keys from passphrases, files, block devices, or directories — order doesn't matter.
+- Hidden data embedding (optional) — conceal cryptoblobs inside random/encrypted containers (plausible deniability).
+- Time-lock encryption (optional) — slow, offline, PoW-based key derivation to delay decryption (anti-coercion).
+- Prompt-based CLI — intuitive and interactive, with no flags to memorize. 
+- \[TODO] Stable, documented format — planned for long-term archival and interoperability.
+
 ## Usage
 
 You don't need to memorize command-line options to use `tird`. This tool features a prompt-based CLI: simply start it, select a menu option, and answer the questions that will follow.
@@ -196,7 +208,9 @@ For more details, refer to the [specification](https://github.com/hakavlad/tird/
 
 <img src="https://i.imgur.com/wAJyAJc.png" width="280" alt="256 shades of grey">
 
-The cryptoblob structure:
+Data encrypted with `tird` cannot be distinguished from random data without knowledge of the keys. It also does not contain identifiable headers. `tird` produces cryptoblobs that contain [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with uniform random data (PURBs). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data.
+
+The cryptoblob scheme:
 
 ```
 +————————————————————————————————————————————————————————+
@@ -219,8 +233,6 @@ The cryptoblob structure:
 |     Salt for prehashing IKM used with BLAKE2 (16 B)    |
 +————————————————————————————————————————————————————————+
 ```
-
-Data encrypted with `tird` cannot be distinguished from random data without knowledge of the keys. It also does not contain identifiable headers. `tird` produces cryptoblobs that contain [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with uniform random data (PURBs). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data.
 
 ## Low Observability and Minimizing Metadata
 
@@ -363,7 +375,7 @@ K3. Time cost (default=4): 1000000
 > \[!WARNING]
 > Debug mode is not intended for use in production!
 
-Start `tird` with the `--debug` option to look under the hood while the program is running.
+Start `tird` with the `--unsafe-debug` option to look under the hood while the program is running.
 
 Enabling debug mode additionally shows:
 
