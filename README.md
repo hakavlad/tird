@@ -3,14 +3,14 @@
   <img src="https://raw.githubusercontent.com/hakavlad/tird/main/images/logo2.png" width="800" alt="Logo">
 </p>
 
-<h3 align="left">
+<h4 align="left">
   📜&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md">man&nbsp;page</a> &nbsp;
   📑&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md">Specification</a> &nbsp;
   📄&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md">Input&nbsp;Options</a> &nbsp;
   📖&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md">Tutorial</a> &nbsp;
   ❓&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/FAQ.md">FAQ</a> &nbsp;
   📥&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/INSTALLATION.md">Installation</a>
-</h3><br>
+</h4><br>
 
 [![Releases](https://img.shields.io/github/v/release/hakavlad/tird?color=blue&label=Release)](https://github.com/hakavlad/tird/releases)
 [![PyPI](https://img.shields.io/pypi/v/tird?color=blue&label=PyPI)](https://pypi.org/project/tird/)
