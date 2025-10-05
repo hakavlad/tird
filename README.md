@@ -99,15 +99,15 @@ With `tird`, you can:
 
 ## Features 
 
-- PURB-format encrypted blobs — padded size, uniform random contents; metadata-limited (only total size leaks — no headers, types, or plaintext hints). 
-- Fully committing ChaCha20-BLAKE2b AEAD — modern, fast authenticated encryption.
-- Strong key stretching: Argon2id (libsodium "sensitive" profile) — 1 GiB memory, 1 lane, 4 passes (default and minimum).
-- Encrypted & padded comments — hide metadata; no plaintext hints about content.
-- Arbitrary key material — derive keys from passphrases, files, block devices, or directories — order doesn't matter.
-- Hidden data embedding (optional) — conceal cryptoblobs inside random/encrypted containers (plausible deniability).
-- Time-lock encryption (optional) — slow, offline, PoW-based key derivation to delay decryption (anti-coercion).
-- Prompt-based CLI — intuitive and interactive, with no flags to memorize. 
-- \[TODO] Stable, documented format — planned for long-term archival and interoperability.
+- **PURB-format encrypted blobs:** padded size, uniform random contents; metadata-limited (only total size leaks — no headers, types, or plaintext hints). 
+- **Fully committing ChaCha20-BLAKE2b AEAD:** modern, fast authenticated encryption.
+- **Strong key stretching**: Argon2id (libsodium "sensitive" profile) — 1 GiB memory, 1 lane, 4 passes (default and minimum).
+- **Encrypted & padded comments:** hide metadata; no plaintext hints about content.
+- **Arbitrary key material:** derive keys from passphrases, files, block devices, or directories — order doesn't matter.
+- **Hidden data embedding (optional):** conceal cryptoblobs inside random/encrypted containers (plausible deniability).
+- **Time-lock encryption (optional):** slow, offline, PoW-based key derivation to delay decryption (anti-coercion).
+- **Prompt-based CLI:** intuitive and interactive, with no flags to memorize. 
+- \[TODO] **Stable, documented format:** planned for long-term archival and interoperability.
 
 ## Usage
 
