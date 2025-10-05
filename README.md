@@ -3,43 +3,14 @@
   <img src="https://raw.githubusercontent.com/hakavlad/tird/main/images/logo2.png" width="800" alt="Logo">
 </p>
 
-> Cryptography without steganography is like vodka without beer.
-
-*— Russian saying*
-
-<table>
-
-<tr>
-<td>&nbsp;📜&nbsp;</td>
-<td><b>&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md">man page</a></b></td>
-</tr>
-
-<tr>
-<td>&nbsp;📑&nbsp;</td>
-<td><b>&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md">Specification</a></b></td>
-</tr>
-
-<tr>
-<td>&nbsp;📄&nbsp;</td>
-<td><b>&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md">Input&nbsp;Options</a>&nbsp;&nbsp;&nbsp;</b></td>
-</tr>
-
-<tr>
-<td>&nbsp;📖&nbsp;</td>
-<td><b>&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md">Tutorial</a></b></td>
-</tr>
-
-<tr>
-<td>&nbsp;❓&nbsp;</td>
-<td><b>&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/FAQ.md">FAQ</a></b></td>
-</tr>
-
-<tr>
-<td>&nbsp;📥&nbsp;</td>
-<td><b>&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/INSTALLATION.md">Installation</a></b></td>
-</tr>
-
-</table><br>
+<h3 align="left">
+  📜&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md">man&nbsp;page</a> &nbsp;
+  📑&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md">Specification</a> &nbsp;
+  📄&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md">Input&nbsp;Options</a> &nbsp;
+  📖&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md">Tutorial</a> &nbsp;
+  ❓&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/FAQ.md">FAQ</a> &nbsp;
+  📥&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/INSTALLATION.md">Installation</a>
+</h3><br>
 
 [![Releases](https://img.shields.io/github/v/release/hakavlad/tird?color=blue&label=Release)](https://github.com/hakavlad/tird/releases)
 [![PyPI](https://img.shields.io/pypi/v/tird?color=blue&label=PyPI)](https://pypi.org/project/tird/)
@@ -436,9 +407,6 @@ C1. Time cost (default=4): 1000000
 - ⚠️ `tird` is unlikely to be effective when used with short and predictable keys.
 - ⚠️ `tird` does not erase its sensitive data from memory after use.
 - ⚠️ Sensitive data may leak into swap space.
-- ⚠️ `tird` always releases unverified plaintext, violating [the Cryptographic Doom Principle](https://moxie.org/2011/12/13/the-cryptographic-doom-principle.html); decrypted output is untrusted until the MAC tag is verified.
-- ⚠️ Padding contents are never authenticated; authentication only applies to the ciphertext, salts, and certain sizes.
-- ⚠️ Padding sizes depend on secret values.
 - ⚠️ `tird` does not sort digests of keyfiles and passphrases in constant-time.
 - ⚠️ Overwriting file contents does not guarantee secure destruction of data on the media.
 - ⚠️ You cannot prove to an adversary that your random data does not contain encrypted information.
