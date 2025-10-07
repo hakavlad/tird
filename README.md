@@ -23,19 +23,19 @@
   <summary>&nbsp;<b>Table of Contents</b></summary>
 
 > - [About](#about)
-> - [Warnings](#warnings)
 > - [Goals](#goals)
+> - [Features](#features)
 > - [Usage](#usage)
 > - [Input Options](#input-options)
 > - [Payload](#payload)
 > - [Input Keying Material](#input-keying-material)
-> - [Cryptographic Primitives](#cryptographic-primitives)
 > - [Encrypted Data Format](#encrypted-data-format)
 > - [Low Observability and Minimizing Metadata](#low-observability-and-minimizing-metadata)
 > - [Hidden File System and Container Format](#hidden-file-system-and-container-format)
 > - [Storing and Carrying Concealed Encrypted Data](#storing-and-carrying-concealed-encrypted-data)
 > - [Time-Lock Encryption](#time-lock-encryption)
 > - [Tradeoffs and Limitations](#tradeoffs-and-limitations)
+> - [Warnings](#warnings)
 > - [Debug Mode](#debug-mode)
 > - [LLM reports](#llm-reports)
 > - [Requirements](#requirements)
@@ -54,60 +54,39 @@
 With `tird`, you can:
 
 1. Create files filled with random data to use as containers or keyfiles.
-2. Overwrite the contents of block devices and regular files with random data. This can be used to prepare containers and to destroy residual data.
-3. Encrypt file contents and comments. The encrypted data format (called cryptoblob) is a [padded uniform random blob (PURB)](https://en.wikipedia.org/wiki/PURB_(cryptography)): it looks like random data and has a randomized size. This reduces metadata leakage from file format and length, and also allows cryptoblobs to be hidden among random data. You can use keyfiles and passphrases at your choice.
-4. Create [steganographic](https://en.wikipedia.org/wiki/Steganography) (hidden, undetectable) user-driven file systems inside container files and block devices. Unlike [VeraCrypt](https://veracrypt.fr) and [Shufflecake](https://shufflecake.net/) containers, `tird` containers do not contain headers at all; the user specifies the location of the data in the container and is responsible for ensuring that this location is separated from the container.
-5. Prevent or resist [coercive](https://en.wikipedia.org/wiki/Coercion) attacks (keywords: [key disclosure law](https://en.wikipedia.org/wiki/Key_disclosure_law), [rubber-hose cryptanalysis](https://en.wikipedia.org/wiki/Deniable_encryption), [xkcd 538](https://xkcd.com/538/)). `tird` provides some forms of [plausible deniability](https://en.wikipedia.org/wiki/Plausible_deniability) out of the box, even if you encrypt files without hiding them in containers.
+2. Overwrite the contents of block devices and regular files with random data to prepare containers or destroy residual data.
+3. Encrypt file contents and comments with keyfiles and passphrases. The encrypted data format (cryptoblob) is a [padded uniform random blob (PURB)](https://en.wikipedia.org/wiki/PURB_(cryptography)): it looks like random data and has a randomized size. This reduces metadata leakage from file format and length and allows cryptoblobs to be hidden among random data. 
+4. Create [steganographic](https://en.wikipedia.org/wiki/Steganography) (hidden, undetectable) user-driven filesystems inside container files and block devices. Unlike [VeraCrypt](https://veracrypt.fr) and [Shufflecake](https://shufflecake.net/), `tird` containers do not contain headers; the user specifies the data locations inside the container and is responsible for keeping those locations separate. Any random-looking region of a file or block device may be used as a container.
+5. Prevent fast access to decrypted data using time-lock encryption.
+
+`tird` is designed to resist [coercive](https://en.wikipedia.org/wiki/Coercion) [key-disclosure](https://en.wikipedia.org/wiki/Key_disclosure_law) attacks ([rubber-hose cryptanalysis](https://en.wikipedia.org/wiki/Deniable_encryption)) and offers built-in [plausible deniability](https://en.wikipedia.org/wiki/Plausible_deniability) — even when encrypted files are stored outside containers.
 
 > \[!WARNING]
-> Users of `tird` **must** carefully read and understand the "[Warnings](#warnings)" section in the `README.md`. The tool's security relies heavily on the user's understanding of its limitations and operating it in a secure environment, especially regarding key management, debug mode usage, and interpreting MAC verification results.
+> Before using `tird`, please read the "[Warnings](#warnings)" section. Security depends not only on the tool but on your actions: secure key storage, operating in a safe environment, and avoiding debug mode with real data.
 
-<i>— <a href="https://gemini.google.com/share/627c17c844b9">Gemini</a></i>
-
-## Warnings
-
-> Crypto can help, but it won’t save you from misuse, vulnerabilities, social engineering, or physical threats.
-
-<i>— <a href="https://loup-vaillant.fr/articles/rolling-your-own-crypto">Loup Vaillant</a></i>
-
-<img src="https://i.imgur.com/g84qgw8.jpeg" width="600" alt="DANGER MINES">
-
-- ⚠️ The author does not have a background in cryptography.
-- ⚠️ The code has no automated test coverage.
-- ⚠️ `tird` has not been independently security audited by humans.
-- ⚠️ `tird` is ineffective in a compromised environment; executing it in such cases may cause disastrous data leaks.
-- ⚠️ `tird` is unlikely to be effective when used with short and predictable keys.
-- ⚠️ `tird` does not erase its sensitive data from memory after use.
-- ⚠️ Sensitive data may leak into swap space.
-- ⚠️ `tird` does not sort digests of keyfiles and passphrases in constant-time.
-- ⚠️ Overwriting file contents does not guarantee secure destruction of data on the media.
-- ⚠️ You cannot prove to an adversary that your random data does not contain encrypted information.
-- ⚠️ `tird` protects data, not the user; it cannot prevent torture if you are under suspicion.
-- ⚠️ Key derivation consumes 1 GiB RAM, which may lead to performance issues or crashes on low-memory systems.
-- ⚠️ Development is not complete, and there may be backward compatibility issues.
+🔜 Format stabilization and a formal specification are planned for v1.0.0.
 
 ## Goals
 
-- **File Protection:** Ensuring protection for individual files, including:
-  - Symmetric encryption and authentication.
-  - Minimizing metadata leakage.
-  - Preventing access to data in cases of user coercion.
-  - Plausible deniability of payload existence.
-  - Hiding encrypted data.
-- **Stable Format:** Ensuring a stable encryption format with no [cryptographic agility](https://en.wikipedia.org/wiki/Cryptographic_agility) for long-term data storage.
-- **Simplicity:** Ensuring simplicity and avoiding [feature creep](https://en.wikipedia.org/wiki/Feature_creep): refusal to implement features that are not directly related to primary security goals.
+- 🛡️ **File protection:** Ensure protection of individual files, including:
+    - Symmetric authenticated encryption.
+    - Minimizing metadata leakage.
+    - Hiding encrypted data.
+    - Resisting [coercive](https://en.wikipedia.org/wiki/Coercion) attacks.
+- ⏳ **Stable format:** Ensure a stable encrypted-data format with no [cryptographic agility](https://en.wikipedia.org/wiki/Cryptographic_agility) for long-term storage.
+- ⚪ **Simplicity:** Ensure simplicity and avoid [feature creep](https://en.wikipedia.org/wiki/Feature_creep); refuse to implement features not directly related to the primary security goals.
 
 ## Features 
 
-- **PURB-format encrypted blobs:** randomized size and uniformly random contents; metadata-limited (only total size leaks — no headers, types, or plaintext hints).
-- **Fully committing ChaCha20‑BLAKE2b AEAD:** modern, fast authenticated encryption.
-- **Strong key stretching:** Argon2id (libsodium "sensitive" profile) — 1 GiB memory, 1 lane, 4 passes (default and minimum).
-- **Encrypted & padded comments:** hide metadata; no plaintext hints about content.
-- **Arbitrary key material:** derive keys from passphrases, files, block devices, or directories — order does not matter.
-- **Hidden data embedding (optional):** conceal cryptoblobs inside random/encrypted containers for plausible deniability.
-- **Time-lock encryption (optional):** slow offline PoW-based key derivation to delay decryption (anti-coercion).
-- **Prompt-based CLI:** intuitive and interactive, no flags to memorize.
-- \[TODO] **Stable, documented format:** planned for long-term archival and interoperability.
+- [x] **PURB-format encrypted blobs:** randomized size and uniformly random contents; metadata-limited (only total size leaks — no headers, types, or plaintext hints).
+- [x] **Padded & encrypted comments:** hide metadata; no plaintext hints about content.
+- [x] **Hidden data embedding (optional):** conceal cryptoblobs inside random/encrypted containers for plausible deniability.
+- [x] **Time-lock encryption (optional):** slow offline PoW-based key derivation to delay decryption (anti-coercion).
+- [x] **Fully committing ChaCha20-BLAKE2b AEAD:** secure authenticated encryption.
+- [x] **Strong key stretching:** Argon2id (libsodium "sensitive" profile) — 1 GiB memory, 1 lane, 4 passes (default and minimum).
+- [x] **Arbitrary key material:** derive keys from passphrases, files, block devices, or directories — order does not matter.
+- [x] **Prompt-based CLI:** intuitive and interactive, no flags to memorize.
+- [ ] \[TODO] **Stable, documented format:** planned for long-term archival and interoperability.
 
 ## Usage
 
@@ -129,7 +108,7 @@ A0. Select an option [0-9]:
 
 ## Input Options
 
-There are 5 groups of input options: A (Action), D (Data), K (Keys), P (Proceed). They are numbered for ease of description.
+There are 4 groups of input options: A (Action), D (Data), K (Keys), P (Proceed). They are numbered for ease of description.
 
 ```
 +——————————————————————+————————————————————————+
@@ -156,29 +135,27 @@ A detailed description of these options with examples can be found [here](https:
 
 The payload that will be encrypted during cryptoblob creation consists of:
 
-- **Contents of one file:** This may be a regular file or a block device (an entire disk or partition). Maximum size: 16 exbibytes minus 832 bytes.
-- **Comments (optional):** An arbitrary string of up to 512 bytes. Decrypted comments will be displayed during decryption.
+- **Contents of one file (optional):** A regular file or a block device (entire disk/partition). If omitted, an empty file payload is encrypted.
+- **Comments (optional):** Arbitrary UTF‑8 string, up to 1 KiB. By default the input file name is used. Decrypted comments are shown at decryption.
 
 Specifying the payload in the UI looks as follows:
 
 ```
-D1. File to encrypt: list.txt
+D1. File to encrypt (opt): list.txt
     I: path: 'list.txt'; size: 6,493 B (6.3 KiB)
-D2. Comments (optional, up to 512 B): Epstein client list, txt
+D2. Comments (default='list.txt'): Epstein client list, txt
     I: comments will be shown as ['Epstein client list, txt']
 ```
 
 ## Input Keying Material
 
-`tird` provides the option to use passphrases and the contents of keyfiles to derive one-time keys.
+`tird` provides the option to use the contents of keyfiles and passphrase to derive one-time keys.
 
-- **Keyfiles:** Specify none, one, or multiple keyfile paths. A keyfile path may be:
+- **Keyfiles (optional):** Zero, one, or multiple keyfile paths; order of inputs does not matter. A keyfile path may be:
   - A <ins>regular file</ins>. The contents of the keyfile will be hashed, and its digest will be used for further key stretching and key derivation.
   - A <ins>block device</ins>. Handled the same as a regular keyfile: contents will be hashed.
   - A <ins>directory</ins>. All files within the directory will be hashed and used as keyfiles.
-- **Passphrases:** Specify none, one, or multiple passphrases of up to 2048 bytes.
-
-The order of input does not matter.
+- **Passphrase (optional):** Up to 2048 bytes (after NFC [normalization](https://www.unicode.org/reports/tr15/)); may be omitted.
 
 Specifying IKM in the UI looks as follows:
 
@@ -192,17 +169,6 @@ K2. Passphrase (optional):
 K2. Confirm passphrase:
     I: passphrase accepted
 ```
-
-## Cryptographic Primitives
-
-The following cryptographic primitives are utilized by `tird`:
-
-- `ChaCha20` cipher ([RFC 8439](https://www.rfc-editor.org/rfc/rfc8439.html)) for data encryption.
-- `BLAKE2` ([RFC 7693](https://www.rfc-editor.org/rfc/rfc7693.html)) for hashing and authentication.
-- `Argon2` memory-hard function ([RFC 9106](https://www.rfc-editor.org/rfc/rfc9106.html)) for key stretching.
-- `HKDF` ([RFC 5869](https://www.rfc-editor.org/rfc/rfc5869.html)) for key derivation.
-
-For more details, refer to the [specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md).
 
 ## Encrypted Data Format
 
@@ -220,8 +186,9 @@ The cryptoblob scheme:
 | ChaCha20 output:                                       |
 |     Ecrypted pad_ikm (8 B)                             |
 +————————————————————————————————————————————————————————+
-| CSPRNG output:                                         |
+| CSPRNG/BLAKE2 output:                                  |
 |     Randomized padding (0-25% of the unpadded size)    |
+|     + MAC tag (32 B)                                   |
 +————————————————————————————————————————————————————————+
 | ChaCha20/BLAKE2 output:                                |
 |     Encrypted payload file contents + MAC tags (0+ B)  |
@@ -233,6 +200,8 @@ The cryptoblob scheme:
 |     Salt for prehashing IKM used with BLAKE2 (16 B)    |
 +————————————————————————————————————————————————————————+
 ```
+
+For more details, refer to the [specification](https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md).
 
 ## Low Observability and Minimizing Metadata
 
@@ -246,6 +215,7 @@ The cryptoblob scheme:
 - PURB format:
   - Encrypted files look like random data.
   - Encrypted files have a randomized size: do not reveal the payload size.
+- Comments are constant-padded, no reveal its size or existence.
 - Do not prove that the entered keys are incorrect.
 - Prompt-based CLI: no leakage of used options through shell history.
 - The output file path is user-defined and is not related to the input file path by default.
@@ -353,6 +323,22 @@ K3. Time cost (default=4): 1000000
 
 **Plausible TLE:** The adversary does not know the actual value of the time cost, so you can plausibly misrepresent the number of passes. The adversary cannot refute your claim until they attempt to decrypt the cryptoblob using the specified time cost value.
 
+## Debug Mode
+
+> \[!WARNING]
+> Debug mode is not intended for use in production!
+
+Start `tird` with the `--unsafe-debug` option to look under the hood while the program is running.
+
+Enabling debug mode additionally shows:
+
+- File operations:
+  - Opening and closing of file descriptors.
+  - Real paths to opened files.
+  - Movement of file pointers.
+- Byte strings related to cryptographic operations: salts, passphrases, digests, keys, nonces, and tags.
+- Some other information, including various sizes.
+
 ## Tradeoffs and Limitations
 
 - `tird` does not support:
@@ -370,21 +356,28 @@ K3. Time cost (default=4): 1000000
 - `tird` does not fake file access, modification, and creation timestamps (atime, mtime, ctime).
 - `tird`'s encryption speed is not very high (up to 420 MiB/s in my tests).
 
-## Debug Mode
+## Warnings
 
-> \[!WARNING]
-> Debug mode is not intended for use in production!
+> Crypto can help, but it won’t save you from misuse, vulnerabilities, social engineering, or physical threats.
 
-Start `tird` with the `--unsafe-debug` option to look under the hood while the program is running.
+<i>— <a href="https://loup-vaillant.fr/articles/rolling-your-own-crypto">Loup Vaillant</a></i>
 
-Enabling debug mode additionally shows:
+<img src="https://i.imgur.com/g84qgw8.jpeg" width="600" alt="DANGER MINES">
 
-- File operations:
-  - Opening and closing of file descriptors.
-  - Real paths to opened files.
-  - Movement of file pointers.
-- Byte strings related to cryptographic operations: salts, passphrases, digests, keys, nonces, and tags.
-- Some other information, including various sizes.
+- ⚠️ The author does not have a background in cryptography.
+- ⚠️ The code has no automated test coverage.
+- ⚠️ `tird` has not been independently security audited by humans.
+- ⚠️ `tird` is ineffective in a compromised environment; executing it in such cases may cause disastrous data leaks.
+- ⚠️ `tird` is unlikely to be effective when used with short and predictable keys.
+- ⚠️ `tird` does not erase its sensitive data from memory after use.
+- ⚠️ Sensitive data may leak into swap space.
+- ⚠️ `tird` does not sort digests of keyfiles and passphrases in constant-time.
+- ⚠️ Overwriting file contents does not guarantee secure destruction of data on the media.
+- ⚠️ You cannot prove to an adversary that your random data does not contain encrypted information.
+- ⚠️ `tird` protects data, not the user; it cannot prevent torture if you are under suspicion.
+- ⚠️ Key derivation consumes 1 GiB RAM, which may lead to performance issues or crashes on low-memory systems.
+- ⚠️ Integrity/authenticity over availability — altering even a single byte of a cryptoblob prevents decryption.
+- ⚠️ Development is not complete, and there may be backward compatibility issues.
 
 ## LLM reports
 
