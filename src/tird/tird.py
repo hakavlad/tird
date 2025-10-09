@@ -41,7 +41,6 @@ except ModuleNotFoundError:
 
 from io import BytesIO
 from secrets import compare_digest, token_bytes
-from signal import SIGHUP, SIGINT, SIGQUIT, SIGTERM, signal
 from sys import argv, exit, platform, version
 from time import monotonic
 from types import FrameType
@@ -57,7 +56,11 @@ from nacl.hashlib import blake2b
 from nacl.pwhash import argon2id
 
 if platform == 'win32':
+    from signal import SIGINT, SIGTERM, signal
+
     from colorama import just_fix_windows_console
+else:
+    from signal import SIGHUP, SIGINT, SIGQUIT, SIGTERM, signal
 
 
 # Define a type alias for action identifiers
@@ -4959,10 +4962,11 @@ def main() -> NoReturn:
         prevent_coredump()
 
     signal(SIGINT, signal_handler)
-    signal(SIGQUIT, signal_handler)
     signal(SIGTERM, signal_handler)
+
     if platform != 'win32':
         signal(SIGHUP, signal_handler)
+        signal(SIGQUIT, signal_handler)
 
     while True:
         action: ActionID = select_action()
@@ -5010,6 +5014,8 @@ APP_WARNINGS: Final[tuple[str, ...]] = (
     'under suspicion.',
     'Key derivation consumes 1 GiB RAM, which may lead to performance issues '
     'or crashes on low-memory systems.',
+    'Integrity/authenticity over availability — altering even a single byte '
+    'of a cryptoblob prevents decryption',
     'Development is not complete, and there may be backward compatibility '
     'issues.',
 )
