@@ -238,10 +238,9 @@ Any file, disk, or partition larger than the minimum cryptoblob size (831 B) can
 **Examples of Valid Containers Include:**
 
 1. Specially generated files with random data.
-2. `tird` cryptoblobs, as they contain pockets — unauthenticated padding of random data — by default, which can be used to embed smaller cryptoblobs.
-3. Disk areas containing random data. For example, you can overwrite a disk with random data, format it in FAT32 or exFAT, and use a large portion of the disk, leaving a few dozen MB from the beginning. The disk will appear empty unless you add some files to it.
-4. [LUKS](https://en.wikipedia.org/wiki/Linux_Unified_Key_Setup) encrypted volumes.
-5. VeraCrypt containers, even those that already contain hidden volumes.
+2. Disk areas containing random data. For example, you can overwrite a disk with random data, format it in FAT32 or exFAT, and use a large portion of the disk, leaving a few dozen MB from the beginning. The disk will appear empty unless you add some files to it.
+3. [LUKS](https://en.wikipedia.org/wiki/Linux_Unified_Key_Setup) encrypted volumes.
+4. VeraCrypt containers, even those that already contain hidden volumes.
 
 **Example of Container Structure:**
 
