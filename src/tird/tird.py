@@ -1,37 +1,65 @@
 #!/usr/bin/env python3
 """
 tird /tɪrd/ (an acronym for "this is random data")
-
 A tool for encrypting files and hiding encrypted data.
+
+tird implements a PURB-style (Padded Uniform Random Blob) encryption
+scheme designed to leak minimal metadata — only total size is
+observable; no headers, file types, or plaintext hints are exposed. The
+tool supports embedding cryptoblobs into arbitrary containers for
+plausible deniability and offers optional time-lock encryption via
+memory-hard Argon2id key derivation.
+
+Key features:
+- PURB-format encrypted blobs: randomized size, uniformly random-looking
+  ciphertext.
+- Padded & encrypted comments: metadata hidden; no plaintext leakage.
+- Hidden data embedding: cryptoblobs can be written into existing files.
+- Time-lock encryption: configurable Argon2id parameters
+  (default: 1 GiB RAM, 4 ops).
+- Authenticated encryption: ChaCha20 stream cipher + BLAKE2b-based
+  MAC (AEAD).
+- Flexible key material: derive keys from passphrases, files, block
+  devices, or directories (order-independent).
+- Interactive CLI: user-friendly prompts; no command-line flags
+  required.
+- No persistent metadata: output contains no version strings, magic
+  bytes, or identifiable structure.
+
+Planned:
+- Stable, documented binary format for long-term storage and
+  interoperability.
+
+Security notes:
+- Intended for offline, non-compromised environments.
+- Does not erase secrets from memory; sensitive data may persist in
+  RAM or swap.
+- Not a substitute for operational security or legal protection.
 
 Requirements:
 - Python >= 3.9.2
-
-Dependencies:
 - cryptography >= 2.1 (ChaCha20, HKDF-SHA-256)
 - PyNaCl >= 1.2.0 (Argon2id, BLAKE2b)
-- colorama >= 0.4.6 (Windows-specific)
+- colorama >= 0.4.6 (Windows console support)
 
 SPDX-License-Identifier: 0BSD
 
 Homepage: https://github.com/hakavlad/tird
 """
 
-# pylint: disable=invalid-name
-# pylint: disable=too-many-arguments
-# pylint: disable=too-many-branches
 # pylint: disable=too-few-public-methods
+# pylint: disable=too-many-branches
 # pylint: disable=too-many-lines
 # pylint: disable=too-many-locals
-# pylint: disable=too-many-positional-arguments
 # pylint: disable=too-many-return-statements
 # pylint: disable=too-many-statements
 
 from collections.abc import Callable
 from gc import collect
 from getpass import getpass
-from os import (SEEK_CUR, SEEK_END, SEEK_SET, _exit, chmod, fsync, ftruncate,
-                path, remove, walk, write)
+from os import SEEK_END
+from os import _exit as os_exit
+from os import chmod, fsync, ftruncate, path, remove, walk, write
 
 try:
     from resource import RLIMIT_CORE, setrlimit
@@ -41,7 +69,10 @@ except ModuleNotFoundError:
 
 from io import BytesIO
 from secrets import compare_digest, token_bytes
-from sys import argv, exit, platform, version
+from signal import SIGINT, SIGTERM, signal
+from sys import argv
+from sys import exit as sys_exit
+from sys import platform, stderr, version
 from time import monotonic
 from types import FrameType
 from typing import Any, BinaryIO, Final, Literal, NoReturn, Optional
@@ -56,48 +87,206 @@ from nacl.hashlib import blake2b
 from nacl.pwhash import argon2id
 
 if platform == 'win32':
-    from signal import SIGINT, SIGTERM, signal
-
     from colorama import just_fix_windows_console
 else:
-    from signal import SIGHUP, SIGINT, SIGQUIT, SIGTERM, signal
+    from signal import SIGHUP, SIGQUIT
 
 
-# Define a type alias for action identifiers
-ActionID = Literal[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+# Define some classes
+# --------------------------------------------------------------------------- #
 
 
 class KeyfileScanError(Exception):
     """Exception raised by keyfile directory scanning errors."""
 
 
-class EE:
-    """
-    Class for transferring variable values
-    from encrypt_and_embed_input()
-    to encrypt_and_embed_handler().
-    """
-    in_file_size: int
+# Define a type alias for action identifiers
+ActionID = Literal[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
-    pad_ikm: Optional[bytes]
-    unpadded_size: Optional[int]
-    padded_size: int
+
+class ActData:
+    """
+    Container for per-operation runtime state used during processing.
+
+    Acts as a plain data holder for values tracked while performing a
+    single action (encryption, decryption, embed, extract, etc.). Fields
+    are simple typed attributes; instances are slot-restricted to the
+    annotated names.
+
+    Attributes
+    ----------
+    action : ActionID
+        Identifier of the action being performed.
+    err : bool
+        Error flag; set True when an unrecoverable error occurs during
+        the operation.
+
+    out_file_obj : BinaryIO
+        Open file-like object for output (writes). Expected to provide
+        write(), flush(), fileno(), tell(), and close() as appropriate.
+    in_file_obj : BinaryIO
+        Open file-like object for input (reads). Expected to provide
+        read(), tell(), seek(), and close().
+
+    start_time : float
+        Monotonic timestamp when the operation started.
+    last_progress_time : float
+        Monotonic timestamp of the last progress log.
+
+    start_pos : int
+        File-position (bytes) at operation start in the output file.
+    end_pos : Optional[int]
+        File-position (bytes) at operation end, if known; otherwise
+        None.
+    max_start_pos : int
+        Maximum allowed start position (used for validation).
+    max_end_pos : int
+        Maximum allowed end position (used for validation).
+
+    written_sum : int
+        Cumulative number of bytes written to the output file so far.
+    total_out_data_size : int
+        Total number of bytes expected to be written (used for
+        progress).
+    in_file_size : int
+        Size in bytes of the input file.
+
+    processed_comments : Optional[bytes]
+        Optional comments or metadata processed for the current action;
+        stored as bytes when present.
+
+    unpadded_size : int
+        Original data size before padding.
+    padded_size : int
+        Data size after padding (bytes).
+
+    Notes
+    -----
+    - Instances use __slots__ to prevent dynamic attribute creation and
+      reduce memory usage.
+    - This class is a data container only; lifecycle management
+      (opening/closing files, wiping secrets) is the caller's
+      responsibility.
+    - Field semantics (units, required vs optional) follow the
+      conventions of the surrounding codebase and helper functions.
+    """
+    action: ActionID
+    err: bool
+
+    out_file_obj: BinaryIO
+    in_file_obj: BinaryIO
+
+    start_time: float
+    last_progress_time: float
+
+    start_pos: int
+    end_pos: Optional[int]
+    max_start_pos: int
+    max_end_pos: int
+
+    written_sum: int
+    total_out_data_size: int
+    in_file_size: int
 
     processed_comments: Optional[bytes]
 
-    start_pos: Optional[int]
-    end_pos: Optional[int]
+    unpadded_size: int
+    padded_size: int
+
+    __slots__ = tuple(__annotations__.keys())
 
 
-# ANSI escape codes for terminal text formatting
-BOL: Final[str] = '\x1b[1m'  # Bold text
-ERR: Final[str] = '\x1b[1;97;101m'  # Bold white text, red background
-WAR: Final[str] = '\x1b[1;93;40m'  # Bold yellow text, black background
-RES: Final[str] = '\x1b[0m'  # Reset formatting to default
+class Crypto:
+    """
+    Cryptographic state container used during cryptographic operations.
 
-# Adjust ANSI codes for Windows platform, which does not support them
-if platform == 'win32':
-    just_fix_windows_console()
+    Holds derived keys, nonces, salts, counters and incremental
+    MAC/encryption state required by encryption, authentication and
+    key-derivation routines.
+
+    Attributes
+    ----------
+    blake2_salt : bytes
+        Salt used with BLAKE2 hashing.
+    argon2_salt : bytes
+        Salt used for Argon2 key derivation.
+    argon2_password : bytes
+        Password or secret input for Argon2.
+    argon2_time_cost : int
+        Argon2 time-cost parameter.
+
+    mac_key : bytes
+        Key used for message authentication (MAC).
+    enc_key : bytes
+        Symmetric encryption key.
+    enc_key_hash : bytes
+        Hash of the encryption key (used for explicit key commitment).
+
+    nonce_counter : int
+        Counter used to derive or advance the nonce.
+    nonce : bytes
+        Current nonce used for encryption/authentication operations.
+
+    mac_hash_obj : Any
+        Incremental MAC/hash object (e.g., blake2b);
+        implementation-specific.
+    mac_chunk_size_sum : int
+        Cumulative number of bytes processed by the MAC.
+    enc_sum : int
+        Cumulative number of bytes encrypted.
+    enc_chunk_count : int
+        Number of encryption chunks processed.
+
+    pad_ikm : bytes
+        Independent key material used for padding or further derivation
+        (if used).
+    encrypted_pad_ikm : bytes
+        Encrypted form of pad_ikm, if stored/transported encrypted.
+
+    padded_size_bytes : bytes
+        Padded data size encoded as bytes.
+    pad_size_bytes : bytes
+        Pad size encoded as bytes.
+    contents_size_bytes : bytes
+        Original contents size encoded as bytes.
+
+    Notes
+    -----
+    - Instances use __slots__ (derived from __annotations__) to prevent
+      dynamic attribute creation and reduce memory usage.
+    - This class is a plain data container; it does not perform
+      cryptographic operations itself. All sensitive material (keys,
+      salts, passwords) should be zeroed/wiped by the caller when no
+      longer needed.
+    - Types such as ActionID, BinaryIO, and Any must be
+      available/imported in the module namespace where this class is
+      defined.
+    """
+    blake2_salt: bytes
+    argon2_salt: bytes
+    argon2_password: bytes
+    argon2_time_cost: int
+
+    mac_key: bytes
+    enc_key: bytes
+    enc_key_hash: bytes
+
+    nonce_counter: int
+    nonce: bytes
+
+    mac_hash_obj: Any
+    mac_chunk_size_sum: int
+    enc_sum: int
+    enc_chunk_count: int
+
+    pad_ikm: bytes
+    encrypted_pad_ikm: bytes
+
+    padded_size_bytes: bytes
+    pad_size_bytes: bytes
+    contents_size_bytes: bytes
+
+    __slots__ = tuple(__annotations__.keys())
 
 
 # Formatting output messages and logging
@@ -105,57 +294,123 @@ if platform == 'win32':
 
 
 def log_e(error_message: str) -> None:
-    """Logs a message at the Error level."""
-    print(f'    {ERR}E: {error_message}{RES}')
+    """
+    Log an error-level message.
+
+    Prints the provided message formatted for error severity to stderr.
+    The output includes an "E:" prefix and uses the ERROR color/style
+    constant `ERR` and the reset constant `RES` if available.
+
+    Parameters
+    ----------
+    error_message : str
+        Message text to log at error level.
+
+    Returns
+    -------
+    None
+    """
+    print(f'    {ERR}E: {error_message}{RES}', file=stderr)
 
 
 def log_w(warning_message: str) -> None:
-    """Logs a message at the Warning level."""
-    print(f'    {WAR}W: {warning_message}{RES}')
+    """
+    Log a warning-level message.
+
+    Prints the provided message formatted for warning severity to
+    stderr. The output includes a "W:" prefix and uses the WARNING
+    color/style constant `WAR` and the reset constant `RES` if
+    available.
+
+    Parameters
+    ----------
+    warning_message : str
+        Message text to log at warning level.
+
+    Returns
+    -------
+    None
+    """
+    print(f'    {WAR}W: {warning_message}{RES}', file=stderr)
 
 
 def log_i(info_message: str) -> None:
-    """Logs a message at the Info level."""
+    """
+    Log an informational message.
+
+    Prints the provided message with an "I:" prefix to stdout.
+
+    Parameters
+    ----------
+    info_message : str
+        Message text to log at info level.
+
+    Returns
+    -------
+    None
+    """
     print(f'    I: {info_message}')
 
 
 def log_d(debug_message: str) -> None:
-    """Logs a message at the Debug level."""
+    """
+    Log a debug-level message.
+
+    Prints the provided message with a "D:" prefix for
+    diagnostic/debugging output to stdout.
+
+    Parameters
+    ----------
+    debug_message : str
+        Message text to log at debug level.
+
+    Returns
+    -------
+    None
+    """
     print(f'    D: {debug_message}')
 
 
 def format_size(size: int) -> str:
     """
-    Converts a size in bytes to a human-readable string representation.
+    Convert a byte count to a human-readable string showing bytes and
+    IEC units.
 
-    This function takes an integer representing a size in bytes and
-    converts it into a more readable format, displaying the size in
-    bytes along with its equivalent in EiB, PiB, TiB, GiB, MiB, or KiB,
-    depending on the size. The converted sizes are rounded to one
-    decimal place for clarity.
+    Returns the size formatted with a thousands separator in bytes and,
+    when applicable, its equivalent in the largest IEC unit (KiB, MiB,
+    GiB, TiB, PiB, EiB) rounded to one decimal place. Values smaller
+    than 1 KiB are returned as "<bytes> B".
 
-    Args:
-        size (int): The size in bytes to be converted.
+    Parameters
+    ----------
+    size : int
+        Size in bytes.
 
-    Returns:
-        str: A string representation of the size, including the original
-             size in bytes and its equivalent in EiB, PiB, TiB, GiB,
-             MiB, or KiB, as appropriate.
+    Returns
+    -------
+    str
+        Human-readable size, e.g. "1,234 B (1.2 KiB)" or "123 B" for
+        small values.
+
+    Notes
+    -----
+    - Uses IEC constants `KIB`, `MIB`, `GIB`, `TIB`, `PIB`, `EIB`.
+    - Rounds unit values to one decimal place.
     """
     formatted_size: str
 
-    if size >= E:
-        formatted_size = f'{size:,} B ({round(size / E, 1)} EiB)'
-    elif size >= P:
-        formatted_size = f'{size:,} B ({round(size / P, 1)} PiB)'
-    elif size >= T:
-        formatted_size = f'{size:,} B ({round(size / T, 1)} TiB)'
-    elif size >= G:
-        formatted_size = f'{size:,} B ({round(size / G, 1)} GiB)'
-    elif size >= M:
-        formatted_size = f'{size:,} B ({round(size / M, 1)} MiB)'
-    elif size >= K:
-        formatted_size = f'{size:,} B ({round(size / K, 1)} KiB)'
+    if size >= EIB:
+        formatted_size = f'{size:,} B ({round(size / EIB, 1)} EiB)'
+    elif size >= PIB:
+        formatted_size = f'{size:,} B ({round(size / PIB, 1)} PiB)'
+    elif size >= TIB:
+        formatted_size = f'{size:,} B ({round(size / TIB, 1)} TiB)'
+    elif size >= GIB:
+        formatted_size = f'{size:,} B ({round(size / GIB, 1)} GiB)'
+    elif size >= MIB:
+        formatted_size = f'{size:,} B ({round(size / MIB, 1)} MiB)'
+    elif size >= KIB:
+        formatted_size = f'{size:,} B ({round(size / KIB, 1)} KiB)'
     else:
         formatted_size = f'{size:,} B'
 
@@ -164,38 +419,44 @@ def format_size(size: int) -> str:
 
 def short_format_size(size: int) -> str:
     """
-    Converts a size in bytes to a human-readable string representation.
+    Convert a byte count to a compact, human-readable string using IEC
+    units.
 
-    This function takes an integer representing a size in bytes and
-    converts it into a more readable format, displaying the size in
-    the appropriate unit (EiB, PiB, TiB, GiB, MiB, or KiB) depending on
-    the size. If the size is less than 1 KiB, it will be displayed in
-    bytes. The converted sizes are rounded to one decimal place for
-    clarity.
+    Chooses the largest IEC unit (EiB, PiB, TiB, GiB, MiB, KiB) for
+    which the value is >= 1 and formats the result with one decimal
+    place. Values smaller than 1 KiB are returned in bytes with
+    thousands separators.
 
-    Args:
-        size (int): The size in bytes to be converted.
+    Parameters
+    ----------
+    size : int
+        Size in bytes.
 
-    Returns:
-        str: A string representation of the size, including its
-             equivalent in EiB, PiB, TiB, GiB, MiB, or KiB, as
-             appropriate. If the size is less than 1 KiB, it will be
-             displayed in bytes.
+    Returns
+    -------
+    str
+        Human-readable size string, e.g. "1.2 MiB", "512 KiB", or
+        "123 B".
+
+    Notes
+    -----
+    - Uses IEC constants `EIB`, `PIB`, `TIB`, `GIB`, `MIB`, and `KIB`.
+    - Rounds unit values to one decimal place.
     """
     formatted_size: str
 
-    if size >= E:
-        formatted_size = f'{round(size / E, 1)} EiB'
-    elif size >= P:
-        formatted_size = f'{round(size / P, 1)} PiB'
-    elif size >= T:
-        formatted_size = f'{round(size / T, 1)} TiB'
-    elif size >= G:
-        formatted_size = f'{round(size / G, 1)} GiB'
-    elif size >= M:
-        formatted_size = f'{round(size / M, 1)} MiB'
-    elif size >= K:
-        formatted_size = f'{round(size / K, 1)} KiB'
+    if size >= EIB:
+        formatted_size = f'{round(size / EIB, 1)} EiB'
+    elif size >= PIB:
+        formatted_size = f'{round(size / PIB, 1)} PiB'
+    elif size >= TIB:
+        formatted_size = f'{round(size / TIB, 1)} TiB'
+    elif size >= GIB:
+        formatted_size = f'{round(size / GIB, 1)} GiB'
+    elif size >= MIB:
+        formatted_size = f'{round(size / MIB, 1)} MiB'
+    elif size >= KIB:
+        formatted_size = f'{round(size / KIB, 1)} KiB'
     else:
         formatted_size = f'{size:,} B'
 
@@ -204,23 +465,30 @@ def short_format_size(size: int) -> str:
 
 def format_time(total_s: float) -> str:
     """
-    Formats a given time in seconds into a more readable string format.
+    Format a duration in seconds into a human-readable string.
 
-    The output format will be:
-    - For less than 60 seconds: "Xs" (where X is seconds)
-    - For less than 3600 seconds (1 hour): "Xs (Ym Zs)" (where Y is
-      minutes and Z is seconds)
-    - For 1 hour or more: "Xs (Ah Bm Cs)" (where A is hours, B is
-      minutes, and C is seconds)
+    Produces a compact representation in seconds and, when applicable,
+    an expanded form with minutes and/or hours.
 
-    Args:
-        total_s (float): The time in seconds to be formatted.
+    Parameters
+    ----------
+    total_s : float
+        Duration in seconds. May be fractional.
 
-    Returns:
-        str: A string representing the time in seconds, along with its
-             equivalent in minutes and seconds, or hours, minutes, and
-             seconds, depending on the total duration. The seconds in
-             the output are rounded to one decimal place.
+    Returns
+    -------
+    str
+        Human-readable time string. Examples:
+        - For < 60 s: "Xs" (seconds, rounded to 0.1s)
+        - For < 3600 s: "Xs (Ym Zs)" (seconds plus minutes and seconds)
+        - For >= 3600 s: "Xs (Ah Bm Cs)" (seconds plus hours, minutes,
+          seconds)
+
+    Notes
+    -----
+    - The primary seconds value is rounded to one decimal place.
+    - Minutes and hours are integer values; remaining seconds are
+      rounded to one decimal place.
     """
     formatted_time: str
 
@@ -244,45 +512,55 @@ def format_time(total_s: float) -> str:
     return formatted_time
 
 
-def log_progress() -> None:
+def log_progress(ad: ActData) -> None:
     """
-    Logs the progress of a data writing operation.
+    Log progress of an ongoing data-writing operation.
 
-    This function calculates and logs the percentage of completion, the
-    amount of data written, the elapsed time since the start of the
-    operation, and the average writing speed in MiB/s. The total data
-    size and the current written amount are now obtained from a global
-    dictionary, where INT_D['total_out_data_size'] represents the total
-    size of the data to be written and INT_D['written_sum'] the total
-    data written so far.
+    Computes and logs percentage complete, amount written, elapsed time,
+    and average throughput. Uses values from the provided action data:
+    `ad.start_time`, `ad.written_sum`, and `ad.total_out_data_size`.
 
-    Returns:
-        None
+    Parameters
+    ----------
+    ad : ActData
+        Action data containing:
+        - start_time (float): monotonic timestamp when the operation
+          started.
+        - written_sum (int): total bytes written so far.
+        - total_out_data_size (int): total bytes expected to be written.
+        The function may also rely on formatting helpers referenced by
+        `ad` context (e.g., `short_format_size`, `format_time`) or
+        globals (`MIB`).
 
-    Note:
-        This function relies on global variables FLOAT_D and INT_D.
-        FLOAT_D['start_time'] is the start time of the operation,
-        INT_D['written_sum'] is the total amount of data written so far,
-        and INT_D['total_out_data_size'] is the total size of the data
-        to be written. If INT_D['total_out_data_size'] is zero, a
-        message indicating that 0 bytes have been written will be logged
-        to avoid division by zero.
+    Returns
+    -------
+    None
+        Emits log messages via `log_i` and does not return a value.
+
+    Notes
+    -----
+    - If `ad.total_out_data_size` is zero, logs 'written 0 B' to avoid
+      division by zero.
+    - If elapsed time is zero, logs percentage and written amount
+      without average speed.
+    - Average speed is reported in MiB/s using the `MIB` constant.
+    - Relies on helpers/globals: `monotonic`, `short_format_size`,
+      `format_time`, `MIB`, and `log_i`.
     """
 
     # Check if the total data size is zero to avoid division by zero
-    if not INT_D['total_out_data_size']:
+    if not ad.total_out_data_size:
         log_i('written 0 B')
         return
 
     # Calculate the elapsed time since the start of the operation
-    elapsed_time: float = monotonic() - FLOAT_D['start_time']
+    elapsed_time: float = monotonic() - ad.start_time
 
     # Calculate the percentage of data written
-    percentage: float = \
-        INT_D['written_sum'] / INT_D['total_out_data_size'] * 100
+    percentage: float = ad.written_sum / ad.total_out_data_size * 100
 
     # Format the amount of data written for logging
-    formatted_written: str = short_format_size(INT_D['written_sum'])
+    formatted_written: str = short_format_size(ad.written_sum)
 
     if not elapsed_time:
         # Log progress without average speed if elapsed time is zero
@@ -291,56 +569,82 @@ def log_progress() -> None:
         return
 
     # Calculate the average writing speed in MiB/s
-    average_speed: float = round(INT_D['written_sum'] / M / elapsed_time, 1)
+    average_speed: int = round(ad.written_sum / MIB / elapsed_time)
 
     # Log the detailed progress information
     log_i(f'written {round(percentage, 1)}%; '
           f'{formatted_written} in {format_time(elapsed_time)}; '
-          f'avg {average_speed:,} MiB/s')
+          f'avg {average_speed} MiB/s')
 
 
-def log_progress_if_time_elapsed() -> None:
+def log_progress_if_time_elapsed(ad: ActData) -> ActData:
     """
-    Logs the progress of an operation if the specified time interval has
-    passed.
+    Emit progress information if the minimum interval has elapsed.
 
-    This function checks the elapsed time since the last progress log.
-    If the time since the last log exceeds the defined minimum progress
-    interval (MIN_PROGRESS_INTERVAL), it logs the current progress. Note
-    that the total data size and progress information are obtained from
-    global dictionaries, so there is no function parameter for
-    total_data_size.
+    Checks the elapsed time since the last progress log stored in the
+    action data and, if it meets or exceeds MIN_PROGRESS_INTERVAL, calls
+    `log_progress(ad)` and updates `ad.last_progress_time`.
 
-    Returns:
-        None
+    Parameters
+    ----------
+    ad : ActData
+        Action data containing at least:
+        - last_progress_time (float): timestamp of the last progress
+          log.
+        - any fields required by `log_progress`.
+
+    Returns
+    -------
+    ActData
+        The (possibly modified) action data with `last_progress_time`
+        updated when progress was logged.
+
+    Notes
+    -----
+    - Uses `monotonic()` for elapsed-time checks and the global
+      `MIN_PROGRESS_INTERVAL` constant.
+    - Relies on the helper `log_progress`.
     """
 
     # Check if the minimum progress interval has passed since the last log
-    if monotonic() - FLOAT_D['last_progress_time'] >= MIN_PROGRESS_INTERVAL:
+    if monotonic() - ad.last_progress_time >= MIN_PROGRESS_INTERVAL:
 
         # Log the current progress based on the total data size
-        log_progress()
+        log_progress(ad)
 
         # Update the last progress log time to the current time
-        FLOAT_D['last_progress_time'] = monotonic()
+        ad.last_progress_time = monotonic()
+
+    return ad
 
 
-def log_progress_final() -> None:
+def log_progress_final(ad: ActData) -> None:
     """
-    Logs the final progress of the writing operation.
+    Log final write progress and total bytes written.
 
-    This function logs the total progress of the data writing operation
-    by first invoking log_progress() to log the latest progress details
-    and then logging a final message indicating that the writing has
-    completed and the total amount of data written (obtained from the
-    global dictionary) in bytes.
+    Calls `log_progress()` to emit any pending progress information,
+    then logs an informational message stating that writing has
+    completed and reporting the total number of bytes written.
 
-    Returns:
-        None
+    Parameters
+    ----------
+    ad : ActData
+        Action data containing at least the `written_sum` attribute used
+        to report the total bytes written.
+
+    Returns
+    -------
+    None
+        Performs logging side effects and does not return a value.
+
+    Notes
+    -----
+    - Uses logging helpers `log_progress` and `log_i`.
+    - Assumes `ad.written_sum` is an integer representing bytes written.
     """
-    log_progress()
+    log_progress(ad)
 
-    log_i(f'writing completed; total of {INT_D["written_sum"]:,} B written')
+    log_i(f'writing completed; total of {ad.written_sum:,} B written')
 
 
 # Handle files and paths
@@ -352,35 +656,43 @@ def open_file(
     access_mode: Literal['rb', 'rb+', 'xb'],
 ) -> Optional[BinaryIO]:
     """
-    Opens a file in the specified mode and returns the file object.
-    Handles exceptions related to file operations.
+    Open a file in the requested mode and return the file object.
 
-    Args:
-        file_path (str): The path to the file.
-        access_mode (Literal['rb', 'rb+', 'xb']): The mode in which to
-                                                  open the file.
+    Attempts to open `file_path` using the provided `access_mode`.
+    Common modes used are 'rb' (read binary), 'rb+' (read/write binary)
+    and 'xb' (exclusive create, binary). Exceptions from the open
+    attempt are caught, logged, and the function returns None on
+    failure.
 
-    Returns:
-        Optional[BinaryIO]: The file object if successful, or None if an
-                            error occurs.
+    Parameters
+    ----------
+    file_path : str
+        Path to the file to open.
+    access_mode : {'rb', 'rb+', 'xb'}
+        File access mode. 'xb' will fail if the file already exists.
 
-    Exceptions handled:
-        - FileNotFoundError: Raised when trying to read a file that does
-          not exist.
-        - PermissionError: Raised when the user does not have the
-          appropriate permissions.
-        - FileExistsError (subclass of OSError): Raised in exclusive
-          creation mode ('xb') if the file already exists.
-        - OSError: Handles other OS-related errors.
+    Returns
+    -------
+    Optional[BinaryIO]
+        Open binary file object on success, or None if an error
+        occurred.
+
+    Notes
+    -----
+    - The function calls `check_for_signal()` before attempting to open
+      the file and logs debug information when `UNSAFE_DEBUG` is true.
+    - Errors are logged via `log_e`; no exceptions are propagated.
+    - Relies on globals/helpers: `check_for_signal`, `UNSAFE_DEBUG`,
+      `log_d`, and `log_e`.
     """
     check_for_signal()  # Check if a termination signal has been received
 
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d(f'opening file {file_path!r} in mode {access_mode!r}')
 
     try:
         file_obj: BinaryIO = open(file_path, access_mode)
-        if DEBUG:
+        if UNSAFE_DEBUG:
             log_d(f'opened file object: {file_obj}')
         return file_obj
     except (
@@ -392,21 +704,39 @@ def open_file(
 
 def close_file(file_obj: BinaryIO) -> None:
     """
-    The function attempts to close the provided file object. If the
-    DEBUG flag is set, it logs before and after the close operation. If,
-    after calling .close(), file_obj.closed remains False, then an error
-    is logged.
+    Close a binary file object, logging progress and errors.
 
-    Args:
-        file_obj (BinaryIO): The file object to close.
+    Checks for termination signals, then attempts to close the provided
+    file object if it is not already closed. Debug logging occurs before
+    and after closing when `UNSAFE_DEBUG` is true. If closing raises an
+    OSError or the object reports `closed` as False after the operation,
+    an error is logged.
 
-    Returns:
-        None
+    Parameters
+    ----------
+    file_obj : BinaryIO
+        File-like object to close. Must implement `.close()` and
+        `.closed`.
+
+    Returns
+    -------
+    None
+        This function performs side effects (closing and logging) and
+        does not return a value.
+
+    Notes
+    -----
+    - Calls `check_for_signal()` before attempting I/O-related
+      operations.
+    - Uses `log_d` for debug messages and `log_e` for errors; these
+      globals are expected to be available.
+    - Exceptions raised by `.close()` are caught and logged; they are
+      not propagated.
     """
     check_for_signal()  # Check if a termination signal has been received
 
     if not file_obj.closed:
-        if DEBUG:
+        if UNSAFE_DEBUG:
             log_d(f'closing {file_obj}')
 
         try:
@@ -415,35 +745,41 @@ def close_file(file_obj: BinaryIO) -> None:
             log_e(f'{error}')
 
         if file_obj.closed:
-            if DEBUG:
+            if UNSAFE_DEBUG:
                 log_d(f'{file_obj} closed')
         else:
             log_e(f'file descriptor of {file_obj} NOT closed')
     else:
-        if DEBUG:
+        if UNSAFE_DEBUG:
             log_d(f'{file_obj} is already closed')
 
 
 def get_file_size(file_path: str) -> Optional[int]:
     """
-    Retrieve the size of a file or block device in bytes.
+    Get the size of a file or block device in bytes.
 
-    This function opens a file in binary read mode, seeks to the end,
-    and returns the position as the size. Unlike os.path.getsize(), it
-    works with block devices (e.g., /dev/sda) on Unix systems.
+    Opens the given path in binary read mode and seeks to the end to
+    obtain its size. Unlike os.path.getsize(), this method can work with
+    block devices on Unix systems by using seek on the device file.
 
-    Args:
-        file_path (str): Path to the file or block device.
+    Parameters
+    ----------
+    file_path : str
+        Path to the file or block device whose size is required.
 
-    Returns:
-        Optional[int]: File size in bytes if successful, None on error
-                       (e.g., permission denied, seek failure).
+    Returns
+    -------
+    Optional[int]
+        Size in bytes on success, or None on error (for example if the
+        file does not exist, permission is denied, or an I/O error
+        occurs).
 
-    Example:
-        >>> get_file_size("/dev/sda")  # Size of a block device
-        500107862016
-        >>> get_file_size("normal_file.txt")
-        1024
+    Notes
+    -----
+    - The function logs errors via `log_e` and returns None on failure.
+    - Uses a short-lived file descriptor and therefore does not keep the
+      file open.
+    - Relies on globals/helpers: `SEEK_END` and `log_e`.
     """
     try:
         with open(file_path, 'rb') as file_obj:
@@ -455,47 +791,44 @@ def get_file_size(file_path: str) -> Optional[int]:
         return None
 
 
-def seek_position(
-    file_obj: BinaryIO,
-    offset: int,
-    whence: int = SEEK_SET,
-) -> bool:
+def seek_position(file_obj: BinaryIO, offset: int) -> bool:
     """
-    Moves the file pointer to a specified position in a file.
+    Attempts to move the file pointer to the given byte offset using
+    file_obj.seek(offset). Returns True on success or False if an
+    OSError occurs during seek.
 
-    This function seeks to a new position in the file based on the
-    provided offset and whence parameters. It returns True if the
-    operation is successful, or False if an error occurs during the seek
-    operation.
+    Parameters
+    ----------
+    file_obj : BinaryIO
+        File-like object supporting seek() and tell().
+    offset : int
+        Byte offset to seek to. This function does not support a
+        `whence` parameter — the offset is passed directly to
+        file_obj.seek(offset).
 
-    Args:
-        file_obj (BinaryIO): The file object to seek within. It must be
-            opened in a mode that allows seeking.
-        offset (int): The number of bytes to move the file pointer from
-            the position specified by whence.
-        whence (int): The reference point for the offset. It must be one
-            of the following:
-            - SEEK_SET: Beginning of the file (default)
-            - SEEK_CUR: Current file position
+    Returns
+    -------
+    bool
+        True if the seek succeeded, False if an OSError occurred.
 
-    Returns:
-        bool: True if the seek operation was successful,
-              False otherwise.
+    Notes
+    -----
+    - When the global UNSAFE_DEBUG is truthy the function logs the
+      current and target positions via `log_d`. The call to
+      file_obj.tell() is made only when UNSAFE_DEBUG is enabled and may
+      itself raise an exception; that exception is not caught by this
+      function.
+    - Errors raised by file_obj.seek() that are instances of OSError
+      are logged via `log_e` and cause the function to return False.
+    - Other exceptions are not caught and will propagate to the caller.
+    - Relies on globals/helpers: `UNSAFE_DEBUG`, `log_d`, and `log_e`.
     """
-    if DEBUG:
+    if UNSAFE_DEBUG:
         current_pos: int = file_obj.tell()
-
-        if whence == SEEK_SET:
-            log_d(f'moving from position {current_pos:,} '
-                  f'to position {offset:,} in {file_obj}')
-
-        elif whence == SEEK_CUR:
-            next_pos: int = current_pos + offset
-            log_d(f'moving from position {current_pos:,} '
-                  f'to position {next_pos:,} in {file_obj}')
-
+        log_d(f'moving from position {current_pos:,} '
+              f'to position {offset:,} in {file_obj}')
     try:
-        file_obj.seek(offset, whence)
+        file_obj.seek(offset)
         return True
     except OSError as error:
         log_e(f'{error}')
@@ -504,31 +837,42 @@ def seek_position(
 
 def read_data(file_obj: BinaryIO, data_size: int) -> Optional[bytes]:
     """
-    Reads exactly `data_size` bytes from a file object.
+    Read exactly a specified number of bytes from a binary file object.
 
-    This function performs a strict read operation: it either reads the
-    exact     requested number of bytes or returns None
-    (unlike file_obj.read() which may return fewer bytes). Useful for
-    cryptographic operations where partial reads are unacceptable.
+    Performs a strict read: the function returns the requested number of
+    bytes or None on error or if EOF is reached before `data_size` bytes
+    are obtained. Useful where partial reads are unacceptable (e.g.,
+    cryptographic operations).
 
-    Args:
-        file_obj (BinaryIO): File object opened in binary mode (must
-                             support read() and seek/tell operations if
-                             DEBUG is enabled).
-        data_size (int): Exact number of bytes to read. Must be
-                         non-negative.
+    Parameters
+    ----------
+    file_obj : BinaryIO
+        Binary file-like object supporting read(); when UNSAFE_DEBUG is
+        enabled it should also support tell() (and optionally seek())
+        for position logging.
+    data_size : int
+        Number of bytes to read. Must be non-negative.
 
-    Returns:
-        Optional[bytes]: Bytes read (exactly `data_size` bytes) if
-                         successful, None if:
-                         - EOF reached before reading `data_size` bytes.
-                         - I/O error occurred.
-                         - DEBUG enabled and seek position changed
-                           unexpectedly.
+    Returns
+    -------
+    Optional[bytes]
+        The bytes read (exactly `data_size` bytes) on success, or None
+        if:
+        - EOF was reached before `data_size` bytes were read,
+        - an I/O error occurred, or
+        - UNSAFE_DEBUG checks detect an unexpected position change.
+
+    Notes
+    -----
+    - The function calls `check_for_signal()` before performing I/O.
+    - Errors are logged via `log_e`; progress/debug information is
+      logged via `log_d` when `UNSAFE_DEBUG` is true.
+    - Relies on globals/helpers: `check_for_signal`, `UNSAFE_DEBUG`,
+      `log_e`, `log_d`, and `format_size`.
     """
     check_for_signal()  # Check if a termination signal has been received
 
-    if DEBUG:
+    if UNSAFE_DEBUG:
         start_pos: int = file_obj.tell()
 
     try:
@@ -542,7 +886,7 @@ def read_data(file_obj: BinaryIO, data_size: int) -> Optional[bytes]:
               f'expected ({data_size:,} B)')
         return None
 
-    if DEBUG:
+    if UNSAFE_DEBUG:
         end_pos: int = file_obj.tell()
         log_d(f'read {format_size(end_pos - start_pos)} from {file_obj}; '
               f'position moved from {start_pos:,} to {end_pos:,}')
@@ -550,185 +894,221 @@ def read_data(file_obj: BinaryIO, data_size: int) -> Optional[bytes]:
     return data
 
 
-def write_data(data: bytes) -> bool:
+def write_data(data: bytes, ad: ActData) -> ActData:
     """
-    Writes binary data to the global output file (BIO_D['OUT']) with
-    error handling.
+    Write binary data to the active output file and update progress
+    state.
 
-    This function performs a single atomic write operation to the
-    pre-opened output file stored in the global BIO_D dictionary. It is
-    designed for reliability in cryptographic operations where partial
-    writes must be avoided. The function also updates the cumulative
-    written data sum and logs overall progress based on the total
-    progress of the writing operation.
+    Performs a single write() call on the provided action data's output
+    file object, updates cumulative written byte counters, and
+    records/logs progress. Any OSError during writing is logged, sets
+    the action data's error flag, and causes an early return. Signal
+    checks and optional debug position logging are performed.
 
-    Args:
-        data (bytes): Binary data to write.
+    Parameters
+    ----------
+    data : bytes
+        Binary data to write to the output file.
+    ad : ActData
+        Action data structure containing at least:
+        - out_file_obj: a binary file-like object opened for writing
+          with tell() and write() support.
+        - written_sum: integer counter of total bytes written (will be
+          incremented by len(data)).
+        - err: boolean flag to mark an error condition.
+        Other fields used: any fields read/updated by
+        `log_progress_if_time_elapsed`.
 
-    Returns:
-        bool: True if all bytes were successfully written, False if:
-              - An OS-level write error occurred (e.g., disk full,
-                permission denied, etc.).
-              - The file object is not properly initialized in
-                BIO_D['OUT'].
-              - DEBUG enabled and position tracking fails.
-
-    Side Effects:
-        - Advances the file position by len(data) bytes on success.
-        - Updates INT_D['written_sum'] to keep track of the cumulative
-          number of bytes written.
-        - Logs the current progress of the writing operation via
-          log_progress_if_time_elapsed().
-        - In DEBUG mode, logs the file position before and after the
-          write for position validation.
-
-    Notes:
-        - For proper error recovery, the caller should close or remove
-          the output file if False is returned.
-        - Does NOT perform fsync() - use fsync_written_data() for
-          persistence guarantees.
-        - DEBUG mode adds position validation but doesn't affect write
-          atomicity.
-    """
-    check_for_signal()  # Check if a termination signal has been received
-
-    file_obj: BinaryIO = BIO_D['OUT']
-
-    if DEBUG:
-        start_pos: int = file_obj.tell()
-
-    try:
-        file_obj.write(data)
-    except OSError as error:
-        log_e(f'{error}')
-        return False
-
-    if DEBUG:
-        end_pos: int = file_obj.tell()
-        log_d(f'written {format_size(end_pos - start_pos)} to {file_obj}; '
-              f'position moved from {start_pos:,} to {end_pos:,}')
-
-    INT_D['written_sum'] += len(data)
-
-    log_progress_if_time_elapsed()
-
-    return True
-
-
-def fsync_written_data() -> bool:
-    """
-    Flushes the global output file buffer and synchronizes to disk.
-
-    Flushes the output buffer of the file associated with the global
-    `BIO_D['OUT']` and synchronizes its state to disk using the `fsync`
-    method.
-
-    Returns:
-        bool: True if flushed and synchronized successfully,
-              False otherwise.
-    """
-    check_for_signal()  # Check if a termination signal has been received
-
-    try:
-        # Get the output file object from the global `BIO_D` dictionary
-        file_obj: BinaryIO = BIO_D['OUT']
-
-        # Flush the output buffer
-        file_obj.flush()
-
-        # Synchronize the file to disk
-        fsync(file_obj.fileno())
-    except OSError as error:
-        log_e(f'{error}')
-        return False
-
-    if DEBUG:
-        log_d(f'fsynced {file_obj}')
-
-    return True
-
-
-def truncate_output_file() -> None:
-    """
-    Truncate the output file to zero bytes and clear the active
-    file-handler flag.
-
-    Preconditions
-
-    BIO_D['OUT'] contains a valid file-like object implementing
-    BinaryIO with fileno().
-
-    Behavior
-
-    - Flushes the file object and calls ftruncate() on its file
-      descriptor to set its length to 0 bytes.
-    - Does not close the file; closing must be done separately by the
-      caller.
-    - Logs success with log_i(...) or errors with log_e(...).
-
-    Side effects
-
-    - Removes the 'file_handler_started' key from ANY_D if present,
-      indicating no file write is currently in progress.
+    Returns
+    -------
+    ActData
+        The (possibly modified) action data object. On error `ad.err`
+        will be set True; on success `ad.written_sum` is increased and
+        progress may be logged.
 
     Notes
-
-    - Designed for use outside of signal handlers (performs
-      non-signal-safe operations).
-    - Any exceptions during flush or ftruncate are caught and logged;
-      the function does not re-raise them.
+    -----
+    - The function calls `check_for_signal()` before performing IO.
+    - It does not fsync; use `fsync_written_data()` for durability
+      guarantees.
+    - In UNSAFE_DEBUG mode the function logs the file position before
+      and after the write using `log_d` and `format_size`.
+    - Relies on helpers/globals: `check_for_signal`, `UNSAFE_DEBUG`,
+      `log_e`, `log_d`, `format_size`, and
+      `log_progress_if_time_elapsed`.
+    - The caller should handle recovery (close/remove file) if an error
+      is indicated by `ad.err`.
     """
-    out_file_obj: BinaryIO = BIO_D['OUT']
+    check_for_signal()  # Check if a termination signal has been received
 
-    if DEBUG:
+    if UNSAFE_DEBUG:
+        start_pos: int = ad.out_file_obj.tell()
+
+    try:
+        ad.out_file_obj.write(data)
+    except OSError as error:
+        log_e(f'{error}')
+        ad.err = True
+        return ad
+
+    if UNSAFE_DEBUG:
+        end_pos: int = ad.out_file_obj.tell()
+        log_d(f'written {format_size(end_pos - start_pos)} to '
+              f'{ad.out_file_obj}; position moved '
+              f'from {start_pos:,} to {end_pos:,}')
+
+    ad.written_sum += len(data)
+
+    ad = log_progress_if_time_elapsed(ad)
+
+    return ad
+
+
+def fsync_written_data(ad: ActData) -> bool:
+    """
+    Flush the output file buffer and synchronize written data to disk.
+
+    Calls flush() on the provided output file object then performs a
+    filesystem sync on its file descriptor. A prior call to
+    check_for_signal() ensures pending termination requests are observed
+    before attempting IO.
+
+    Parameters
+    ----------
+    ad : ActData
+        Action data containing `out_file_obj`, a binary file-like object
+        with a valid fileno() method.
+
+    Returns
+    -------
+    bool
+        True if the buffer was flushed and fsync completed successfully;
+        False if an OSError occurred during flushing or syncing.
+
+    Notes
+    -----
+    - The function logs errors via `log_e` and debug information via
+      `log_d` when `UNSAFE_DEBUG` is true.
+    - Relies on helpers/globals: `check_for_signal`, `fsync`,
+      `UNSAFE_DEBUG`, and logging helpers.
+    - Exceptions other than OSError are not explicitly handled and will
+      propagate.
+    """
+    check_for_signal()  # Check if a termination signal has been received
+
+    try:
+        # Flush the output buffer
+        ad.out_file_obj.flush()
+
+        # Synchronize the file to disk
+        fsync(ad.out_file_obj.fileno())
+    except OSError as error:
+        log_e(f'{error}')
+        return False
+
+    if UNSAFE_DEBUG:
+        log_d(f'fsynced {ad.out_file_obj}')
+
+    return True
+
+
+def truncate_output_file(ad: ActData) -> None:
+    """
+    Truncate the current output file to zero bytes and clear the module
+    signal flag that references the file object.
+
+    Flushes the provided binary file-like object and truncates its
+    underlying file descriptor to length zero. The file object itself is
+    not closed; the caller remains responsible for closing it. After the
+    attempt to truncate, the function unconditionally clears the module
+    flag `file_obj_to_truncate_by_signal`.
+
+    Parameters
+    ----------
+    ad : ActData
+        Action data containing `out_file_obj`, a binary file-like object
+        with a working fileno() method.
+
+    Returns
+    -------
+    None
+        Performs side effects (flush, ftruncate, module-level mutation)
+        and does not return a value.
+
+    Behavior and error handling
+    ---------------------------
+    - If `UNSAFE_DEBUG` is true, a debug message is logged before
+      truncation.
+    - Attempts to flush `ad.out_file_obj` and then truncate its
+      underlying file descriptor via `ftruncate(fileno, 0)`.
+    - Any exceptions raised during flush or ftruncate are caught and
+      logged with `log_e`; exceptions are not propagated.
+    - On success, an informational message is logged with `log_i`.
+    - The module-level reference `file_obj_to_truncate_by_signal` is
+      cleared (set to None) unconditionally at function exit.
+
+    Concurrency and safety
+    ----------------------
+    - This function performs non-signal-safe operations (flush, file
+      I/O). It must not be called directly from a signal handler.
+    - It relies on the following module-level names being defined:
+      `ftruncate`, `UNSAFE_DEBUG`, `log_d`, `log_i`, and `log_e`.
+    """
+    if UNSAFE_DEBUG:
         log_d('truncating output file')
 
     try:
-        out_file_obj.flush()
-        ftruncate(out_file_obj.fileno(), 0)
+        ad.out_file_obj.flush()
+        ftruncate(ad.out_file_obj.fileno(), 0)
         log_i('output file truncated to 0')
     except Exception as truncate_error:
         log_e(f'cannot truncate output file: {truncate_error}')
 
-    if 'file_handler_started' in ANY_D:
-        del ANY_D['file_handler_started']
+    global file_obj_to_truncate_by_signal
+    file_obj_to_truncate_by_signal = None
 
 
-def remove_output_path(action: ActionID) -> None:
+def remove_output_path(ad: ActData) -> None:
     """
-    Remove the output file on disk after closing the file object and
-    obtaining explicit user confirmation.
+    Close the current output file and optionally remove its path from
+    disk.
 
-    Behavior:
-      - Close the global output file object stored at BIO_D['OUT'].
-      - Prompt the user (via proceed_request) to confirm removal.
-      - If confirmed, attempt to remove the file at the closed file
-        object's path and log success or failure.
-      - If not confirmed, leave the file in place and log that no
-        removal occurred.
+    The function always closes the open output file object stored on the
+    provided action data, then asks the user for confirmation (via
+    `proceed_request`) before attempting to remove the file from the
+    file system. Removal errors are logged and do not propagate.
 
-    Args:
-        action (ActionID): Action identifier used for logging and passed
-                           to the confirmation prompt.
+    Parameters
+    ----------
+    ad : ActData
+        Action data structure containing at least the attribute
+        `out_file_obj` (a file-like object with a `.name` attribute).
 
-    Returns:
-        None
+    Returns
+    -------
+    None
+        This function performs side effects (closing and possibly
+        removing a file) and does not return a value.
 
-    Notes:
-      - The function always attempts to close BIO_D['OUT'] before
-        prompting.
-      - Removal errors are caught and logged; they do not raise out of
-        this function.
-      - Logging is performed for debug, info, and error conditions.
+    Notes
+    -----
+    - The function calls `close_file` on `ad.out_file_obj` before
+      prompting.
+    - Confirmation is performed by `proceed_request(PROCEED_REMOVE,
+      ad)`.
+    - If removal is attempted, success and failures are logged with
+      `log_i` and `log_e` respectively; debug information may be logged
+      when `UNSAFE_DEBUG` is true.
+    - Removal exceptions are caught and logged; they are not re-raised.
+    - Depends on globals/helpers: `close_file`, `proceed_request`,
+      `remove`, `log_i`, `log_e`, `log_d`, and `UNSAFE_DEBUG`.
     """
-    out_file_obj: BinaryIO = BIO_D['OUT']
+    out_file_name: str = ad.out_file_obj.name
 
-    out_file_name: str = out_file_obj.name
+    close_file(ad.out_file_obj)
 
-    close_file(BIO_D['OUT'])
-
-    if proceed_request(PROCEED_REMOVE, action):
-        if DEBUG:
+    if proceed_request(proceed_type=PROCEED_REMOVE, ad=ad):
+        if UNSAFE_DEBUG:
             log_d(f'removing path {out_file_name!r}')
 
         try:
@@ -746,14 +1126,27 @@ def remove_output_path(action: ActionID) -> None:
 
 def no_eof_input(prompt: str) -> str:
     """
-    Prompts the user for input until a valid response is received.
-    If an EOFError is encountered, it logs the error and prompts again.
+    Prompt for user input and retry on EOF.
 
-    Args:
-        prompt (str): The message to display to the user.
+    Repeatedly calls built-in input() with the given prompt until a
+    non-EOF response is received. If an EOFError occurs, a newline is
+    printed and an error is logged before retrying.
 
-    Returns:
-        str: The user input.
+    Parameters
+    ----------
+    prompt : str
+        The message displayed to the user.
+
+    Returns
+    -------
+    str
+        The line of text entered by the user.
+
+    Notes
+    -----
+    - On EOFError the function prints a newline and logs an error using
+      `log_e`, then continues prompting.
+    - Depends on the global `log_e`.
     """
     while True:
         try:
@@ -767,16 +1160,26 @@ def no_eof_input(prompt: str) -> str:
 
 def no_eof_getpass(prompt: str) -> str:
     """
-    Prompts the user for a passphrase input until a valid response is
-    received. If an EOFError is encountered, it logs the error and
-    prompts again.
+    Prompt for a passphrase and retry on EOF.
 
-    Args:
-        prompt (str): The message to display to the user when asking for
-                      the passphrase.
+    Repeatedly prompts the user using getpass() until a non-EOF response
+    is received. If an EOFError occurs, a newline is printed, an error
+    is logged, and the prompt is retried.
 
-    Returns:
-        str: The user input (passphrase).
+    Parameters
+    ----------
+    prompt : str
+        Message shown to the user when asking for the passphrase.
+
+    Returns
+    -------
+    str
+        The passphrase entered by the user.
+
+    Notes
+    -----
+    - On EOFError the function logs an error and continues prompting.
+    - Relies on helper functions/loggers: getpass, log_e.
     """
     while True:
         try:
@@ -791,17 +1194,31 @@ def no_eof_getpass(prompt: str) -> str:
 
 def select_action() -> ActionID:
     """
-    Prompts the user to select an action from a predefined menu.
+    Prompt the user to select an action from the application menu.
 
-    Displays a menu of available actions and their descriptions, as
-    defined in the global ACTIONS dictionary. The function uses a loop
-    to continuously ask for input until a valid response is given. If
-    the user enters an invalid value, an error message is displayed and
-    the user is prompted again.
+    Repeatedly displays the menu (APP_MENU) and reads user input until a
+    valid menu key is entered. When a valid selection is made the
+    corresponding action description is logged and the ActionID value is
+    returned.
 
-    Returns:
-        ActionID: The selected action number (0-9), which corresponds to
-                  a valid action in the ACTIONS dictionary.
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    ActionID
+        The selected action identifier corresponding to a valid entry in
+        the global ACTIONS mapping.
+
+    Notes
+    -----
+    - Expects a global mapping `ACTIONS` where keys are the user-entered
+      menu strings and values are tuples of (ActionID, description).
+    - Uses helper globals/functions: APP_MENU, no_eof_input, ACTIONS,
+      log_i, log_e.
+    - Invalid selections cause an error message to be logged and the
+      prompt to repeat.
     """
     error_message: str = 'invalid value; please select a valid option [0-9]'
 
@@ -830,28 +1247,49 @@ def select_action() -> ActionID:
 
 def get_input_file(action: ActionID) -> tuple[str, int, BinaryIO]:
     """
-    Prompts the user for an input file based on the specified action.
+    Prompt for an input file appropriate to the given action and
+    validate it.
 
-    Determines the type of input file required based on the provided
-    action, using global formatting variables. Prompts the user to enter
-    the file path, validates the input, and returns the file path, its
-    size, and the file object.
+    Selects a prompt based on the action, asks the user for a file path,
+    validates existence and size, and opens the file in binary read
+    mode. For optional input actions (ENCRYPT, ENCRYPT_EMBED) an empty
+    response returns an empty path, zero size and an in-memory BytesIO
+    object.
 
-    Args:
-        action (ActionID): Action determining the type of input file.
+    Parameters
+    ----------
+    action : ActionID
+        Action determining required input type. Expected values include
+        ENCRYPT, DECRYPT, EMBED, EXTRACT, ENCRYPT_EMBED,
+        EXTRACT_DECRYPT.
 
-    Returns:
-        tuple: Input file path, size, and file object.
+    Returns
+    -------
+    tuple[str, int, BinaryIO]
+        - in_file_path: The validated input file path (empty string for
+          optional empty input when allowed).
+        - in_file_size: Size of the input file in bytes (0 for empty
+          optional input).
+        - in_file_obj: Open file object in 'rb' mode, or a BytesIO for
+          empty optional input.
+
+    Notes
+    -----
+    - The function loops until a valid file is provided or an allowable
+      empty input is returned.
+    - Relies on helper functions and globals: no_eof_input,
+      get_file_size, open_file, log_e, log_d, UNSAFE_DEBUG, BOL, RES,
+      BytesIO, and path.realpath.
     """
 
     # Dictionary mapping actions to corresponding prompt messages
     action_prompts: dict[ActionID, str] = {
-        ENCRYPT: 'File to encrypt (opt)',
-        DECRYPT: 'File to decrypt',
-        EMBED: 'File to embed',
-        EXTRACT: 'Container',
-        ENCRYPT_EMBED: 'File to encrypt and embed (opt)',
-        EXTRACT_DECRYPT: 'Container',
+        ENCRYPT: 'FILE TO ENCRYPT (OPT)',
+        DECRYPT: 'FILE TO DECRYPT',
+        EMBED: 'FILE TO EMBED',
+        EXTRACT: 'CONTAINER',
+        ENCRYPT_EMBED: 'FILE TO ENCRYPT AND EMBED (OPT)',
+        EXTRACT_DECRYPT: 'CONTAINER',
     }
 
     # Get the prompt message based on the action provided
@@ -871,8 +1309,8 @@ def get_input_file(action: ActionID) -> tuple[str, int, BinaryIO]:
             log_e('input file path not specified')
             continue  # Prompt the user again
 
-        # Log the real path if in DEBUG mode
-        if DEBUG:
+        # Log the real path if in UNSAFE_DEBUG mode
+        if UNSAFE_DEBUG:
             log_d(f'real path: {path.realpath(in_file_path)!r}')
 
         # Get the size of the input file
@@ -893,41 +1331,73 @@ def get_input_file(action: ActionID) -> tuple[str, int, BinaryIO]:
 
 def get_raw_comments(basename: str) -> str:
     """
-    Prompts the user for comments and returns the input.
+    Prompt the user for comments and return the entered string.
 
-    Returns:
-        str: The comments entered by the user. May be an empty string.
+    Prompts the user with a default hint showing the provided basename
+    and returns whatever the user enters (may be an empty string).
+
+    Parameters
+    ----------
+    basename : str
+        Basename shown in the prompt as the default comment hint.
+
+    Returns
+    -------
+    str
+        The comments entered by the user (possibly empty).
+
+    Notes
+    -----
+    - Uses the helper `no_eof_input` and global formatting variables
+      `BOL` and `RES` to build the prompt.
     """
     return no_eof_input(
-        f"{BOL}D2. Comments (default='{basename}'):{RES} ")
+        f"{BOL}D2. COMMENTS (DEFAULT='{basename}'):{RES} ")
 
 
 def get_output_file_new(action: ActionID) -> tuple[str, BinaryIO]:
     """
-    Prompts the user for a new output file path and creates the file.
+    Prompt for a new output file path, create the file, and (optionally)
+    set permissions.
 
-    Determines the prompt based on the provided action, using global
-    formatting variables. Prompts the user to enter the file path,
-    validates the input, creates the file in exclusive-creation mode,
-    and sets restrictive file permissions for actions ENCRYPT and
-    CREATE_W_RANDOM. Failure to change permissions is logged but
-    does not cause the function to fail.
+    Prompt wording is chosen based on the provided action. The function
+    repeatedly asks the user for a path, attempts to create the file
+    using exclusive-creation mode ('xb') to avoid overwriting existing
+    files, logs the real path in debug mode, and for certain actions
+    attempts to set restrictive permissions (0o600). Failure to set
+    permissions is logged as a warning and does not cause failure.
 
-    Args:
-        action (ActionID): Action being performed (ENCRYPT, DECRYPT,
-                           EXTRACT, EXTRACT_DECRYPT, or CREATE_W_RANDOM).
+    Parameters
+    ----------
+    action : ActionID
+        Action being performed which influences prompt wording and
+        permission handling. Examples include ENCRYPT, DECRYPT, EXTRACT,
+        EXTRACT_DECRYPT, CREATE_W_RANDOM.
 
-    Returns:
-        tuple: (output file path, file object).
+    Returns
+    -------
+    tuple[str, BinaryIO]
+        - out_file_path: The created output file path (as entered).
+        - out_file_obj: Open file object created with mode 'xb'.
+
+    Notes
+    -----
+    - The function loops until a new file is successfully created or the
+      process is interrupted.
+    - For actions ENCRYPT and CREATE_W_RANDOM, the function attempts to
+      set restrictive file permissions (owner read/write only).
+      Permission-setting errors are logged but do not raise.
+    - Relies on helper functions and globals such as no_eof_input,
+      open_file, log_e, log_w, log_d, UNSAFE_DEBUG, BOL, RES, chmod.
     """
 
     # Determine the prompt message based on the action provided
     if action == ENCRYPT:
-        prompt_message: str = 'Output (encrypted) file'
+        prompt_message: str = 'OUTPUT (ENCRYPTED) FILE'
     elif action in (DECRYPT, EXTRACT_DECRYPT):
-        prompt_message = 'Output (decrypted) file'
+        prompt_message = 'OUTPUT (DECRYPTED) FILE'
     else:  # For actions EXTRACT and CREATE_W_RANDOM
-        prompt_message = 'Output file'
+        prompt_message = 'OUTPUT FILE'
 
     # Start an infinite loop to get a valid output file path
     while True:
@@ -945,8 +1415,8 @@ def get_output_file_new(action: ActionID) -> tuple[str, BinaryIO]:
         # Check if the file object was created successfully
         if out_file_obj is not None:
 
-            # Log the real path if in DEBUG mode
-            if DEBUG:
+            # Log the real path if in UNSAFE_DEBUG mode
+            if UNSAFE_DEBUG:
                 log_d(f'real path: {path.realpath(out_file_path)!r}')
 
             # Set restrictive permissions for new random-looking files:
@@ -968,28 +1438,51 @@ def get_output_file_exist(
     action: ActionID,
 ) -> tuple[str, int, BinaryIO]:
     """
-    Prompts the user for an existing output file path and ensures
-    it meets criteria.
+    Prompt for an existing output file path and validate it.
 
-    Determines the prompt based on the provided action, using global
-    formatting variables. Prompts the user to enter the file path,
-    validates the input, and returns the file path, its size, and the
-    file object.
+    Prompts the user for an output file path (to overwrite), validates
+    that the path is not empty, is not the same real path as the input
+    file, exists, meets a minimum size, and can be opened for binary
+    read/write. The prompt wording changes slightly depending on the
+    provided action.
 
-    Args:
-        in_file_path (str): Input file path.
-        min_out_size (int): Minimum required output file size in bytes.
-        action (ActionID): Action type.
+    Parameters
+    ----------
+    in_file_path : str
+        Path to the input file; used to prevent selecting the same real
+        path for input and output.
+    min_out_size : int
+        Minimum required output file size in bytes.
+    action : ActionID
+        Action type that determines prompt wording (for example EMBED,
+        ENCRYPT_EMBED, or OVERWRITE_W_RANDOM).
 
-    Returns:
-        tuple: Output file path, size, and file object.
+    Returns
+    -------
+    tuple[str, int, BinaryIO]
+        A tuple containing:
+        - out_file_path (str): The validated output file path (as
+            entered).
+        - out_file_size (int): Size of the output file in bytes.
+        - out_file_obj (BinaryIO): Open file object opened in 'rb+'
+            mode.
+
+    Notes
+    -----
+    - The function loops until a valid output file is provided or the
+      program is otherwise interrupted.
+    - If the real path of the provided output file equals the real path
+      of in_file_path, the selection is rejected.
+    - The function relies on helper functions and globals such as
+      no_eof_input, get_file_size, open_file, log_e, log_d,
+      UNSAFE_DEBUG, BOL, RES, EMBED, ENCRYPT_EMBED.
     """
 
     # Determine the prompt message based on the action provided
     if action in (EMBED, ENCRYPT_EMBED):
-        prompt_message: str = 'File to overwrite (container)'
+        prompt_message: str = 'FILE TO OVERWRITE (CONTAINER)'
     else:  # For action OVERWRITE_W_RANDOM
-        prompt_message = 'File to overwrite'
+        prompt_message = 'FILE TO OVERWRITE'
 
     # Start an infinite loop to get a valid output file path
     while True:
@@ -1007,8 +1500,8 @@ def get_output_file_exist(
             log_e('input and output files must not be at the same real path')
             continue
 
-        # Log the real path if in DEBUG mode
-        if DEBUG:
+        # Log the real path if in UNSAFE_DEBUG mode
+        if UNSAFE_DEBUG:
             log_d(f'real path: {path.realpath(out_file_path)!r}')
 
         # Get the size of the output file
@@ -1036,22 +1529,28 @@ def get_output_file_exist(
 
 def get_output_file_size() -> int:
     """
-    Prompts the user to enter the desired output file size in bytes and
-    returns the value as an integer.
+    Prompt the user for a desired output file size (bytes) and return
+    it.
 
-    The function repeatedly prompts the user until a valid input is
-    provided. A valid input is defined as a non-empty string that can be
-    converted to a non-negative integer within the valid range. If the
-    user enters an empty string, a negative value, a non-integer value,
-    or a value that exceeds the upper limit, the function logs an error
-    message and prompts the user again. The valid range for the output
-    file size is from 0 to RAND_OUT_FILE_SIZE_LIMIT (inclusive).
+    Returns
+    -------
+    int
+        Desired output file size in bytes
+        (0 <= value <= RAND_OUT_FILE_SIZE_LIMIT).
 
-    Returns:
-        int: The output file size in bytes, as a non-negative integer
-        within the range [0; RAND_OUT_FILE_SIZE_LIMIT].
+    Notes
+    -----
+    - Prompts the user with: `D4. OUTPUT FILE SIZE IN BYTES:`.
+    - Re-prompts until a non-empty integer within the inclusive range
+      [0, RAND_OUT_FILE_SIZE_LIMIT] is entered.
+    - Logs an error via `log_e()` for empty, non-integer, negative, or
+      out-of-range input.
+    - Uses `no_eof_input()` for interactive input and may block waiting
+      for user input.
+    - Requires the constant `RAND_OUT_FILE_SIZE_LIMIT` and the logging
+      helper `log_e`.
     """
-    prompt_message: str = f'{BOL}D4. Output file size in bytes:{RES} '
+    prompt_message: str = f'{BOL}D4. OUTPUT FILE SIZE IN BYTES:{RES} '
 
     error_message: str = f'invalid value; must be an integer from ' \
         f'the range [0; {RAND_OUT_FILE_SIZE_LIMIT}]'
@@ -1084,27 +1583,39 @@ def get_output_file_size() -> int:
 
 def get_start_position(max_start_pos: int, no_default: bool) -> int:
     """
-    Prompts the user for a start position within a specified range.
+    Prompt the user for a start position within [0, max_start_pos].
 
-    Repeatedly asks the user for a start position until a valid integer
-    within the range [0; max_start_pos] is provided, using global
-    formatting variables. If no_default is False, the user can leave the
-    input blank to use a default value of 0. The valid range for the
-    start position is from 0 to max_start_pos.
+    Parameters
+    ----------
+    max_start_pos : int
+        Maximum allowed start position (inclusive).
+    no_default : bool
+        If True, the user must enter a value. If False, an empty input
+        selects the default value 0.
 
-    Args:
-        max_start_pos (int): Maximum valid start position.
-        no_default (bool): If True, the user must provide a start
-                           position.
+    Returns
+    -------
+    int
+        Validated start position (0 <= start_pos <= max_start_pos).
 
-    Returns:
-        int: A valid start position within the specified range.
+    Notes
+    -----
+    - Prompts:
+      - When `no_default` is True:
+        `D5. START POSITION [0; {max_start_pos}]:`
+      - When `no_default` is False:
+        `D5. START POSITION [0; {max_start_pos}], default=0:`
+    - Re-prompts on non-integer input or values outside the inclusive
+      range.
+    - Uses `no_eof_input()` for interactive input and logs errors via
+      `log_e`.
+    - Function blocks waiting for user input.
     """
     prompt_message_no_default: str = \
-        f'{BOL}D5. Start position [0; {max_start_pos}]:{RES} '
+        f'{BOL}D5. START POSITION [0; {max_start_pos}]:{RES} '
 
     prompt_message_default: str = \
-        f'{BOL}D5. Start position [0; {max_start_pos}], default=0:{RES} '
+        f'{BOL}D5. START POSITION [0; {max_start_pos}], DEFAULT=0:{RES} '
 
     error_message: str = f'invalid value; must be an integer ' \
         f'from the range [0; {max_start_pos}]'
@@ -1142,28 +1653,42 @@ def get_start_position(max_start_pos: int, no_default: bool) -> int:
 
 def get_end_position(min_pos: int, max_pos: int, no_default: bool) -> int:
     """
-    Prompts the user for an end position within a specified range.
+    Prompt the user for an end position within a specified inclusive
+    range.
 
-    Repeatedly asks the user for an end position until a valid integer
-    within the range [min_pos; max_pos] is provided, using global
-    formatting variables. If no_default is False, the user can leave the
-    input blank to use a default value of max_pos. The valid range for
-    the end position is from min_pos to max_pos.
+    Parameters
+    ----------
+    min_pos : int
+        Minimum valid end position.
+    max_pos : int
+        Maximum valid end position.
+    no_default : bool
+        If True, the user must provide a value. If False, an empty input
+        selects the default value `max_pos`.
 
-    Args:
-        min_pos (int): Minimum valid end position.
-        max_pos (int): Maximum valid end position.
-        no_default (bool): If True, the user must provide an end
-                           position.
+    Returns
+    -------
+    int
+        A valid end position within the range [min_pos, max_pos].
 
-    Returns:
-        int: A valid end position within the specified range.
+    Notes
+    -----
+    - Prompts with either:
+      - `D6. END POSITION [min_pos; max_pos]:` when `no_default` is
+        True, or
+      - `D6. END POSITION [min_pos; max_pos], default=max_pos:` when
+        False.
+    - Re-prompts on non-integer input or values outside the inclusive
+      range.
+    - Uses `no_eof_input()` for interactive input and logs errors via
+      `log_e`.
+    - Function blocks waiting for user input.
     """
-    prompt_message_no_default: str = f'{BOL}D6. End position [{min_pos}; ' \
+    prompt_message_no_default: str = f'{BOL}D6. END POSITION [{min_pos}; ' \
         f'{max_pos}]:{RES} '
 
-    prompt_message_default: str = f'{BOL}D6. End position [{min_pos}; ' \
-        f'{max_pos}], default={max_pos}:{RES} '
+    prompt_message_default: str = f'{BOL}D6. END POSITION [{min_pos}; ' \
+        f'{max_pos}], DEFAULT={max_pos}:{RES} '
 
     error_message: str = f'invalid value; must be an integer from ' \
         f'the range [{min_pos}; {max_pos}]'
@@ -1195,50 +1720,60 @@ def get_end_position(min_pos: int, max_pos: int, no_default: bool) -> int:
         return end_pos
 
 
-def collect_and_handle_ikm(action: ActionID) -> list[bytes]:
+def collect_and_handle_ikm(
+    action: ActionID,
+    blake2_salt: bytes,
+) -> list[bytes]:
     """
-    Collects input keying material (keyfiles and passphrases) and
-    returns a list of their digests.
+    Collect input keying material (keyfiles and passphrases) and return
+    their digests.
 
-    Asks the user to input paths to keyfiles and optional passphrases,
-    using global formatting variables. Validates the existence of the
-    keyfiles and computes their digests. The user can enter multiple
-    keyfiles and passphrases, and the function will return a list
-    containing the digests of all accepted keyfiles and passphrases.
+    Parameters
+    ----------
+    action : ActionID
+        Action identifier that determines context (e.g., ENCRYPT,
+        DECRYPT).
+    blake2_salt : bytes
+        Salt value passed to BLAKE2b when hashing keyfiles and
+        passphrases.
 
-    Keyfile paths can be individual files or directories. If a directory
-    is provided, the function will attempt to gather all valid keyfiles
-    within that directory. If a passphrase is entered, the user must
-    confirm it by entering it again.
+    Returns
+    -------
+    list[bytes]
+        List of digests (bytes) corresponding to accepted keyfiles
+        and/or
+        passphrases. May be empty. The function never raises; it logs
+        errors and skips invalid inputs.
 
-    If it is impossible to handle at least one file from the directory,
-    then all files from the specified keyfile path are ignored.
-
-    Passphrase handling involves the following steps:
-    1. The user is prompted to enter a passphrase. This input is
-       optional.
-    2. If a passphrase is provided, the user is required to confirm it
-       by entering it a second time.
-    3. Both the original and confirmed passphrases are normalized,
-       encoded, and truncated as necessary to ensure consistency and
-       security.
-    4. The function compares the two passphrases using a secure
-       comparison method to prevent timing attacks.
-    5. If the passphrases match, a digest of the passphrase is computed
-       and added to the list of digests. If they do not match, an error
-       message is logged, and the passphrase is not accepted.
-
-    Args:
-        action (ActionID): The action identifier that determines the
-                           context in which the keying material is being
-                           collected.
-
-    Returns:
-        list: A list of digests (bytes) corresponding to the accepted
-              keyfiles and passphrases. The list may be empty if no
-              valid keyfiles or passphrases were provided.
+    Notes
+    -----
+    - Prompts the user for zero or more keyfile paths (interactive). For
+      each:
+      - If the path is a file, computes its digest via
+        `get_keyfile_digest`.
+      - If the path is a directory, recursively scans and hashes files
+        via `get_keyfile_digest_list`; if that helper fails the
+        directory is rejected.
+      - On success, appends resulting digest(s) to the returned list and
+        logs acceptance.
+    - Prompts the user for an optional passphrase (interactive). If
+      provided:
+      - Asks for confirmation and normalizes/encodes both entries using
+        `handle_raw_passphrase`.
+      - Compares encoded values with `compare_digest` to avoid timing
+        leaks.
+      - If they match, computes the passphrase digest via
+        `get_passphrase_digest` and appends it to the returned list.
+    - Logs verbose debug information when `UNSAFE_DEBUG` is enabled.
+    - If no keying material is collected and `action` is an encryption
+      action (`ENCRYPT` or `ENCRYPT_EMBED`), a warning is logged.
+    - Requires helpers/constants: `no_eof_input`, `no_eof_getpass`,
+      `path.exists`, `path.isdir`, `get_keyfile_digest`,
+      `get_keyfile_digest_list`, `handle_raw_passphrase`,
+      `get_passphrase_digest`, `compare_digest`, and logging functions
+      `log_i`, `log_w`, `log_d`, `log_e`, plus `UNSAFE_DEBUG`.
     """
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d('collecting IKM')
 
     # List to store the digests of keying material
@@ -1250,7 +1785,7 @@ def collect_and_handle_ikm(action: ActionID) -> list[bytes]:
     while True:
         # Prompt for the keyfile path
         keyfile_path: str = \
-            no_eof_input(f'{BOL}K1. Keyfile path (opt):{RES} ')
+            no_eof_input(f'{BOL}K1. KEYFILE PATH (OPT):{RES} ')
 
         if not keyfile_path:
             break  # Exit the loop if the user does not enter a path
@@ -1261,7 +1796,7 @@ def collect_and_handle_ikm(action: ActionID) -> list[bytes]:
             log_e('keyfile NOT accepted')
             continue
 
-        if DEBUG:
+        if UNSAFE_DEBUG:
             log_d(f'real path: {path.realpath(keyfile_path)!r}')
 
         # Handle existing path (directory or individual file)
@@ -1270,8 +1805,10 @@ def collect_and_handle_ikm(action: ActionID) -> list[bytes]:
         if path.isdir(keyfile_path):
             # If the path is a directory, get the digests of all keyfiles
             # within it
-            digest_list: Optional[list[bytes]] = \
-                get_keyfile_digest_list(keyfile_path)
+            digest_list: Optional[list[bytes]] = get_keyfile_digest_list(
+                directory_path=keyfile_path,
+                blake2_salt=blake2_salt,
+            )
 
             if digest_list is None:
                 log_e('keyfiles NOT accepted')
@@ -1285,7 +1822,10 @@ def collect_and_handle_ikm(action: ActionID) -> list[bytes]:
                 log_w('directory is empty; no keyfiles to accept!')
         else:
             # If the path is a file, get its digest
-            file_digest: Optional[bytes] = get_keyfile_digest(keyfile_path)
+            file_digest: Optional[bytes] = get_keyfile_digest(
+                file_path=keyfile_path,
+                blake2_salt=blake2_salt,
+            )
 
             if file_digest is None:
                 log_e('keyfile NOT accepted')
@@ -1298,12 +1838,12 @@ def collect_and_handle_ikm(action: ActionID) -> list[bytes]:
     # Handle passphrases
     # ----------------------------------------------------------------------- #
 
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_w('entered passphrases will be displayed!')
 
     while True:
         raw_passphrase_1: str = \
-            no_eof_getpass(f'{BOL}K2. Passphrase (opt):{RES} ')
+            no_eof_getpass(f'{BOL}K2. PASSPHRASE (OPT):{RES} ')
 
         if not raw_passphrase_1:
             break  # Exit the loop if the user does not enter a passphrase
@@ -1313,18 +1853,17 @@ def collect_and_handle_ikm(action: ActionID) -> list[bytes]:
 
         # Prompt for confirming the passphrase
         raw_passphrase_2: str = \
-            no_eof_getpass(f'{BOL}K2. Confirm passphrase:{RES} ')
+            no_eof_getpass(f'{BOL}K2. CONFIRM PASSPHRASE:{RES} ')
 
         encoded_passphrase_2: bytes = handle_raw_passphrase(raw_passphrase_2)
 
         if compare_digest(encoded_passphrase_1, encoded_passphrase_2):
-            passphrase_digest: bytes = \
-                get_passphrase_digest(encoded_passphrase_1)
-
+            passphrase_digest: bytes = get_passphrase_digest(
+                passphrase=encoded_passphrase_1,
+                blake2_salt=blake2_salt,
+            )
             ikm_digest_list.append(passphrase_digest)
-
             log_i('passphrase accepted')
-
             break
 
         log_e('passphrase NOT accepted: confirmation failed')
@@ -1332,10 +1871,10 @@ def collect_and_handle_ikm(action: ActionID) -> list[bytes]:
     # Log results
     # ----------------------------------------------------------------------- #
 
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d('collecting IKM completed')
 
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d(f'{len(ikm_digest_list)} IKM digests collected')
 
     if not ikm_digest_list and action in (ENCRYPT, ENCRYPT_EMBED):
@@ -1344,40 +1883,41 @@ def collect_and_handle_ikm(action: ActionID) -> list[bytes]:
     return ikm_digest_list
 
 
-def get_argon2_time_cost(action: ActionID) -> None:
+def get_argon2_time_cost(action: ActionID) -> int:
     """
-    Prompt for and validate the Argon2 time cost, then store the result.
+    Prompt for and validate the Argon2 time-cost parameter and return
+    it.
 
-    Behavior
+    Parameters
+    ----------
+    action : ActionID
+        Current action identifier. Used to determine whether to warn
+        when a non-default value is chosen for an encryption action.
 
-    - Prompts the user for an Argon2 "time cost" value using an
-      interactive prompt.
-    - Accepts an empty input or the textual default as meaning the
-      predefined DEFAULT_ARGON2_TIME_COST.
-    - Validates that the entered value is an integer within the
-      inclusive range [MIN_ARGON2_TIME_COST, argon2id.OPSLIMIT_MAX]. On
-      invalid input, prints an error and reprompts.
-    - Logs the chosen time cost (info). If the current action is an
-      encryption action and the user selected a non-default value, logs
-      a warning that decryption will require the same value.
-    - Stores the final integer in INT_D['argon2_time_cost'].
+    Returns
+    -------
+    int
+        Accepted Argon2 time-cost value.
 
-    Args:
-        action (ActionID): the current action; used to determine whether
-                           to warn about non-default values during
-                           encryption.
-
-    Side effects
-
-    - Interacts with the user via no_eof_input().
-    - Calls logging helpers: log_i, log_w, log_e.
-    - Writes the accepted integer into INT_D['argon2_time_cost'].
-
-    Returns:
-        None
+    Notes
+    -----
+    - Prompts the user with:
+      `K3. TIME COST (DEFAULT={DEFAULT_ARGON2_TIME_COST}):`
+      and accepts an empty input or the textual default as the
+      predefined `DEFAULT_ARGON2_TIME_COST`.
+    - Validates that the entered value is an integer in the inclusive
+      range [MIN_ARGON2_TIME_COST, argon2id.OPSLIMIT_MAX]. On invalid
+      input the function logs an error and re-prompts.
+    - Logs the chosen `time_cost` using `log_i()`. If `action` is an
+      encryption action (`ENCRYPT` or `ENCRYPT_EMBED`) and a non-default
+      value is chosen, logs a warning via `log_w()` that decryption will
+      require the same value.
+    - Uses `no_eof_input()` for interactive input and logging helpers
+      `log_i`, `log_w`, and `log_e`.
+    - The function is interactive and may block waiting for user input.
     """
     prompt_message: str = \
-        f'{BOL}K3. Time cost (default={DEFAULT_ARGON2_TIME_COST}):{RES} '
+        f'{BOL}K3. TIME COST (DEFAULT={DEFAULT_ARGON2_TIME_COST}):{RES} '
 
     error_message: str = \
         f'invalid value; must be an integer from the ' \
@@ -1412,51 +1952,62 @@ def get_argon2_time_cost(action: ActionID) -> None:
 
     if action in (ENCRYPT, ENCRYPT_EMBED) and \
             time_cost != DEFAULT_ARGON2_TIME_COST:
-        log_w('decryption will require the same "Time cost" value!')
+        log_w('decryption will require the same "TIME COST" value!')
 
-    INT_D['argon2_time_cost'] = time_cost
+    return time_cost
 
 
-def proceed_request(proceed_type: bool, action: ActionID) -> bool:
+def proceed_request(proceed_type: bool, ad: ActData) -> bool:
     """
-    Prompts the user to confirm whether to proceed with an action.
+    Prompt the user to confirm whether to proceed with an operation.
 
-    The prompt message and default behavior depend on the value of the
-    `proceed_type` parameter:
-    - If `proceed_type` is PROCEED_OVERWRITE, the prompt warns that the
-      output file contents will be partially overwritten, and the
-      default is to not proceed.
-    - If `proceed_type` is PROCEED_REMOVE, the prompt informs that the
-      next step is to remove the output file path, and the default is to
-      proceed.
+    Parameters
+    ----------
+    proceed_type : bool
+        Indicator of the confirmation type. Expected values:
+        - `PROCEED_OVERWRITE`: warn user that an existing output file
+          will be partially overwritten (default answer: no).
+        - `PROCEED_REMOVE`: inform user that an output file path will be
+          removed (default answer: yes when Enter pressed).
+    ad : ActData
+        Action/state container used for contextual logging (provides
+        `ad.action`, `ad.start_pos`, `ad.max_end_pos`, etc.).
 
-    Args:
-        proceed_type (bool): An boolean value that determines the prompt
-                             message and default behavior.
-        action (ActionID): The action identifier that triggered the
-                           confirmation request. This may affect the
-                           prompt message and logging.
+    Returns
+    -------
+    bool
+        True if the user confirms to proceed, False otherwise.
 
-    Returns:
-        bool: True if the user confirms to proceed, False otherwise.
+    Notes
+    -----
+    - Prompts differ by `proceed_type`. For `PROCEED_OVERWRITE` a
+      warning is logged (more specific message for `ENCRYPT_EMBED`) and
+      the prompt default is not to proceed. For `PROCEED_REMOVE` an
+      informational message is logged and the prompt accepts Enter as a
+      default yes.
+    - Accepts affirmative answers in `TRUE_ANSWERS` and negative answers
+      in `FALSE_ANSWERS`. If no input is provided and `proceed_type` is
+      `PROCEED_REMOVE`, the function returns True.
+    - Invalid responses produce an error log and re-prompt.
+    - Requires helpers/constants: `no_eof_input`, `TRUE_ANSWERS`,
+      `FALSE_ANSWERS`, `VALID_BOOL_ANSWERS`, `PROCEED_OVERWRITE`,
+      `PROCEED_REMOVE`, `ENCRYPT_EMBED`, and logging functions `log_i`,
+      `log_w`, `log_e`. The function blocks on user input.
     """
 
     # Check the action type to determine the appropriate prompt message
     if proceed_type is PROCEED_OVERWRITE:
-        if action == ENCRYPT_EMBED:
-            start_pos: int = INT_D['start_pos']
-            max_end_pos: int = INT_D['max_end_pos']
-
+        if ad.action == ENCRYPT_EMBED:
             log_w(f'output file will be overwritten from '
-                  f'{start_pos} to {max_end_pos}!')
+                  f'{ad.start_pos} to {ad.max_end_pos}!')
         else:
             log_w('output file will be partially overwritten!')
 
-        prompt_message: str = f'{BOL}P0. Proceed overwriting? (Y/N):{RES} '
+        prompt_message: str = f'{BOL}P0. PROCEED OVERWRITING? (Y/N):{RES} '
     else:
         log_i('removing output file path')
 
-        prompt_message = f'{BOL}P0. Proceed removing? (Y/N, default=Y):{RES} '
+        prompt_message = f'{BOL}P0. PROCEED REMOVING? (Y/N, DEFAULT=Y):{RES} '
 
     while True:
         # Get user input and remove any leading/trailing whitespace
@@ -1490,150 +2041,181 @@ def proceed_request(proceed_type: bool, action: ActionID) -> bool:
 def get_salts(
     input_size: int,
     end_pos: Optional[int],
-    action: ActionID
-) -> bool:
+    ad: ActData,
+    crypt: Crypto,
+) -> tuple[ActData, Crypto]:
     """
-    Retrieves or generates salts for cryptographic operations based on
-    the specified action.
+    Retrieve or generate salts used for Argon2 and BLAKE2 operations.
 
-    Depending on the action provided:
-      - For actions ENCRYPT and ENCRYPT_EMBED, the function generates
-        new salts (using random bytes) for Argon2 and BLAKE2.
-      - For actions DECRYPT and EXTRACT_DECRYPT, the function reads
-        salts from a cryptoblob. It reads the Argon2 salt from the
-        beginning of the cryptoblob, and then reads the BLAKE2 salt from
-        near the end. For DECRYPT, the BLAKE2 salt is read starting from
-        position (input_size - ONE_SALT_SIZE), while for EXTRACT_DECRYPT,
-        it is read starting from position (end_pos - ONE_SALT_SIZE).
+    Parameters
+    ----------
+    input_size : int
+        Total size of the input data; used to compute the position from
+        which to read the trailing BLAKE2 salt when decrypting.
+    end_pos : Optional[int]
+        End position within the cryptoblob; required for EXTRACT_DECRYPT
+        to compute the BLAKE2 salt position. May be None for encrypting
+        actions.
+    ad : ActData
+        Action/state container providing `ad.action` and
+        `ad.in_file_obj`. On error `ad.err` will be set to True.
+    crypt : Crypto
+        Mutable container where retrieved/generated salts will be
+        stored:
+        - `crypt.argon2_salt` (bytes)
+        - `crypt.blake2_salt` (bytes)
 
-    The retrieved or generated salts are stored in the global dictionary
-    `BYTES_D`.
+    Returns
+    -------
+    tuple[ActData, Crypto]
+        Tuple `(ad, crypt)` where `crypt` contains `argon2_salt` and
+        `blake2_salt` on success. On failure `ad.err` is set to True and
+        the returned `crypt` may be unchanged.
 
-    Args:
-        input_size (int): The total size of the input data, used to
-                          calculate the position to read the BLAKE2 salt
-                          when action is DECRYPT.
-        end_pos (Optional[int]): The end position in the cryptoblob;
-                                 required when the action is
-                                 EXTRACT_DECRYPT to calculate the BLAKE2
-                                 salt position. It can be None for
-                                 actions that generate salts.
-        action (ActionID): The action that determines how salts are
-                           handled. Actions ENCRYPT and ENCRYPT_EMBED
-                           generate new salts, whereas actions DECRYPT
-                           and EXTRACT_DECRYPT read the salts from the
-                           cryptoblob.
-
-    Returns:
-        bool: True if the salts were successfully generated or retrieved,
-              False otherwise. A False return indicates a failure in
-              reading salts or seeking positions in the cryptoblob.
+    Notes
+    -----
+    - For actions ENCRYPT and ENCRYPT_EMBED the function generates new
+      random salts (`SALT_SIZE` bytes each) using `token_bytes`.
+    - For actions DECRYPT and EXTRACT_DECRYPT the function reads:
+      - `argon2_salt` from the start of the cryptoblob (current
+        `ad.in_file_obj` position),
+      - `blake2_salt` from a trailing position:
+        - DECRYPT: `input_size - SALT_SIZE`
+        - EXTRACT_DECRYPT: `end_pos - SALT_SIZE` (requires `end_pos`
+          not None).
+    - The function seeks the input file object as needed and restores
+      the position after reading the salts. If any read or seek fails,
+      `ad.err` is set to True and `(ad, crypt)` is returned early.
+    - Emits debug logs when `UNSAFE_DEBUG` is enabled and requires helpers:
+      `seek_position`, `read_data`, and `token_bytes`, plus constants
+      `SALT_SIZE`, `ENCRYPT`, `ENCRYPT_EMBED`, `DECRYPT`,
+      `EXTRACT_DECRYPT`.
     """
 
     # Log the start of getting salts if debugging is enabled
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d('getting salts')
 
     # Check if the action requires generating new salts
-    if action in (ENCRYPT, ENCRYPT_EMBED):
+    if ad.action in (ENCRYPT, ENCRYPT_EMBED):
         # Generate random salts for Argon2 and BLAKE2 functions
-        argon2_salt: bytes = token_bytes(ONE_SALT_SIZE)
-        blake2_salt: bytes = token_bytes(ONE_SALT_SIZE)
+        argon2_salt: bytes = token_bytes(SALT_SIZE)
+        blake2_salt: bytes = token_bytes(SALT_SIZE)
     else:
         # Read the salts from the cryptoblob for actions DECRYPT and
         # EXTRACT_DECRYPT
         opt_argon2_salt: Optional[bytes]
         opt_blake2_salt: Optional[bytes]
 
-        if DEBUG:
+        if UNSAFE_DEBUG:
             log_d('reading argon2_salt from start of cryptoblob')
 
         # Try to read argon2_salt from the cryptoblob
-        opt_argon2_salt = read_data(BIO_D['IN'], ONE_SALT_SIZE)
+        opt_argon2_salt = read_data(ad.in_file_obj, SALT_SIZE)
 
-        # Return False if reading argon2_salt fails
+        # On failure, sets ad.err = True and returns early
         if opt_argon2_salt is None:
-            return False
+            ad.err = True
+            return ad, crypt
 
         # Store argon2_salt
         argon2_salt = opt_argon2_salt
 
         # Log that the argon2_salt has been read if debugging is enabled
-        if DEBUG:
+        if UNSAFE_DEBUG:
             log_d('argon2_salt read')
 
         # Save the current position in the cryptoblob
-        pos_after_argon2_salt: int = BIO_D['IN'].tell()
+        pos_after_argon2_salt: int = ad.in_file_obj.tell()
 
         # Determine the new position based on the action
-        if action == DECRYPT:
-            pos_before_blake2_salt: int = input_size - ONE_SALT_SIZE
+        if ad.action == DECRYPT:
+            pos_before_blake2_salt: int = input_size - SALT_SIZE
         else:  # action == EXTRACT_DECRYPT
             if end_pos is None:
                 raise TypeError
 
-            pos_before_blake2_salt = end_pos - ONE_SALT_SIZE
+            pos_before_blake2_salt = end_pos - SALT_SIZE
 
         # Move to the position for reading blake2_salt
-        if not seek_position(BIO_D['IN'], pos_before_blake2_salt):
-            return False
+        if not seek_position(ad.in_file_obj, offset=pos_before_blake2_salt):
+            ad.err = True
+            return ad, crypt
 
-        if DEBUG:
+        if UNSAFE_DEBUG:
             log_d('reading blake2_salt from end of cryptoblob')
 
         # Try to read blake2_salt from the cryptoblob
-        opt_blake2_salt = read_data(BIO_D['IN'], ONE_SALT_SIZE)
+        opt_blake2_salt = read_data(ad.in_file_obj, SALT_SIZE)
 
         # Return False if reading blake2_salt fails
         if opt_blake2_salt is None:
-            return False
+            ad.err = True
+            return ad, crypt
 
         # Store blake2_salt
         blake2_salt = opt_blake2_salt
 
         # Log that blake2_salt has been read if debugging is enabled
-        if DEBUG:
+        if UNSAFE_DEBUG:
             log_d('blake2_salt read')
 
         # Move back to the previously saved position
-        if not seek_position(BIO_D['IN'], pos_after_argon2_salt):
-            return False
-
-    # Store the generated or retrieved salts in the global `BYTES_D` dictionary
-    BYTES_D['argon2_salt'] = argon2_salt
-    BYTES_D['blake2_salt'] = blake2_salt
+        if not seek_position(ad.in_file_obj, offset=pos_after_argon2_salt):
+            ad.err = True
+            return ad, crypt
 
     # Log the salts if debugging is enabled
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d(f'salts:\n'
-              f'        argon2_salt:  {argon2_salt.hex()}\n'
-              f'        blake2_salt:  {blake2_salt.hex()}')
+              f'        argon2_salt: {argon2_salt.hex()}\n'
+              f'        blake2_salt: {blake2_salt.hex()}')
         log_d('getting salts completed')
 
-    return True
+    crypt.argon2_salt = argon2_salt
+    crypt.blake2_salt = blake2_salt
+
+    return ad, crypt
 
 
 def hash_keyfile_contents(
     file_obj: BinaryIO,
     file_size: int,
+    blake2_salt: bytes,
 ) -> Optional[bytes]:
     """
-    Computes the BLAKE2 digest of the contents of a keyfile.
+    Compute the BLAKE2b digest of a keyfile's contents, reading in
+    chunks.
 
-    This function reads the contents of the provided file object in
-    chunks and updates the BLAKE2 hash object with the data read. The
-    final digest is returned as a byte string. The file should be opened
-    in binary mode. The digest is computed using a specific salt and
-    personalization string
+    Parameters
+    ----------
+    file_obj : BinaryIO
+        File object opened in binary mode to read the keyfile contents
+        from.
+    file_size : int
+        Total size of the file in bytes.
+    blake2_salt : bytes
+        Salt value passed to BLAKE2b.
 
-    Args:
-        file_obj (BinaryIO): A file object to read data from,
-                             opened in binary mode.
-        file_size (int): The total size of the file in bytes.
+    Returns
+    -------
+    Optional[bytes]
+        The BLAKE2b digest of the file contents with length
+        `IKM_DIGEST_SIZE`, or `None` if an error occurs while reading
+        from `file_obj`.
 
-    Returns:
-        Optional[bytes]: The computed BLAKE2 digest as a byte string,
-                         or None if an error occurs during reading.
+    Notes
+    -----
+    - Initializes BLAKE2b with `digest_size=IKM_DIGEST_SIZE`,
+      `person=PERSON_KEYFILE`, and `salt=blake2_salt`.
+    - Reads the file in chunks of `MAX_PT_CHUNK_SIZE` (last chunk may be
+      smaller), updating the hash with each chunk via
+      `hash_obj.update(...)`.
+    - Uses helper `read_data(file_obj, size)` to read chunks; if it
+      returns `None` the function returns `None`.
+    - Returns the final digest from `hash_obj.digest()`.
+    - Requires constants/functions: `IKM_DIGEST_SIZE`, `PERSON_KEYFILE`,
+      `MAX_PT_CHUNK_SIZE`, and `read_data`.
     """
 
     # Create a BLAKE2 hash object with the specified digest size,
@@ -1641,7 +2223,7 @@ def hash_keyfile_contents(
     hash_obj: Any = blake2b(
         digest_size=IKM_DIGEST_SIZE,
         person=PERSON_KEYFILE,
-        salt=BYTES_D['blake2_salt'],
+        salt=blake2_salt,
     )
 
     # Calculate the number of complete chunks and remaining bytes to read
@@ -1679,38 +2261,40 @@ def hash_keyfile_contents(
     return keyfile_digest
 
 
-def get_keyfile_digest(file_path: str) -> Optional[bytes]:
+def get_keyfile_digest(file_path: str, blake2_salt: bytes) -> Optional[bytes]:
     """
-    Compute and return the digest of a keyfile.
+    Compute and return the BLAKE2-based digest of a keyfile's contents.
 
-    Reads the file at file_path and returns its cryptographic digest as
-    bytes.
+    Parameters
+    ----------
+    file_path : str
+        Path to the keyfile to read and hash.
+    blake2_salt : bytes
+        Salt value passed to the file-hashing helper
+        (`hash_keyfile_contents`).
 
-    The function:
+    Returns
+    -------
+    Optional[bytes]
+        The computed digest bytes on success, or `None` if any step
+        fails (file missing/unreadable, size unavailable, or hashing
+        error).
 
-    - obtains the file size (via get_file_size),
-    - opens the file in binary mode (open_file),
-    - reads and hashes the contents (hash_keyfile_contents),
-    - closes the file (close_file).
-
-    Returns:
-        bytes: the digest of the file contents on success.
-        None: if the file does not exist, cannot be opened, size cannot
-              be determined, or hashing fails.
-
-    Side effects:
-
-    - Logs file path and size (log_i) and debug hex output when DEBUG is
-      True.
-    - Uses helper functions: get_file_size, open_file,
-      hash_keyfile_contents, close_file.
-
-    Notes:
-
+    Notes
+    -----
+    - Steps performed:
+      1. Obtain file size via `get_file_size(file_path)`.
+      2. Open file with `open_file(file_path, 'rb')`.
+      3. Compute digest using `hash_keyfile_contents(file_obj,
+         file_size, blake2_salt)`.
+      4. Close the file with `close_file(file_obj)` and return the
+         digest.
+    - Logs file path and size via `log_i`, and the hex digest via
+      `log_d` when `UNSAFE_DEBUG` is enabled.
+    - Any failure from the helper functions causes an immediate return
+      of `None`.
     - The exact hash algorithm and digest length are determined by
-      hash_keyfile_contents.
-    - This function does not raise on I/O errors; it returns None and
-      suppresses/handles errors via the helpers.
+      `hash_keyfile_contents`.
     """
 
     # Get the size of the file at the specified path
@@ -1732,7 +2316,11 @@ def get_keyfile_digest(file_path: str) -> Optional[bytes]:
         return None
 
     # Compute the digest of the keyfile
-    file_digest: Optional[bytes] = hash_keyfile_contents(file_obj, file_size)
+    file_digest: Optional[bytes] = hash_keyfile_contents(
+        file_obj=file_obj,
+        file_size=file_size,
+        blake2_salt=blake2_salt,
+    )
 
     # Close the file after reading
     close_file(file_obj)
@@ -1741,61 +2329,53 @@ def get_keyfile_digest(file_path: str) -> Optional[bytes]:
     if file_digest is None:
         return None
 
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d(f'digest of {file_path!r} contents:'
               f'\n        {file_digest.hex()}')
 
     return file_digest
 
 
-def get_keyfile_digest_list(directory_path: str) -> Optional[list[bytes]]:
+def get_keyfile_digest_list(
+    directory_path: str,
+    blake2_salt: bytes,
+) -> Optional[list[bytes]]:
     """
-    Scan a directory for keyfiles and return a list of their digests.
+    Scan a directory for keyfiles, compute and return a list of their
+    digests.
 
-    Traverse directory_path (recursively), collect all regular files,
-    and compute a cryptographic digest for each file using
-    hash_keyfile_contents(file_obj, size). Returns a list of digest
-    bytes in arbitrary order corresponding to the found files.
+    Parameters
+    ----------
+    directory_path : str
+        Path to the directory to scan (recursive). Symbolic links are
+        followed according to os.walk behavior.
+    blake2_salt : bytes
+        Salt passed to the file-hashing helper (used by
+        hash_keyfile_contents).
 
-    Behavior and return values
+    Returns
+    -------
+    Optional[list[bytes]]
+        List of digest bytes for each successfully processed regular
+        file found under `directory_path` (order is arbitrary). Returns
+        an empty list if no files are found. Returns `None` if any error
+        occurs during traversal, file opening, sizing, or hashing (the
+        function aborts on first failure).
 
-    - On success returns list[bytes] (possibly empty if no files found).
-    - Returns None if an error occurs while traversing the directory,
-      opening a file, obtaining a file size, or hashing a file.
-    - If a single file fails to be processed, the function aborts and
-      returns None.
-
-    Side effects and logging
-
-    - Logs progress and file sizes via log_i and debug output via log_d
-      when DEBUG is set.
-    - Uses open_file/close_file/get_file_size/hash_keyfile_contents
-      helpers.
-    - On directory traversal errors, walk() onerror handler logs and
-      raises KeyfileScanError.
-
-    Assumptions and notes
-
-    - directory_path should point to an accessible directory; symbolic
-      links are followed as per os.walk behavior.
-    - The exact hash algorithm and digest length are determined by
-      hash_keyfile_contents.
-    - This function performs I/O and should be called from a context
-      that may block (not from a signal handler).
-
-    Raises / Errors
-
-    Does not raise exceptions for I/O errors; instead propagates failure
-    by returning None (KeyfileScanError is caught internally).
-
-    Args:
-        directory_path (str): The path to the directory to scan for
-                              keyfiles.
-
-    Returns:
-        Optional[list]: A list of digests for the keyfiles found in the
-                        directory, or None if an error occurs. If no
-                        files are found, an empty list is returned.
+    Notes
+    -----
+    - Traverses `directory_path` with `walk(directory_path,
+      onerror=walk_error_handler)`. `walk_error_handler` logs the error
+      and raises `KeyfileScanError`, which causes the function to return
+      `None`.
+    - Uses helpers: `get_file_size`, `open_file`, `close_file`, and
+      `hash_keyfile_contents(file_obj, size, blake2_salt)`; any failure
+      from these helpers results in returning `None`.
+    - Logs progress and file sizes via `log_i` and verbose details via
+      `log_d` when `UNSAFE_DEBUG` is enabled.
+    - Performs blocking I/O; do not call from signal handlers.
+    - The digest algorithm and length are determined by
+      `hash_keyfile_contents`.
     """
     def walk_error_handler(error: Any) -> None:
         """
@@ -1843,7 +2423,7 @@ def get_keyfile_digest_list(directory_path: str) -> Optional[list[bytes]]:
 
     # Iterate over the collected file paths to get their sizes
     for full_file_path in file_path_list:
-        if DEBUG:
+        if UNSAFE_DEBUG:
             log_d(f'getting size of {full_file_path!r} '
                   f'(real path: {path.realpath(full_file_path)!r})')
 
@@ -1857,7 +2437,7 @@ def get_keyfile_digest_list(directory_path: str) -> Optional[list[bytes]]:
         # Store the file size
         file_size: int = optional_file_size
 
-        if DEBUG:
+        if UNSAFE_DEBUG:
             log_d(f'size: {format_size(file_size)}')
 
         # Add the file size to the total size
@@ -1891,7 +2471,7 @@ def get_keyfile_digest_list(directory_path: str) -> Optional[list[bytes]]:
     for file_info in file_info_list:
         full_file_path, file_size = file_info
 
-        if DEBUG:
+        if UNSAFE_DEBUG:
             log_d(f'reading and hashing contents of {full_file_path!r}')
 
         # Open the file for reading in binary mode
@@ -1902,8 +2482,11 @@ def get_keyfile_digest_list(directory_path: str) -> Optional[list[bytes]]:
             return None
 
         # Compute the digest of the keyfile
-        file_digest: Optional[bytes] = \
-            hash_keyfile_contents(file_obj, file_size)
+        file_digest: Optional[bytes] = hash_keyfile_contents(
+            file_obj=file_obj,
+            file_size=file_size,
+            blake2_salt=blake2_salt,
+        )
 
         # Close the file after reading
         close_file(file_obj)
@@ -1912,7 +2495,7 @@ def get_keyfile_digest_list(directory_path: str) -> Optional[list[bytes]]:
         if file_digest is None:
             return None
 
-        if DEBUG:
+        if UNSAFE_DEBUG:
             log_d(f'digest of {full_file_path!r} contents:\n'
                   f'        {file_digest.hex()}')
 
@@ -1925,29 +2508,32 @@ def get_keyfile_digest_list(directory_path: str) -> Optional[list[bytes]]:
 
 def handle_raw_passphrase(raw_passphrase: str) -> bytes:
     """
-    Normalizes, encodes and truncates a raw passphrase to a standardized
-    format.
+    Normalize, encode, and truncate a raw passphrase for cryptographic
+    use.
 
-    Processes passphrases consistently for cryptographic use by:
-    1. Applying Unicode normalization
-    2. UTF-8 encoding
-    3. Truncating to PASSPHRASE_SIZE_LIMIT
+    Parameters
+    ----------
+    raw_passphrase : str
+        Input passphrase string. May contain any Unicode characters and
+        is not stripped of whitespace.
 
-    Args:
-        raw_passphrase (str): Input passphrase string. May contain:
-                             - Any Unicode characters
-                             - Leading/trailing whitespace (not stripped)
-                             - Mixed scripts (e.g., Cyrillic + Latin)
+    Returns
+    -------
+    bytes
+        UTF-8 encoded, Unicode-normalized passphrase truncated to at
+        most `PASSPHRASE_SIZE_LIMIT` bytes.
 
-    Returns:
-        bytes: Normalized byte sequence ready for hashing, with
-               properties:
-               - Always <= PASSPHRASE_SIZE_LIMIT bytes
-               - Consistent for canonically equivalent Unicode inputs
-
-    Notes:
-        - Empty string input returns empty bytes (b'')
-        - DEBUG mode logs raw/normalized forms and lengths
+    Notes
+    -----
+    - Normalization uses `normalize(UNICODE_NF, raw_passphrase)` to
+      ensure canonical equivalence.
+    - The function encodes the normalized string with UTF-8 and then
+      truncates the resulting bytes to `PASSPHRASE_SIZE_LIMIT`.
+    - An empty input string returns `b''`.
+    - When `UNSAFE_DEBUG` is enabled, raw, normalized, and truncated forms and
+      their byte lengths are logged.
+    - Requires `normalize`, `UNICODE_NF`, `PASSPHRASE_SIZE_LIMIT`, and
+      `UNSAFE_DEBUG`.
     """
 
     # Normalize the raw passphrase using Unicode Normalization Form
@@ -1958,7 +2544,7 @@ def handle_raw_passphrase(raw_passphrase: str) -> bytes:
         normalized_passphrase.encode('utf-8')[:PASSPHRASE_SIZE_LIMIT]
 
     # Log details if debugging is enabled
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d(f'passphrase (raw):\n'
               f'        {raw_passphrase!r}')
         raw_pp_len: int = len(raw_passphrase.encode('utf-8'))
@@ -1976,20 +2562,31 @@ def handle_raw_passphrase(raw_passphrase: str) -> bytes:
     return encoded_passphrase
 
 
-def get_passphrase_digest(passphrase: bytes) -> bytes:
+def get_passphrase_digest(passphrase: bytes, blake2_salt: bytes) -> bytes:
     """
-    Computes the BLAKE2 digest of the provided passphrase.
+    Compute the BLAKE2b digest of a passphrase using a specified salt
+    and personalization.
 
-    This function takes a passphrase in bytes, updates the BLAKE2 hash
-    object with the passphrase, and returns the resulting digest. The
-    digest is computed using a specific salt and personalization string.
+    Parameters
+    ----------
+    passphrase : bytes
+        Passphrase to hash.
+    blake2_salt : bytes
+        Salt value passed to BLAKE2b.
 
-    Args:
-        passphrase (bytes): The passphrase to be hashed, provided as a
-                            byte string.
+    Returns
+    -------
+    bytes
+        BLAKE2b digest of the passphrase with length `IKM_DIGEST_SIZE`.
 
-    Returns:
-        bytes: The BLAKE2 digest of the passphrase as a byte string.
+    Notes
+    -----
+    - Initializes BLAKE2b with `digest_size=IKM_DIGEST_SIZE`,
+      `person=PERSON_PASSPHRASE`, and `salt=blake2_salt`, then updates
+      it with `passphrase` and returns `.digest()`.
+    - Logs the hex digest when `UNSAFE_DEBUG` is enabled.
+    - Requires `blake2b`, `IKM_DIGEST_SIZE`, and `PERSON_PASSPHRASE` to
+      be available.
     """
 
     # Create a BLAKE2 hash object with the specified
@@ -1997,7 +2594,7 @@ def get_passphrase_digest(passphrase: bytes) -> bytes:
     hash_obj: Any = blake2b(
         digest_size=IKM_DIGEST_SIZE,
         person=PERSON_PASSPHRASE,
-        salt=BYTES_D['blake2_salt'],
+        salt=blake2_salt,
     )
 
     # Update the hash object with the provided passphrase
@@ -2006,7 +2603,7 @@ def get_passphrase_digest(passphrase: bytes) -> bytes:
     # Compute the final digest of the passphrase
     digest: bytes = hash_obj.digest()
 
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d(f'passphrase digest:\n        {digest.hex()}')
 
     return digest
@@ -2014,37 +2611,40 @@ def get_passphrase_digest(passphrase: bytes) -> bytes:
 
 def sort_digest_list(digest_list: list[bytes]) -> list[bytes]:
     """
-    Sorts a list of byte sequences (digests) in ascending order based on
-    their byte values.
+    Sort a list of byte-sequence digests in ascending byte order.
 
-    This function modifies the original `digest_list` in place using the
-    `sort()` method, which orders the elements from the smallest to the
-    largest byte value. If debugging is enabled, it logs the sorting
-    process and the sorted results.
+    Parameters
+    ----------
+    digest_list : list[bytes]
+        List of byte sequences (digests) to sort in-place. May be empty.
 
-    Args:
-        digest_list (list[bytes]): A list of byte sequences (digests)
-                                   to be sorted.
+    Returns
+    -------
+    list[bytes]
+        The same list object sorted in ascending byte order.
 
-    Returns:
-        list[bytes]: The sorted list of byte sequences, which is the
-                     same as the input list after sorting (the same
-                     object reference).
+    Notes
+    -----
+    - Sorting is performed in-place using list.sort(), preserving the
+      original list object reference.
+    - An empty list is returned immediately.
+    - When `UNSAFE_DEBUG` is enabled the function logs the sorting steps
+      and each sorted digest in hexadecimal.
     """
     if not digest_list:
-        if DEBUG:
+        if UNSAFE_DEBUG:
             log_d('digest list is empty, nothing to sort')
 
         return digest_list
 
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d('sorting IKM digests')
 
     # Sort the digest list in place in ascending order
     digest_list.sort(key=None, reverse=False)
 
     # Log sorted digests if debugging is enabled
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d('sorted IKM digests:')
         for digest in digest_list:
             log_d(f'\r      - {digest.hex()}')
@@ -2052,35 +2652,35 @@ def sort_digest_list(digest_list: list[bytes]) -> list[bytes]:
     return digest_list
 
 
-def hash_digest_list(digest_list: list[bytes]) -> bytes:
+def hash_digest_list(digest_list: list[bytes], blake2_salt: bytes) -> bytes:
     """
-    Computes a BLAKE2b hash of concatenated digests using a specified
-    salt.
+    Compute a BLAKE2b hash over a list of digests using the provided salt.
 
-    The hash calculation is performed as follows:
-    BLAKE2b(
-        data = digest_list[0] + digest_list[1] + ... + digest_list[N],
-        salt = BYTES_D['blake2_salt'],
-        digest_size = IKM_DIGEST_SIZE  # Should be defined globally
-    )
+    Parameters
+    ----------
+    digest_list : list[bytes]
+        Ordered list of binary digests to include in the hash.
+    blake2_salt : bytes
+        Salt value passed to BLAKE2b.
 
-    The order of the digests in the input list is preserved in the hash
-    computation. An empty list will return the hash of an empty input.
+    Returns
+    -------
+    bytes
+        BLAKE2b digest with length `IKM_DIGEST_SIZE`.
 
-    Args:
-        digest_list: List of binary digests (order-sensitive).
-                     If empty, returns the hash of an empty input.
-
-    Returns:
-        bytes: BLAKE2b hash with length determined by IKM_DIGEST_SIZE.
+    Notes
+    -----
+    - The hash is computed without additional personalization string.
+    - Preserves input order; callers should sort the list beforehand if
+      a stable, order-independent result is required.
     """
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d('hashing digest list')
 
     # Create a new BLAKE2 hash object with specified digest size and salt
     hash_obj: Any = blake2b(
         digest_size=IKM_DIGEST_SIZE,
-        salt=BYTES_D['blake2_salt'],
+        salt=blake2_salt,
     )
 
     # Update the hash object with each byte sequence in the digest list
@@ -2090,74 +2690,104 @@ def hash_digest_list(digest_list: list[bytes]) -> bytes:
     # Finalize the hash and obtain the digest
     digest_list_hash: bytes = hash_obj.digest()
 
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d(f'list containing {len(digest_list)} digests hashed')
 
     return digest_list_hash
 
 
-def get_argon2_password(action: ActionID) -> None:
+def get_argon2_password(action: ActionID, blake2_salt: bytes) -> bytes:
     """
-    Computes the Argon2 password from the input keying material.
+    Compute the Argon2 password (IKM) from collected keying-material
+    digests.
 
-    This function collects keying material digests by calling the
-    `collect_and_handle_ikm` function, sorts them, and computes the
-    Argon2 password using the BLAKE2 hash function. The resulting digest
-    is stored in the global `BYTES_D` dictionary under the key
-    'argon2_password'.
+    Parameters
+    ----------
+    action : ActionID
+        Identifier of the action whose keying material should be
+        collected.
+    blake2_salt : bytes
+        Salt used when hashing the collected digests (passed to
+        BLAKE2-based helper).
 
-    The function logs debug information throughout the process if the
-    DEBUG flag is set, including the final Argon2 password in
-    hexadecimal format.
+    Returns
+    -------
+    bytes
+        The Argon2 password bytes produced by hashing the sorted list of
+        collected digests with the provided `blake2_salt`.
 
-    Args:
-        action (ActionID): The action identifier.
-
-    Returns:
-        None
+    Notes
+    -----
+    - Calls `collect_and_handle_ikm(action, blake2_salt)` to obtain a
+      list of digests, then `sort_digest_list(...)` to produce a stable
+      ordering.
+    - Computes the final password with
+      `hash_digest_list(sorted_digest_list, blake2_salt)`.
+    - Logs the hex-encoded argon2_password when UNSAFE_DEBUG is enabled.
+    - Requires helper functions `collect_and_handle_ikm`,
+      `sort_digest_list`, and `hash_digest_list` to be available in
+      scope.
     """
-    digest_list: list[bytes] = collect_and_handle_ikm(action)
+    digest_list: list[bytes] = collect_and_handle_ikm(
+        action=action,
+        blake2_salt=blake2_salt,
+    )
 
     sorted_digest_list: list[bytes] = sort_digest_list(digest_list)
 
-    argon2_password: bytes = hash_digest_list(sorted_digest_list)
+    argon2_password: bytes = hash_digest_list(
+        digest_list=sorted_digest_list,
+        blake2_salt=blake2_salt,
+    )
 
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d(f'argon2_password:\n        {argon2_password.hex()}')
 
-    BYTES_D['argon2_password'] = argon2_password
+    return argon2_password
 
 
-def derive_keys() -> bool:
+def derive_keys(ad: ActData, crypt: Crypto) -> tuple[ActData, Crypto]:
     """
-    Derive symmetric keys from the Argon2 input key ("password").
+    Derive symmetric keys from Argon2 input and store them in the Crypto
+    state.
 
-    Performs an Argon2id key derivation (argon2id.kdf) to produce a
-    fixed-size Argon2 tag, then derives application-specific working
-    keys from that tag by calling derive_working_keys(argon2_tag).
-
-    Behavior
-    - Reads inputs from module-level dictionaries:
-    - BYTES_D['argon2_password'] (bytes input to Argon2)
-    - BYTES_D['argon2_salt'] (salt bytes)
-    - INT_D['argon2_time_cost'] (ops limit/time cost)
-    - Uses ARGON2_MEMORY_COST and ARGON2_TAG_SIZE for memory and output
-      size.
-    - Logs start/finish and elapsed time.
-
-    Error handling
-    - Returns False if the Argon2 KDF raises an exception (e.g.,
-      RuntimeError).
-    - Returns True on success after derive_working_keys completes.
-
-    Side effects
-    - Calls derive_working_keys(argon2_tag), which produces and stores
-      working key material in module state.
-    - Performs potentially expensive computation; caller should account
-      for blocking/latency.
+    Parameters
+    ----------
+    ad : ActData
+        Mutable action/state container used by the caller. On error
+        `ad.err` will be set to True.
+    crypt : Crypto
+        Mutable container providing Argon2 inputs and receiving derived
+        keys. Must provide:
+        - argon2_password : bytes
+            Password/input for Argon2 KDF.
+        - argon2_salt : bytes
+            Salt for Argon2 KDF.
+        - argon2_time_cost : int
+            Ops/time cost parameter for Argon2 (used as `opslimit`).
+        After successful return, `crypt` will have keys set by
+        `derive_working_keys(argon2_tag, crypt)`:
+        - mac_key, enc_key, enc_key_hash : bytes
 
     Returns
-        bool: True on success, False on failure.
+    -------
+    tuple[ActData, Crypto]
+        (ad, crypt). On success `ad.err` remains unchanged. On Argon2
+        failure `ad.err` is set to True and the original `crypt` is
+        returned.
+
+    Notes
+    -----
+    - Performs an Argon2id KDF using `argon2id.kdf`.
+    - Logs the operation start/finish and elapsed time.
+    - On success calls `derive_working_keys(argon2_tag, crypt)` to
+      populate working keys.
+    - On Argon2 runtime errors sets `ad.err = True`, logs the error, and
+      returns early.
+    - Requires constants/functions `ARGON2_TAG_SIZE`,
+      `ARGON2_MEMORY_COST`, `monotonic`, `format_time`, and
+      `derive_working_keys`, and that `UNSAFE_DEBUG`/logging functions
+      are available.
     """
     log_i('deriving keys (time-consuming)')
 
@@ -2166,36 +2796,49 @@ def derive_keys() -> bool:
     try:
         argon2_tag: bytes = argon2id.kdf(
             size=ARGON2_TAG_SIZE,
-            password=BYTES_D['argon2_password'],
-            salt=BYTES_D['argon2_salt'],
-            opslimit=INT_D['argon2_time_cost'],
+            password=crypt.argon2_password,
+            salt=crypt.argon2_salt,
+            opslimit=crypt.argon2_time_cost,
             memlimit=ARGON2_MEMORY_COST,
         )
     except RuntimeError as error:
+        ad.err = True
         log_e(f'{error}')
-        return False
+        return ad, crypt
 
-    derive_working_keys(argon2_tag)
+    crypt = derive_working_keys(argon2_tag=argon2_tag, crypt=crypt)
 
     end_time: float = monotonic()
 
     log_i(f'keys derived in {format_time(end_time - start_time)}')
 
-    return True
+    return ad, crypt
 
 
 def hkdf_sha256(input_key: bytes, info: bytes, length: int) -> bytes:
     """
-    HKDF-SHA-256 wrapper using empty salt.
+    Derive bytes using HKDF with SHA-256 (empty salt).
 
-    Args:
-        input_key (bytes): Input keying material (HKDF `IKM`).
-        info (bytes): Context-specific info (HKDF `info`),
-                      can be any length.
-        length (int): Number of bytes to derive (must be > 0).
+    Parameters
+    ----------
+    input_key : bytes
+        Input keying material (IKM) for HKDF.
+    info : bytes
+        Contextual information (HKDF info). May be empty or any length.
+    length : int
+        Number of bytes to derive. Must be > 0.
 
-    Returns:
-        bytes: Derived key of exactly `length` bytes.
+    Returns
+    -------
+    bytes
+        Derived key of exactly `length` bytes.
+
+    Notes
+    -----
+    - Uses an empty salt (salt=None) when constructing the HKDF.
+    - Requires cryptography.hazmat.primitives.kdf.hkdf.HKDF and
+      cryptography.hazmat.primitives.hashes.SHA256, plus a backend.
+    - Raises whatever exceptions HKDF.derive raises for invalid inputs.
     """
     hkdf: HKDF = HKDF(
         algorithm=SHA256(),
@@ -2209,345 +2852,554 @@ def hkdf_sha256(input_key: bytes, info: bytes, length: int) -> bytes:
     return derived_key
 
 
-def derive_working_keys(argon2_tag: bytes) -> None:
+def derive_working_keys(argon2_tag: bytes, crypt: Crypto) -> Crypto:
     """
-    Derive encryption and MAC keys from an Argon2 tag using HKDF-SHA-256.
+    Derive encryption and MAC keys from an Argon2 tag using
+    HKDF-SHA-256.
 
-    This function treats the provided Argon2 tag as HKDF input keying
-    material (IKM) and derives two separate purpose-specific keys via
-    HKDF-SHA-256, storing them in module state.
+    Parameters
+    ----------
+    argon2_tag : bytes
+        Raw output bytes from Argon2; used as HKDF input keying
+        material (IKM).
+    crypt : Crypto
+        Mutable container where derived keys will be stored. After the
+        call it must contain:
+        - mac_key : bytes
+            HKDF-derived MAC key of length `MAC_KEY_SIZE`.
+        - enc_key : bytes
+            HKDF-derived encryption key of length `ENC_KEY_SIZE`.
+        - enc_key_hash : bytes
+            BLAKE2b digest (digest_size=`ENC_KEY_SIZE`) of `enc_key`.
 
-    Behavior
+    Returns
+    -------
+    Crypto
+        The updated `crypt` object with `mac_key`, `enc_key`, and
+        `enc_key_hash` populated.
 
-    - Uses hkdf_sha256(input_key, info, length) to derive:
-        * a MAC key (stored at BYTES_D['mac_key'], length MAC_KEY_SIZE)
-        * an encryption key (stored at BYTES_D['enc_key'], length
-          ENC_KEY_SIZE)
-    - Computes a key-commitment for the encryption key by hashing it
-      with BLAKE2b (digest size = ENC_KEY_SIZE) and stores the result at
-      BYTES_D['enc_key_hash'].
-    - When DEBUG is true, logs the Argon2 tag and the derived values in
-      hex.
-
-    Args:
-        argon2_tag (bytes): Raw output bytes from Argon2; used as
-                            HKDF IKM.
-
-    Returns:
-        None
+    Notes
+    -----
+    - Derives `mac_key` and `enc_key` using `hkdf_sha256` with
+      per-purpose `HKDF_INFO_MAC` and `HKDF_INFO_ENCRYPT`.
+    - Computes `enc_key_hash` as a key-commitment for the encryption
+      key.
+    - Emits hex-formatted debug logs for `argon2_tag`, `mac_key`,
+      `enc_key`, and `enc_key_hash` when `UNSAFE_DEBUG` is enabled.
+    - Requires functions/constants `hkdf_sha256`, `blake2b`,
+      `MAC_KEY_SIZE`, `ENC_KEY_SIZE`, `HKDF_INFO_MAC`,
+      `HKDF_INFO_ENCRYPT`, and `UNSAFE_DEBUG` to be available.
     """
-    mac_key: bytes = hkdf_sha256(
+    crypt.mac_key = hkdf_sha256(
         input_key=argon2_tag,
         info=HKDF_INFO_MAC,
         length=MAC_KEY_SIZE,
     )
 
-    enc_key: bytes = hkdf_sha256(
+    crypt.enc_key = hkdf_sha256(
         input_key=argon2_tag,
         info=HKDF_INFO_ENCRYPT,
         length=ENC_KEY_SIZE,
     )
 
-    enc_key_hash: bytes = blake2b(enc_key, digest_size=ENC_KEY_SIZE).digest()
+    crypt.enc_key_hash = blake2b(
+        crypt.enc_key,
+        digest_size=ENC_KEY_SIZE,
+    ).digest()
 
-    BYTES_D['mac_key'] = mac_key
-    BYTES_D['enc_key'] = enc_key
-    BYTES_D['enc_key_hash'] = enc_key_hash
-
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d(f'argon2_tag:\n        {argon2_tag.hex()}')
-        log_d(f'mac_key:\n        {mac_key.hex()}')
-        log_d(f'enc_key:\n        {enc_key.hex()}')
-        log_d(f'enc_key_hash:\n        {enc_key_hash.hex()}')
+        log_d(f'mac_key:\n        {crypt.mac_key.hex()}')
+        log_d(f'enc_key:\n        {crypt.enc_key.hex()}')
+        log_d(f'enc_key_hash:\n        {crypt.enc_key_hash.hex()}')
+
+    return crypt
 
 
 # Perform encryption/decryption and authentication
 # --------------------------------------------------------------------------- #
 
 
-def init_nonce_counter() -> None:
+def init_nonce_counter(crypt: Crypto) -> Crypto:
     """
-    Initialize the nonce counter.
+    Initialize the nonce counter to zero.
 
-    This function sets the nonce counter to its initial value (0)
-    in preparation for encryption/authentication.
+    Parameters
+    ----------
+    crypt : Crypto
+        Mutable container where `nonce_counter` will be set to 0.
 
-    The nonce counter is stored in a global dictionary, allowing
-    it to be accessed by other functions involved in the encryption
-    and authentication processes. This function can be called multiple
-    times, and each invocation will reset the nonce counter to 0.
+    Returns
+    -------
+    Crypto
+        The updated `crypt` object with `nonce_counter == 0`.
 
-    If the DEBUG flag is enabled, the initialization of the nonce
-    counter will be logged for debugging purposes.
-
-    Returns:
-        None
+    Notes
+    -----
+    - Resets `crypt.nonce_counter` to 0; safe to call multiple times.
+    - Emits a debug log when `UNSAFE_DEBUG` is enabled.
     """
-    init_value: int = 0
+    crypt.nonce_counter = 0
 
-    INT_D['nonce_counter'] = init_value
+    if UNSAFE_DEBUG:
+        log_d(f'nonce counter initialized to {crypt.nonce_counter}')
 
-    if DEBUG:
-        log_d(f'nonce counter initialized to {init_value}')
+    return crypt
 
 
-def increment_nonce() -> None:
+def increment_nonce(crypt: Crypto) -> Crypto:
     """
-    Increment the nonce/counter and store the derived nonce bytes.
+    Increment the nonce counter and store the derived nonce bytes.
 
-    This function increments the nonce counter stored in
-    INT_D['nonce_counter'], derives the nonce byte sequence of length
-    NONCE_SIZE using BYTEORDER, and writes it to BYTES_D['nonce']. The
-    resulting nonce is used both for ChaCha20 encryption and as part of
-    the keyed BLAKE2b MAC input.
+    Parameters
+    ----------
+    crypt : Crypto
+        Mutable container holding nonce state. Must provide:
+        - nonce_counter : int
+            Counter to be incremented.
+        - (after call) nonce : bytes
+            Derived nonce bytes of length `NONCE_SIZE`.
 
-    Notes and requirements:
-      - The nonce must be unique for every encryption operation under
-        the same key; reuse of nonce with the same key breaks security
-        for ChaCha20 and may compromise MAC guarantees.
-      - Ensure INT_D['nonce_counter'] and NONCE_SIZE are initialized and
-        that BYTEORDER matches the protocol's endianness.
-      - This function mutates INT_D and BYTES_D.
-      - If DEBUG is true, the new counter value and nonce are logged.
+    Returns
+    -------
+    Crypto
+        The updated `crypt` object with `nonce_counter` incremented and
+        `nonce` set to `nonce_counter.to_bytes(NONCE_SIZE, BYTEORDER)`.
 
-    Returns:
-        None
+    Notes
+    -----
+    - Increments `crypt.nonce_counter` and derives `crypt.nonce` using
+      `NONCE_SIZE` and `BYTEORDER`.
+    - The nonce must be unique for every encryption operation under the
+      same key.
+    - Requires that `NONCE_SIZE` and `BYTEORDER` are defined and that
+      `crypt.nonce_counter` is initialized.
+    - Emits debug logs when `UNSAFE_DEBUG` is enabled.
     """
-    INT_D['nonce_counter'] += 1
+    crypt.nonce_counter += 1
 
-    incremented_nonce: bytes = \
-        INT_D['nonce_counter'].to_bytes(NONCE_SIZE, BYTEORDER)
+    crypt.nonce = crypt.nonce_counter.to_bytes(NONCE_SIZE, BYTEORDER)
 
-    BYTES_D['nonce'] = incremented_nonce
+    if UNSAFE_DEBUG:
+        log_d(f'nonce counter incremented to {crypt.nonce_counter}; '
+              f'new nonce: {crypt.nonce.hex()}')
 
-    if DEBUG:
-        incremented_counter: int = INT_D['nonce_counter']
-        log_d(f'nonce counter incremented to {incremented_counter}; '
-              f'new nonce: {incremented_nonce.hex()}')
+    return crypt
 
 
-def init_new_mac_chunk() -> None:
+def init_new_mac_chunk(crypt: Crypto) -> Crypto:
     """
-    Initialize a new MAC chunk and reset its state.
+    Initialize a new MAC chunk: increment nonce, create MAC object,
+    reset counter.
 
-    This function starts a new MAC (Message Authentication Code) chunk
-    by:
-      - incrementing the nonce (via increment_nonce()),
-      - deriving/initializing a fresh MAC hash object
-        (stored in ANY_D['mac_hash_obj']) using blake2b with the
-        configured MAC key and digest size,
-      - resetting the running chunk byte counter
-        (INT_D['mac_chunk_size_sum'] = 0).
+    Parameters
+    ----------
+    crypt : Crypto
+        Mutable container holding MAC and protocol state. Must provide:
+        - mac_key : bytes
+            Key used to initialize the MAC (passed to blake2b or
+            equivalent).
+        - nonce : bytes
+            Current nonce; will be incremented by increment_nonce().
+        - (after call) mac_hash_obj : object
+            Newly created MAC/hash object exposing .update() and
+            .digest().
+        - (after call) mac_chunk_size_sum : int
+            Running total of processed bytes, reset to 0.
 
-    Returns:
-        None
+    Returns
+    -------
+    Crypto
+        The updated `crypt` object with a new nonce, a new
+        `mac_hash_obj`, and `mac_chunk_size_sum` set to 0.
 
-    Notes:
-      - Relies on global containers ANY_D, BYTES_D and INT_D and the
-        functions increment_nonce() and blake2b being available in
-        scope.
-      - Emits debug logs when DEBUG is enabled.
+    Notes
+    -----
+    - Calls `increment_nonce(crypt)` to advance the nonce used for
+      MAC/encryption.
+    - Initializes `mac_hash_obj` using `blake2b`.
+    - Resets `mac_chunk_size_sum` to 0.
+    - Emits debug logs when `UNSAFE_DEBUG` is enabled.
+    - Relies on globally available `increment_nonce` and `blake2b`
+      functions and constants `MAC_TAG_SIZE` and `UNSAFE_DEBUG`.
     """
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d('init new MAC chunk with new nonce')
 
-    increment_nonce()  # For MAC and encryption
+    crypt = increment_nonce(crypt)
 
-    ANY_D['mac_hash_obj'] = blake2b(
+    crypt.mac_hash_obj = blake2b(
         digest_size=MAC_TAG_SIZE,
-        key=BYTES_D['mac_key'],
+        key=crypt.mac_key,
     )
 
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d('MAC hash object initialized')
 
-    INT_D['mac_chunk_size_sum'] = 0
+    crypt.mac_chunk_size_sum = 0
+
+    return crypt
 
 
-def update_mac(chunk: bytes, comment: str) -> None:
+def update_mac(chunk: bytes, comment: str, crypt: Crypto) -> Crypto:
     """
-    Update the MAC hash object with a data chunk.
+    Update the MAC object with a data chunk and increment the
+    accumulated size.
 
-    Retrieves the MAC hash object from ANY_D['mac_hash_obj'] and updates
-    it with the provided byte chunk. Also increments the running total
-    of processed message bytes stored in INT_D['mac_chunk_size_sum'].
+    Parameters
+    ----------
+    chunk : bytes
+        Data to feed into the MAC.
+    comment : str
+        Human-readable description of the chunk (used only for debug
+        logging).
+    crypt : Crypto
+        Mutable container holding MAC state. Must provide:
+        - mac_hash_obj : object
+            A MAC/hash object exposing an .update(bytes) method.
+        - mac_chunk_size_sum : int
+            Running total of processed bytes; will be incremented by
+            len(chunk).
 
-    Args:
-        chunk (bytes): Data to feed into the MAC.
+    Returns
+    -------
+    Crypto
+        The updated `crypt` object with `mac_hash_obj` updated and
+        `mac_chunk_size_sum` incremented.
 
-    Returns:
-        None
-
-    Notes:
-      - Uses ANY_D and INT_D globals for the hash object and size
-        accumulator.
-      - Logs the chunk size when DEBUG is enabled.
+    Notes
+    -----
+    - Uses the provided `mac_hash_obj.update(chunk)` to feed data into
+      the MAC.
+    - Increments `mac_chunk_size_sum` by the number of bytes in `chunk`.
+    - If `UNSAFE_DEBUG` is enabled, logs the chunk description and
+      formatted size.
     """
-    ANY_D['mac_hash_obj'].update(chunk)
+    crypt.mac_hash_obj.update(chunk)
 
     chunk_size: int = len(chunk)
 
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d(f'MAC updated with: {comment}, {format_size(chunk_size)}')
 
-    INT_D['mac_chunk_size_sum'] += chunk_size
+    crypt.mac_chunk_size_sum += chunk_size
+
+    return crypt
 
 
-def get_computed_mac_tag() -> bytes:
+def update_mac_with_aad(crypt: Crypto) -> Crypto:
     """
-    Compute and return the MAC tag.
+    Update the incremental MAC with the assembled additional
+    authenticated data (AAD) fields from the provided Crypto context.
 
-    Steps:
-    - Serialize the accumulated total processed size
-      (INT_D['mac_chunk_size_sum']) into a fixed-length byte sequence of
-      SIZE_BYTES_SIZE using BYTEORDER and feed it to the MAC.
-    - Feed the current nonce (BYTES_D['nonce']) into the MAC.
-    - Feed the session-associated data (BYTES_D['session_aad']) into the
-      MAC.
-    - Finalize the MAC via ANY_D['mac_hash_obj'].digest() and return the
-      resulting tag bytes.
+    Parameters
+    ----------
+    crypt : Crypto
+        Cryptographic context whose AAD fields will be fed into the
+        incremental MAC. Expected fields used by this function:
+        - enc_key_hash : bytes
+        - argon2_salt : bytes
+        - blake2_salt : bytes
+        - encrypted_pad_ikm : bytes
+        - padded_size_bytes : bytes
+        - pad_size_bytes : bytes
+        - contents_size_bytes : bytes
 
-    Side effects:
-    - Consumes and deletes ANY_D['mac_hash_obj'],
-      INT_D['mac_chunk_size_sum'], and BYTES_D['nonce'] from their
-      containers.
-    - Expects ANY_D['mac_hash_obj'] to be a pre-initialized keyed
-      MAC/hash object (e.g., keyed BLAKE2b or HMAC) with prior chunk
-      updates.
-    - Requires SIZE_BYTES_SIZE and BYTEORDER to be defined and
-      consistent with the protocol.
-    - Does not perform constant-time tag comparison; verification must
-      be done elsewhere using a constant-time compare.
+    Returns
+    -------
+    Crypto
+        The same `crypt` object passed in. The function mutates `crypt`
+        by updating its incremental MAC/hash state via repeated calls to
+        `update_mac(...)` and then returns the mutated object.
 
-    Returns:
-        bytes: The finalized MAC tag.
+    Notes
+    -----
+    - The function feeds AAD fields into the MAC in a fixed order;
+      callers must use the same order when verifying MACs.
+    - This function assumes `update_mac` is available and that `crypt`
+      contains non-None byte values for the listed fields; missing or
+      None fields may cause `update_mac` to set error state or raise.
+    - No exceptions are caught here; error handling (if any) is the
+      responsibility of `update_mac` and the caller.
+    - All AAD fields in the crypt object must be non-None and properly
+      initialized before calling this function.
     """
-    mac_chunk_size: int = INT_D['mac_chunk_size_sum']
+    update_mac(
+        chunk=crypt.enc_key_hash,
+        comment='enc_key_hash',
+        crypt=crypt,
+    )
+    update_mac(
+        chunk=crypt.argon2_salt,
+        comment='argon2_salt',
+        crypt=crypt,
+    )
+    update_mac(
+        chunk=crypt.blake2_salt,
+        comment='blake2_salt',
+        crypt=crypt,
+    )
+    update_mac(
+        chunk=crypt.encrypted_pad_ikm,
+        comment='encrypted_pad_ikm',
+        crypt=crypt,
+    )
+    update_mac(
+        chunk=crypt.padded_size_bytes,
+        comment='padded_size_bytes',
+        crypt=crypt,
+    )
+    update_mac(
+        chunk=crypt.pad_size_bytes,
+        comment='pad_size_bytes',
+        crypt=crypt,
+    )
+    update_mac(
+        chunk=crypt.contents_size_bytes,
+        comment='contents_size_bytes',
+        crypt=crypt,
+    )
+    return crypt
+
+
+def get_computed_mac_tag(crypt: Crypto) -> tuple[bytes, Crypto]:
+    """
+    Compute and return the finalized MAC tag and update the Crypto
+    state.
+
+    Parameters
+    ----------
+    crypt : Crypto
+        Mutable container holding MAC state and protocol fields. Must
+        provide:
+        - mac_hash_obj : object
+            A pre-initialized keyed MAC/hash object with prior updates
+            (e.g., HMAC or keyed BLAKE2b) exposing a .digest() method.
+        - mac_chunk_size_sum : int
+            Accumulated total processed size to serialize and feed to
+            the MAC.
+        - nonce : bytes
+            Current nonce to include in the MAC.
+
+    Returns
+    -------
+    tuple[bytes, Crypto]
+        Tuple (tag, crypt) where `tag` is the finalized MAC tag bytes
+        and `crypt` is the updated Crypto object with consumed fields
+        removed.
+
+    Notes
+    -----
+    - Serializes `mac_chunk_size_sum` to a fixed-length byte sequence of
+      length `SIZE_BYTES_SIZE` using `BYTEORDER`, then updates the MAC
+      with that value, followed by the current `nonce`, and finally all
+      AAD fields via `update_mac_with_aad`.
+    - Finalizes the MAC with `mac_hash_obj.digest()` and deletes
+      `mac_hash_obj` and `mac_chunk_size_sum` from `crypt`.
+    - Does not perform constant-time tag comparison; the caller must
+      verify the tag using a constant-time comparison function.
+    - Requires constants `SIZE_BYTES_SIZE` and `BYTEORDER` to be defined
+      and consistent with the protocol.
+    """
+    mac_chunk_size: int = crypt.mac_chunk_size_sum
 
     mac_chunk_size_bytes: bytes = \
         mac_chunk_size.to_bytes(SIZE_BYTES_SIZE, BYTEORDER)
 
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d(f'mac_chunk_size: {format_size(mac_chunk_size)}, '
               f'mac_chunk_size_bytes: {mac_chunk_size_bytes.hex()}')
 
-    update_mac(mac_chunk_size_bytes, 'mac_chunk_size_bytes')
-    update_mac(BYTES_D['nonce'], 'nonce')
-    update_mac(BYTES_D['session_aad'], 'session_aad')
+    crypt = update_mac(
+        chunk=mac_chunk_size_bytes,
+        comment='mac_chunk_size_bytes',
+        crypt=crypt,
+    )
+    crypt = update_mac(
+        chunk=crypt.nonce,
+        comment='nonce',
+        crypt=crypt,
+    )
+    crypt = update_mac_with_aad(crypt)
 
-    computed_mac_tag: bytes = ANY_D['mac_hash_obj'].digest()
+    computed_mac_tag: bytes = crypt.mac_hash_obj.digest()
 
-    del ANY_D['mac_hash_obj'], INT_D['mac_chunk_size_sum']
+    del crypt.mac_hash_obj, crypt.mac_chunk_size_sum
 
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d(f'computed MAC tag:\n        {computed_mac_tag.hex()}')
 
-    return computed_mac_tag
+    return computed_mac_tag, crypt
 
 
-def write_mac_tag() -> bool:
+def write_mac_tag(ad: ActData, crypt: Crypto) -> tuple[ActData, Crypto]:
     """
     Write the computed MAC tag to the output.
 
-    This function obtains the MAC tag produced by get_computed_mac_tag()
-    and writes it to the output using write_data(). It returns True
-    on successful write and False on failure. Debug logs are emitted
-    when DEBUG is enabled.
+    Parameters
+    ----------
+    ad : ActData
+        Action/context object providing output helpers and an error flag
+       `err`.
+    crypt : Crypto
+        Crypto state used to compute the MAC tag; may be updated by
+        `get_computed_mac_tag`.
 
-    Returns:
-        bool: True if the MAC tag was retrieved and written successfully;
-              False otherwise.
+    Returns
+    -------
+    tuple[ActData, Crypto]
+        Tuple of (ad, crypt). On success `ad.err` remains False. If
+        writing fails `ad.err` is set to True and the returned `crypt`
+        reflects the state at failure.
+
+    Notes
+    -----
+    - Obtains the tag via `get_computed_mac_tag(crypt)` and writes it
+      using `write_data(computed_mac_tag, ad)`.
+    - Emits debug logs when `UNSAFE_DEBUG` is True.
+    - Relies on helpers/globals: `get_computed_mac_tag`, `write_data`,
+      `log_d`.
     """
-    computed_mac_tag: bytes = get_computed_mac_tag()
+    computed_mac_tag: bytes
 
-    if DEBUG:
+    computed_mac_tag, crypt = get_computed_mac_tag(crypt)
+
+    if UNSAFE_DEBUG:
         log_d('writing computed MAC tag')
 
-    if not write_data(computed_mac_tag):
-        return False
+    ad = write_data(data=computed_mac_tag, ad=ad)
+    if ad.err:
+        return ad, crypt
 
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d('computed MAC tag written')
 
-    return True
+    return ad, crypt
 
 
-def read_and_verify_mac_tag() -> bool:
+def read_and_verify_mac_tag(
+    ad: ActData,
+    crypt: Crypto,
+) -> tuple[ActData, Crypto]:
     """
-    Read and verify MAC tag by comparing a computed tag with a retrieved
-    tag.
+    Read and verify a MAC tag from the input and compare it to the
+    computed tag.
 
-    Returns:
-        bool: True if tags are present and equal
-              (time-constant comparison). False otherwise.
+    Parameters
+    ----------
+    ad : ActData
+        Action/context object providing the input file object
+        `in_file_obj` and an error flag `err`. On verification failure
+        `ad.err` will be set.
+    crypt : Crypto
+        Crypto state used to compute the expected MAC tag; may be
+        updated by `get_computed_mac_tag`.
+
+    Returns
+    -------
+    tuple[ActData, Crypto]
+        Tuple of (ad, crypt). On success `ad.err` remains
+        unchanged/False. On failure (I/O error or tag mismatch) `ad.err`
+        is set to True and `crypt` reflects the state at failure.
+
+    Notes
+    -----
+    - Reads `MAC_TAG_SIZE` bytes from `ad.in_file_obj` using
+      `read_data`. If the read returns `None`, sets `ad.err = True`,
+      logs the failure, and returns immediately.
+    - Obtains the expected tag via `get_computed_mac_tag(crypt)`.
+    - Compares tags using a time-constant comparison (`compare_digest`).
+      On mismatch, sets `ad.err = True` and logs the failure.
+    - Debug logging (when `UNSAFE_DEBUG` is true) outputs the retrieved
+      tag and a success message on match.
+    - Relies on globals/helpers: `MAC_TAG_SIZE`, `get_computed_mac_tag`,
+      `read_data`, `compare_digest`, `log_e`, `log_d`, and
+      `MAC_FAIL_MESSAGE`.
     """
-    computed_mac_tag: bytes = get_computed_mac_tag()
+    computed_mac_tag: bytes
+    computed_mac_tag, crypt = get_computed_mac_tag(crypt)
 
     retrieved_mac_tag: Optional[bytes] = \
-        read_data(BIO_D['IN'], MAC_TAG_SIZE)
+        read_data(ad.in_file_obj, MAC_TAG_SIZE)
 
     if retrieved_mac_tag is None:
+        ad.err = True
         log_e(MAC_FAIL_MESSAGE)
-        return False
+        return ad, crypt
 
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d(f'retrieved MAC tag:\n        {retrieved_mac_tag.hex()}')
 
     if compare_digest(computed_mac_tag, retrieved_mac_tag):
-
-        if DEBUG:
+        if UNSAFE_DEBUG:
             log_d('computed MAC tag is equal to retrieved MAC tag')
+        return ad, crypt
 
-        return True
+    if UNSAFE_DEBUG:
+        log_d('computed MAC tag is NOT equal to retrieved MAC tag')
 
+    if UNSAFE_DECRYPT:
+        log_w('authentication failed; '
+              'possibly invalid plaintext will be released!')
+        return ad, crypt
+
+    ad.err = True
     log_e(MAC_FAIL_MESSAGE)
-    return False
+    return ad, crypt
 
 
-def feed_stream_cipher(input_data: bytes, comment: str) -> bytes:
+def feed_stream_cipher(
+    input_data: bytes,
+    comment: str,
+    crypt: Crypto,
+) -> tuple[bytes, Crypto]:
     """
-    Symmetric ChaCha20 encrypt/decrypt for a single chunk using a
-    current nonce.
+    Perform ChaCha20 stream-cipher processing on a single chunk using
+    the current nonce.
 
-    Performs ChaCha20 stream cipher processing on input_data. On each
-    use the caller must have incremented the nonce counter
-    (so BYTES_D['nonce'] holds a fresh nonce). The same function works
-    for encryption and decryption (symmetric stream cipher).
+    Parameters
+    ----------
+    input_data : bytes
+        Data to process. May be empty; output will be the same length as
+        input.
+    comment : str
+        Short description used for debug logging.
+    crypt : Crypto
+        Crypto state carrying `enc_key` (256-bit key) and `nonce`
+        (counter bytes). Returned updated `crypt` may have debug
+        counters modified.
 
-    Key behaviors and invariants:
-      - Uses a 256-bit key from BYTES_D['enc_key'].
-      - Builds a 128-bit full nonce as
-        BLOCK_COUNTER_INIT_BYTES || BYTES_D['nonce'].
-      - Does NOT provide authenticity; integrity must be ensured
-        separately (e.g., keyed BLAKE2b tag over ciphertext + associated
-        data).
-      - Nonce reuse under the same key is catastrophic; ensure the
-        counter is correctly incremented and persisted.
+    Returns
+    -------
+    tuple[bytes, Crypto]
+        (output_data, crypt) where `output_data` is the
+        ciphertext/plaintext (same length as `input_data`) and `crypt`
+        is the possibly updated crypto state.
 
-    Args:
-        input_data (bytes): Data to process. Empty input yields empty
-                            output.
-
-    Returns:
-        bytes: Processed output (ciphertext or plaintext), same length
-               as input.
-
-    Notes:
-      - The function updates INT_D counters for debugging only
-        (INT_D['enc_sum'], INT_D['enc_chunk_count']) when DEBUG is True.
-      - Ensure NONCE_SIZE, BLOCK_COUNTER_INIT_BYTES length, and
-        endianness of the counter are consistent with the protocol.
+    Notes
+    -----
+    - A 128-bit nonce is formed by prepending 4 zero bytes
+      (BLOCK_COUNTER_INIT_BYTES = b'\x00\x00\x00\x00') to the 96-bit
+      crypt.nonce.
+    - Uses ChaCha20 with a 256-bit key from `crypt.enc_key`. Caller must
+      ensure `crypt.nonce` is a fresh counter value before calling;
+      nonce reuse with the same key is catastrophic.
+    - This function provides confidentiality only (no authenticity).
+      Integrity must be provided separately (e.g., MAC over ciphertext
+      and associated data).
+    - When `UNSAFE_DEBUG` is true, `crypt.enc_sum` and
+      `crypt.enc_chunk_count` are updated and a debug log is emitted.
+    - Relies on globals/constants: `BLOCK_COUNTER_INIT_BYTES`,
+      `UNSAFE_DEBUG`, and helper `format_size`, and on a ChaCha20/Cipher
+      implementation compatible with a 128-bit nonce.
     """
-
-    # Retrieve the incremented nonce value as queried by ChaCha20
-    nonce: bytes = BYTES_D['nonce']
 
     # This ChaCha20 implementation uses a 128-bit full nonce
-    full_nonce: bytes = BLOCK_COUNTER_INIT_BYTES + nonce
+    full_nonce: bytes = BLOCK_COUNTER_INIT_BYTES + crypt.nonce
 
     # Create the ChaCha20 algorithm object
     algorithm: ChaCha20 = ChaCha20(
-        key=BYTES_D['enc_key'],  # 256-bit encryption key
+        key=crypt.enc_key,  # 256-bit encryption key
         nonce=full_nonce,  # 128-bit full nonce
     )
 
@@ -2558,14 +3410,15 @@ def feed_stream_cipher(input_data: bytes, comment: str) -> bytes:
     output_data: bytes = cipher.encryptor().update(input_data)
 
     # Log the chunk size and nonce value if debugging is enabled
-    if DEBUG:
+    if UNSAFE_DEBUG:
         chunk_size: int = len(output_data)
-        INT_D['enc_sum'] += chunk_size
-        INT_D['enc_chunk_count'] += 1
+        crypt.enc_sum += chunk_size
+        crypt.enc_chunk_count += 1
         log_d(f'ChaCha20 input: {comment}, '
-              f'size: {format_size(chunk_size)}, with nonce {nonce.hex()}')
+              f'size: {format_size(chunk_size)}, '
+              f'with nonce {crypt.nonce.hex()}')
 
-    return output_data
+    return output_data, crypt
 
 
 # Handle padding
@@ -2574,36 +3427,38 @@ def feed_stream_cipher(input_data: bytes, comment: str) -> bytes:
 
 def get_pad_size_from_unpadded(unpadded_size: int, pad_key: bytes) -> int:
     """
-    Calculates the padding size based on the unpadded size and a padding
-    key.
+    Calculate padding size from unpadded size and a padding key.
 
-    This function computes the padding size to be applied to the
-    unpadded size based on the provided parameters. The padding size is
-    determined by the size of the unpadded size, a padding key converted
-    from bytes to an integer, and a maximum padding size percentage
-    (MAX_PAD_SIZE_PERCENT).
+    Parameters
+    ----------
+    unpadded_size : int
+        Size of the unpadded data in bytes. Must be > 0 when used in
+        percentage calculations in debug logging.
+    pad_key : bytes
+        Byte string used to influence the padding size; converted to an
+        integer with byte order `BYTEORDER`.
 
-    The relationship between the unpadded size and the padding size is
-    defined as follows:
+    Returns
+    -------
+    int
+        Calculated padding size in bytes.
 
-    +———————————————+——————————+
-    | unpadded_size | pad_size |
-    +———————————————+——————————+
-    |         padded_size      |
-    +——————————————————————————+
-
-    `padded_size` represents the total size of the cryptoblob.
-
-    Args:
-        unpadded_size (int): The size of the unpadded data in bytes.
-            This value is used to calculate the padding size.
-
-        pad_key (bytes): A byte string that influences the padding size.
-            This key is converted to an integer to affect the padding
-            size calculation.
-
-    Returns:
-        int: The calculated padding size in bytes.
+    Notes
+    -----
+    - The padding size is computed as:
+      pad_size = (unpadded_size * pad_key_int * MAX_PAD_SIZE_PERCENT) //
+                 (PAD_KEY_SPACE * 100)
+      where `pad_key_int = int.from_bytes(pad_key, BYTEORDER)`.
+    - The maximum possible padding (for logging) is:
+      max_pad_size = (unpadded_size * MAX_PAD_SIZE_PERCENT) // 100
+    - Debug logging (when `UNSAFE_DEBUG` is true) reports intermediate values:
+      `pad_key_int`, `pad_key_int / PAD_KEY_SPACE`, `unpadded_size`,
+      `max_pad_size`, `pad_size`, percent of `unpadded_size`, percent of
+      `max_pad_size` (if `max_pad_size` > 0), and `padded_size =
+      unpadded_size + pad_size`.
+    - Relies on globals/constants: `BYTEORDER`, `MAX_PAD_SIZE_PERCENT`,
+      `PAD_KEY_SPACE`, and `UNSAFE_DEBUG`, plus helpers used only for
+      logging such as `format_size`, `log_d`.
     """
 
     # Convert the padding key from bytes to an integer
@@ -2618,7 +3473,7 @@ def get_pad_size_from_unpadded(unpadded_size: int, pad_key: bytes) -> int:
 
     # If debugging is enabled, log detailed information
     # about the padding calculation
-    if DEBUG:
+    if UNSAFE_DEBUG:
         max_pad_size: int = (unpadded_size * MAX_PAD_SIZE_PERCENT) // 100
 
         if max_pad_size:
@@ -2630,46 +3485,52 @@ def get_pad_size_from_unpadded(unpadded_size: int, pad_key: bytes) -> int:
 
         log_d('getting pad_size')
 
-        log_d(f'pad_key_int:                {pad_key_int}')
-        log_d(f'pad_key_int/PAD_KEY_SPACE:  {pad_key_int / PAD_KEY_SPACE}')
+        log_d(f'pad_key_int:               {pad_key_int}')
+        log_d(f'pad_key_int/PAD_KEY_SPACE: {pad_key_int / PAD_KEY_SPACE}')
 
-        log_d(f'unpadded_size:  {format_size(unpadded_size)}')
-        log_d(f'max_pad_size:   {format_size(max_pad_size)}')
+        log_d(f'unpadded_size: {format_size(unpadded_size)}')
+        log_d(f'max_pad_size:  {format_size(max_pad_size)}')
 
         if max_pad_size:
-            log_d(f'pad_size:       {format_size(pad_size)}, '
+            log_d(f'pad_size:      {format_size(pad_size)}, '
                   f'{round(percent_of_unpadded, 1)}% of unpadded_size, '
                   f'{round(percent_of_max_total, 1)}% of max_pad_size')
         else:
-            log_d(f'pad_size:       {format_size(pad_size)}, '
+            log_d(f'pad_size:      {format_size(pad_size)}, '
                   f'{round(percent_of_unpadded, 1)}% of unpadded_size')
 
-        log_d(f'padded_size:    {format_size(padded_size)}')
+        log_d(f'padded_size:   {format_size(padded_size)}')
 
     return pad_size
 
 
 def get_pad_size_from_padded(padded_size: int, pad_key: bytes) -> int:
     """
-    Calculates the padding size based on the padded size and the
-    padding key.
+    Calculate the padding size from the total padded size and padding
+    key.
 
-    This function computes the padding size that was applied to the
-    unpadded size using the specified padding key and maximum padding
-    percentage (MAX_PAD_SIZE_PERCENT). The padding size is derived from
-    the padded size and the integer value of the padding key.
+    Parameters
+    ----------
+    padded_size : int
+        The total size of the cryptoblob including padding (bytes).
+    pad_key : bytes
+        Byte string used to influence the padding size calculation.
 
-    Args:
-        padded_size (int): The size of the padded data in bytes. This
-            parameter represents the size of the cryptoblob and is used
-            to calculate the padding size.
+    Returns
+    -------
+    int
+        Calculated padding size in bytes.
 
-        pad_key (bytes): A byte string representing a padding key. This
-            key is converted to an integer to influence the padding
-            size calculation.
-
-    Returns:
-        int: The calculated padding size in bytes.
+    Notes
+    -----
+    - The padding size is derived using the formula:
+      pad_size = (padded_size * pad_key_int * MAX_PAD_SIZE_PERCENT) //
+                 (pad_key_int * MAX_PAD_SIZE_PERCENT +
+                  PAD_KEY_SPACE * 100)
+      where `pad_key_int = int.from_bytes(pad_key, BYTEORDER)`.
+    - This function is used during decryption to determine the original
+      padding size that was applied during encryption, ensuring
+      consistency with the `get_pad_size_from_unpadded` calculation.
     """
 
     # Convert the padding key from bytes to an integer
@@ -2684,73 +3545,79 @@ def get_pad_size_from_padded(padded_size: int, pad_key: bytes) -> int:
 
     # If debugging is enabled, log detailed information about
     # the padding calculation
-    if DEBUG:
+    if UNSAFE_DEBUG:
         unpadded_size: int = padded_size - pad_size
         percent_of_unpadded: float = (pad_size * 100) / unpadded_size
 
         log_d('getting pad_size')
 
-        log_d(f'pad_key_int:                {pad_key_int}')
-        log_d(f'pad_key_int/PAD_KEY_SPACE:  {pad_key_int / PAD_KEY_SPACE}')
+        log_d(f'pad_key_int:               {pad_key_int}')
+        log_d(f'pad_key_int/PAD_KEY_SPACE: {pad_key_int / PAD_KEY_SPACE}')
 
-        log_d(f'padded_size:    {format_size(padded_size)}')
-        log_d(f'pad_size:       {format_size(pad_size)}, '
+        log_d(f'padded_size:   {format_size(padded_size)}')
+        log_d(f'pad_size:      {format_size(pad_size)}, '
               f'{round(percent_of_unpadded, 1)}% of unpadded_size')
-        log_d(f'unpadded_size:  {format_size(unpadded_size)}')
+        log_d(f'unpadded_size: {format_size(unpadded_size)}')
 
     return pad_size
 
 
-def handle_padding(pad_size: int, action: ActionID) -> bool:
+def handle_padding(
+    pad_size: int,
+    ad: ActData,
+    crypt: Crypto,
+) -> tuple[ActData, Crypto]:
     """
-    Handles padding: read/write, authenticate.
+    Handle padding bytes: read/write and authenticate.
 
-    This function processes `pad_size` bytes of padding either by
-    writing random padding (when performing encryption/embed) or by
-    reading padding bytes from the input (when performing
-    decryption/verification). All padding data is fed into the running
-    MAC to ensure authenticity, and a MAC tag is written or verified at
-    the end of the padding region.
+    Parameters
+    ----------
+    pad_size : int
+        Total number of padding bytes to process. Must be >= 0.
+    ad : ActData
+        Action/context object providing `action`, input file object
+        `in_file_obj`, and error flag `err`.
+    crypt : Crypto
+        Crypto state object used for MAC updates and tag operations.
 
-    If action is ENCRYPT or ENCRYPT_EMBED:
-      - Generate and write pad_size bytes of random data in
-        MAX_PT_CHUNK_SIZE chunks (full chunks first, then a final
-        partial chunk if needed).
-      - Each written chunk is passed to update_mac(...) for
-        authentication.
-      - After all padding is written, compute and write the MAC tag via
-        write_mac_tag().
+    Returns
+    -------
+    tuple[ActData, Crypto]
+        Tuple of updated (ad, crypt). On failure `ad.err` is set to True
+        and the returned `crypt` reflects state at failure.
 
-    Otherwise (decryption/verification mode):
-      - Read pad_size bytes from BIO_D['IN'] in identical chunk sizes.
-      - If any read returns None, the function fails.
-      - Each read chunk is passed to update_mac(...) for authentication.
-      - After all padding is read, read_and_verify_mac_tag() is called
-        to verify the MAC; verification failure causes the function to
-        fail.
+    Notes
+    -----
+    - If `ad.action` is `ENCRYPT` or `ENCRYPT_EMBED`:
+      - Write `pad_size` bytes of random padding in chunks of size
+        `MAX_PT_CHUNK_SIZE` (full chunks first, then a final partial
+        chunk).
+      - Each written chunk is passed to `update_mac(chunk,
+        'padding contents chunk', crypt)`.
+      - After all padding is written, call `write_mac_tag(ad, crypt)`
+        and return its result.
+      - Even when pad_size is zero, the function still finalizes and
+        writes (or verifies) the MAC tag for the padding phase.
+    - Otherwise (decryption/verification mode):
+      - Read `pad_size` bytes from `ad.in_file_obj` in identical chunk
+        sizes.
+      - If any read returns `None`, set `ad.err = True` and return
+        immediately.
+      - Each read chunk is passed to `update_mac(chunk,
+        'padding contents chunk', crypt)`.
+      - After all padding is read, call `read_and_verify_mac_tag(ad,
+        crypt)` and return its result.
 
-    Args:
-        pad_size (int): Total number of padding bytes to process.
-        action (ActionID): Operation mode (e.g., ENCRYPT, ENCRYPT_EMBED,
-            or a decryption/verification mode). Determines whether
-            padding is written or read and whether the MAC tag is
-            written or verified.
-
-    Returns:
-        bool: True on success; False on any I/O or MAC verification
-              failure.
-
-    Side effects:
-      - Reads from or writes to BIO_D['IN'] and other global I/O
-        helpers.
-      - Updates the MAC state via update_mac(...).
-      - Calls write_data, read_data, write_mac_tag, or
-        read_and_verify_mac_tag, which may perform additional logging
-        or I/O.
-      - Relies on globals/constants: MAX_PT_CHUNK_SIZE, BIO_D, ENCRYPT,
-        ENCRYPT_EMBED, and the functions token_bytes, write_data,
-        read_data, update_mac, write_mac_tag, read_and_verify_mac_tag.
+    - Side effects:
+      - Reads from or writes to I/O via `write_data` / `read_data` and
+        may call `write_mac_tag` / `read_and_verify_mac_tag`.
+      - Updates MAC state via `update_mac`.
+      - Relies on globals/constants: `MAX_PT_CHUNK_SIZE`, `ENCRYPT`,
+        `ENCRYPT_EMBED`, and helper functions such as `token_bytes`,
+        `write_data`, `read_data`.
     """
+    action: ActionID = ad.action
+
     chunk: Optional[bytes]
 
     # Calculate the number of complete chunks and remaining bytes to write
@@ -2765,16 +3632,21 @@ def handle_padding(pad_size: int, action: ActionID) -> bool:
             # Generate a random data chunk of size MAX_PT_CHUNK_SIZE
             chunk = token_bytes(MAX_PT_CHUNK_SIZE)
 
-            # Attempt to write the chunk; return False if it fails
-            if not write_data(chunk):
-                return False
+            ad = write_data(data=chunk, ad=ad)
+            if ad.err:
+                return ad, crypt
+
         else:
-            chunk = read_data(BIO_D['IN'], MAX_PT_CHUNK_SIZE)
-
+            chunk = read_data(ad.in_file_obj, MAX_PT_CHUNK_SIZE)
             if chunk is None:
-                return False
+                ad.err = True
+                return ad, crypt
 
-        update_mac(chunk, 'padding contents chunk')
+        crypt = update_mac(
+            chunk=chunk,
+            comment='padding contents chunk',
+            crypt=crypt,
+        )
 
     # If there is remaining data to write, handle it
     if remain_size:
@@ -2783,25 +3655,28 @@ def handle_padding(pad_size: int, action: ActionID) -> bool:
             # Generate a random data chunk of size MAX_PT_CHUNK_SIZE
             chunk = token_bytes(remain_size)
 
-            # Attempt to write the chunk; return False if it fails
-            if not write_data(chunk):
-                return False
+            ad = write_data(data=chunk, ad=ad)
+            if ad.err:
+                return ad, crypt
+
         else:
-            chunk = read_data(BIO_D['IN'], remain_size)
-
+            chunk = read_data(ad.in_file_obj, remain_size)
             if chunk is None:
-                return False
+                ad.err = True
+                return ad, crypt
 
-        update_mac(chunk, 'padding contents chunk')
+        crypt = update_mac(
+            chunk=chunk,
+            comment='padding contents chunk',
+            crypt=crypt,
+        )
 
     if action in (ENCRYPT, ENCRYPT_EMBED):
-        if not write_mac_tag():
-            return False
+        ad, crypt = write_mac_tag(ad=ad, crypt=crypt)
     else:
-        if not read_and_verify_mac_tag():
-            return False
+        ad, crypt = read_and_verify_mac_tag(ad=ad, crypt=crypt)
 
-    return True
+    return ad, crypt
 
 
 # Handle payload file contents
@@ -2810,23 +3685,36 @@ def handle_padding(pad_size: int, action: ActionID) -> bool:
 
 def get_enc_contents_size_from_contents(contents_size: int) -> int:
     """
-    Compute the encrypted payload size (including per-chunk MAC tags)
-    produced from a plaintext of the given length.
+    Calculate the size of the encrypted payload (including per-chunk MAC
+    tags) produced from a plaintext of the given length.
 
-    Args:
-        contents_size (int): Plaintext size in bytes (must be >= 0).
+    Parameters
+    ----------
+    contents_size : int
+        Plaintext size in bytes. Must be >= 0.
 
-    Returns:
-        int: Resulting encrypted payload size in bytes
-            (ciphertext + per-chunk MAC tags). For each full plaintext
-            chunk the size increases by MAX_CT_CHUNK_SIZE. If a final
-            partial plaintext chunk exists, its ciphertext size is
-            remain_size + MAC_TAG_SIZE.
+    Returns
+    -------
+    int
+        Encrypted payload size in bytes (ciphertext + per-chunk MAC tags).
+
+    Notes
+    -----
+    - The plaintext is split into chunks of size `MAX_PT_CHUNK_SIZE`.
+    - Each full plaintext chunk produces `MAX_CT_CHUNK_SIZE` bytes of
+      ciphertext (this already includes any per-chunk overhead for full
+      chunks).
+    - Each chunk is encrypted and a MAC tag of size `MAC_TAG_SIZE` is
+      appended. Therefore `MAX_CT_CHUNK_SIZE` equals
+      `MAX_PT_CHUNK_SIZE + MAC_TAG_SIZE`.
+    - A final partial plaintext chunk, if present, produces
+      `remain_size` bytes of ciphertext plus a MAC tag of size
+      `MAC_TAG_SIZE`.
     """
     full_chunks = contents_size // MAX_PT_CHUNK_SIZE
     remain_size = contents_size % MAX_PT_CHUNK_SIZE
 
-    # Encrypted payload file conents (with MAC tags) from full
+    # Encrypted payload file contents (with MAC tags) from full
     # plaintext chunks
     enc_contents_size = full_chunks * MAX_CT_CHUNK_SIZE
 
@@ -2842,24 +3730,39 @@ def get_contents_size_from_enc_contents(
     enc_contents_size: int,
 ) -> Optional[int]:
     """
-    Compute the plaintext size corresponding to an encrypted payload
-    (with MAC tags) length.
+    Compute plaintext size from an encrypted payload length (including
+    MACs).
 
-    Args:
-        enc_contents_size (int): Encrypted payload size in bytes
-            (including per-chunk MAC tags). Must be >= 0.
+    Parameters
+    ----------
+    enc_contents_size : int
+        Encrypted payload size in bytes, including per-chunk MAC tags.
+        Must be >= 0.
 
-    Returns:
-        Optional[int]: Plaintext size in bytes if enc_contents_size is a
-            valid length produced by the chunking scheme; otherwise None.
+    Returns
+    -------
+    Optional[int]
+        Corresponding plaintext size in bytes if `enc_contents_size` is
+        a valid length produced by the chunking scheme; otherwise `None`
+        when the encrypted length is invalid or cannot correspond to any
+        valid plaintext length.
 
-    Notes:
-    - Uses chunk sizes MAX_CT_CHUNK_SIZE (ciphertext chunk including
-      MAC) and MAX_PT_CHUNK_SIZE (corresponding plaintext chunk).
-    - For a whole number of full ciphertext chunks the plaintext size is
-      full_chunks * MAX_PT_CHUNK_SIZE. For a final partial ciphertext
-      chunk the minimum size is 1 + MAC_TAG_SIZE and the plaintext
-      portion is (partial_ct_size - MAC_TAG_SIZE).
+    Notes
+    -----
+    - The protocol splits plaintext into chunks of size
+      `MAX_PT_CHUNK_SIZE`. Each full plaintext chunk maps to a full
+      ciphertext chunk of size `MAX_CT_CHUNK_SIZE` (ciphertext + MAC
+      tag).
+    - For `enc_contents_size` that is an exact multiple of
+      `MAX_CT_CHUNK_SIZE`, the plaintext size is `full_chunks *
+      MAX_PT_CHUNK_SIZE`.
+    - If there is a final partial ciphertext chunk, it must be at least
+      `1 + MAC_TAG_SIZE` bytes (minimum 1 byte of ciphertext plus MAC
+      tag); the plaintext bytes contributed by that partial chunk equal
+      `(partial_ct_size - MAC_TAG_SIZE)`.
+    - Returns `None` when the final partial ciphertext chunk is too
+      small to hold a MAC plus at least one ciphertext byte (i.e., when
+      `remain_size < 1 + MAC_TAG_SIZE`).
     """
     full_chunks = enc_contents_size // MAX_CT_CHUNK_SIZE
     remain_size = enc_contents_size % MAX_CT_CHUNK_SIZE
@@ -2879,31 +3782,40 @@ def get_contents_size_from_enc_contents(
     return base_plain + (remain_size - MAC_TAG_SIZE)
 
 
-def handle_payload_file_contents(action: ActionID, contents_size: int) -> bool:
+def handle_payload_file_contents(
+    contents_size: int,
+    ad: ActData,
+    crypt: Crypto,
+) -> tuple[ActData, Crypto]:
     """
-    Process a payload's plaintext-sized contents by handling each chunk.
+    Process a payload by splitting it into protocol-sized chunks and
+    delegating each chunk to `file_chunk_handler`.
 
-    This function splits a payload of length contents_size into full
-    chunks of size MAX_PT_CHUNK_SIZE and a final partial chunk (if any),
-    then calls file_chunk_handler(action, chunk_size) for each chunk in
-    sequence.
+    Parameters
+    ----------
+    contents_size : int
+        Total plaintext-sized payload length in bytes (must be >= 0).
+    ad : ActData
+        Action/context object mutated in-place. Uses `ad.action`,
+        `ad.in_file_obj`, and updates error/progress fields.
+    crypt : Crypto
+        Cryptographic context mutated in-place. Chunk-level MAC and
+        stream-cipher state are advanced by `file_chunk_handler`.
 
-    Args:
-        action (ActionID): Operation to perform on each chunk (e.g.,
-                           ENCRYPT/DECRYPT).
-        contents_size (int): Total plaintext-size payload length in
-                             bytes (>= 0).
+    Returns
+    -------
+    tuple[ActData, Crypto]
+        The updated `(ad, crypt)` pair. On error `ad.err` is set to
+        True.
 
-    Returns:
-        bool: True if all chunk handlers succeeded; False if any
-              file_chunk_handler call failed (in which case processing
-              stops immediately).
-
-    Notes:
-    - file_chunk_handler is expected to perform per-chunk processing and
-      return a boolean success indicator.
-    - This function does not perform I/O itself; it delegates chunk work
-      to file_chunk_handler.
+    Notes
+    -----
+    - The payload is split into `full_chunks` of `MAX_PT_CHUNK_SIZE`
+      and an optional final `remain_size` partial chunk.
+    - Each chunk is processed sequentially by `file_chunk_handler`.
+    - Processing stops early on any error (when `ad.err` becomes True).
+    - Side effects: reads from `ad.in_file_obj`, writes output via
+      helpers, and updates MAC/state via `crypt`.
     """
 
     # Calculate the number of complete chunks and remaining bytes
@@ -2912,87 +3824,138 @@ def handle_payload_file_contents(action: ActionID, contents_size: int) -> bool:
 
     # Process complete chunks
     for _ in range(full_chunks):
-        if not file_chunk_handler(action, MAX_PT_CHUNK_SIZE):
-            return False
+        ad, crypt = file_chunk_handler(
+            chunk_size=MAX_PT_CHUNK_SIZE,
+            ad=ad,
+            crypt=crypt,
+        )
+        if ad.err:
+            return ad, crypt
 
     # Process any remaining bytes
     if remain_size:
-        if not file_chunk_handler(action, remain_size):
-            return False
+        ad, crypt = file_chunk_handler(
+            chunk_size=remain_size,
+            ad=ad,
+            crypt=crypt,
+        )
 
-    return True
+    return ad, crypt
 
 
-def file_chunk_handler(action: ActionID, chunk_size: int) -> bool:
+def file_chunk_handler(
+    chunk_size: int,
+    ad: ActData,
+    crypt: Crypto,
+) -> tuple[ActData, Crypto]:
     """
-    Process a single plaintext/ciphertext chunk: read, transform, write
-    and MAC.
+    Process a single file chunk: read, encrypt/decrypt, MAC and write.
 
-    Reads chunk_size bytes from the input (BIO_D['IN']), performs the
-    requested action (encryption or decryption), updates/validates the
-    per-chunk MAC, and writes output and MAC tag as appropriate.
+    Parameters
+    ----------
+    chunk_size : int
+        Number of bytes to read from the input stream for this chunk.
+        For encryption this is plaintext length; for decryption this is
+        the expected plaintext length after decryption.
+    ad : ActData
+        Action/context object mutated in-place. Required fields used by
+        this function include `action`, `in_file_obj`, and `err`. On
+        success the function updates output-related fields (for example:
+        written_sum).
+    crypt : Crypto
+        Cryptographic context mutated in-place. This function
+        initializes a new per-chunk MAC, updates MAC state, and advances
+        stream-cipher state.
 
-    Args:
-        action (ActionID): Operation to perform. Supported values:
-            - ENCRYPT, ENCRYPT_EMBED: encrypt input -> write ciphertext,
-              update MAC, write MAC tag.
-            - DECRYPT, EXTRACT_DECRYPT: update MAC from ciphertext,
-              read/verify MAC tag, decrypt -> write plaintext.
-        chunk_size (int): Number of plaintext bytes to read for
-            encryption, or ciphertext bytes to process for decryption
-            (must be >= 0 and match protocol expectations).
+    Returns
+    -------
+    tuple[ActData, Crypto]
+        The updated `(ad, crypt)` pair. On error `ad.err` is set to
+        True.
 
-    Returns:
-        bool: True on success; False on failure (I/O, MAC verification,
-              or internal error). The function does not raise on
-              expected runtime errors - callers should check the boolean
-              result and handle cleanup.
+    Notes
+    -----
+    Behavior
+    - The function begins a new MAC chunk with `init_new_mac_chunk()`.
+    - It reads `chunk_size` bytes from `ad.in_file_obj` via `read_data`.
+    - For encrypting actions (ENCRYPT, ENCRYPT_EMBED):
+      - Encrypts the read plaintext with `feed_stream_cipher`.
+      - Writes ciphertext via `write_data`.
+      - Updates the running MAC with the ciphertext (`update_mac`).
+      - Writes the per-chunk MAC tag (`write_mac_tag`).
+    - For decrypting actions (DECRYPT, EXTRACT_DECRYPT):
+      - Updates the running MAC with the read ciphertext.
+      - Reads and verifies the per-chunk MAC tag
+        (`read_and_verify_mac_tag`).
+      - Decrypts the ciphertext with `feed_stream_cipher`.
+      - Writes the resulting plaintext via `write_data`.
+    - On any I/O, MAC verification, or crypto failure the function sets
+      `ad.err = True` and returns early.
 
-    Side effects:
-    - Reads from BIO_D['IN'] and writes to the output via write_data().
-    - Updates MAC state via init_new_mac_chunk(), update_mac(), and
-      write_mac_tag()/read_and_verify_mac_tag().
-    - Logs progress as implemented by underlying helpers.
+    Side effects
+    ------------
+    - Reads from `ad.in_file_obj` and writes to the output via helper
+      functions (e.g., `write_data`).
+    - Mutates `ad` and `crypt`.
+    - Calls helpers: `init_new_mac_chunk`, `read_data`,
+      `feed_stream_cipher`, `write_data`, `update_mac`, `write_mac_tag`,
+      `read_and_verify_mac_tag`.
 
-    Notes:
-    - Caller is responsible for setting up BIO_D and for handling
-      termination on failure.
-    - The precise semantics of feed_stream_cipher(), write_data(), and
-      MAC helpers determine on-disk layout (ciphertext + MAC tags).
+    Error handling
+    --------------
+    - If `read_data` returns `None` or any helper indicates failure,
+      `ad.err` is set and the function returns immediately with the
+      mutated `(ad, crypt)`.
     """
-    init_new_mac_chunk()
+    out_chunk: bytes
 
-    in_chunk: Optional[bytes] = read_data(BIO_D['IN'], chunk_size)
+    crypt = init_new_mac_chunk(crypt)
 
+    in_chunk: Optional[bytes] = read_data(ad.in_file_obj, chunk_size)
     if in_chunk is None:
-        return False
+        ad.err = True
+        return ad, crypt
 
-    if action in (ENCRYPT, ENCRYPT_EMBED):
+    if ad.action in (ENCRYPT, ENCRYPT_EMBED):
+        out_chunk, crypt = feed_stream_cipher(
+            input_data=in_chunk,
+            comment='file contents chunk',
+            crypt=crypt,
+        )
 
-        out_chunk: bytes = feed_stream_cipher(in_chunk, 'file contents chunk')
+        ad = write_data(data=out_chunk, ad=ad)
+        if ad.err:
+            return ad, crypt
 
-        if not write_data(out_chunk):
-            return False
+        crypt = update_mac(
+            chunk=out_chunk,
+            comment='encrypted file contents chunk',
+            crypt=crypt,
+        )
 
-        update_mac(out_chunk, 'encrypted file contents chunk')
-
-        if not write_mac_tag():
-            return False
+        ad, crypt = write_mac_tag(ad=ad, crypt=crypt)
 
     else:  # Decryption actions (DECRYPT, EXTRACT_DECRYPT)
 
-        update_mac(in_chunk, 'encrypted file contents chunk')
+        crypt = update_mac(
+            chunk=in_chunk,
+            comment='encrypted file contents chunk',
+            crypt=crypt,
+        )
 
-        if not read_and_verify_mac_tag():
-            return False
+        ad, crypt = read_and_verify_mac_tag(ad=ad, crypt=crypt)
+        if ad.err:
+            return ad, crypt
 
-        out_chunk = \
-            feed_stream_cipher(in_chunk, 'encrypted file contents chunk')
+        out_chunk, crypt = feed_stream_cipher(
+            input_data=in_chunk,
+            comment='encrypted file contents chunk',
+            crypt=crypt,
+        )
 
-        if not write_data(out_chunk):
-            return False
+        ad = write_data(data=out_chunk, ad=ad)
 
-    return True
+    return ad, crypt
 
 
 # Handle Comments
@@ -3001,55 +3964,49 @@ def file_chunk_handler(action: ActionID, chunk_size: int) -> bool:
 
 def get_processed_comments(basename: str) -> bytes:
     """
-    This function obtains a raw comment provided by a user and returns a
-    byte-string of exactly PROCESSED_COMMENTS_SIZE bytes. Processing
-    steps:
+    Produce a fixed-size, UTF-8-safe processed comments block.
 
-    1. Read the raw comment via get_raw_comments(basename). If the
-       returned value is empty, the basename argument (the previously
-       provided filename) is used as the comment.
-    2. Encode the comment to UTF-8 bytes.
-    3. If the encoded comment exceeds PROCESSED_COMMENTS_SIZE bytes, it
-       is truncated to that limit (a warning is logged).
-    4. To avoid potential partial-byte or invalid-Unicode issues after
-       truncation, the truncated bytes are decoded back to a Unicode
-       string with errors='ignore' (dropping any incomplete/invalid
-       sequences), then re-encoded to UTF-8 bytes. This produces a
-       sanitized byte sequence that is valid UTF-8.
-    5. A COMMENTS_SEPARATOR is appended after the sanitized text,
-       followed by random bytes produced by
-       token_bytes(PROCESSED_COMMENTS_SIZE). The combined sequence is
-       then sliced to PROCESSED_COMMENTS_SIZE bytes so the result has a
-       deterministic length.
-    6. For debugging, the function logs the raw and processed sizes and
-       the decoded representation of the processed bytes (via
-       decode_processed_comments).
-    7. The resulting bytes are returned.
+    Parameters
+    ----------
+    basename : str
+        Base name of the input file; used as a fallback comment when the
+        user-provided raw comment is empty.
 
-    Notes and guarantees:
-    - The returned value is always exactly PROCESSED_COMMENTS_SIZE bytes
-      long (or shorter only if PROCESSED_COMMENTS_SIZE is not positive).
-    - The sanitized portion is guaranteed to be valid UTF-8; trailing
-      padding (random) bytes may be arbitrary binary data.
-    - If the original comment is empty, basename is used so the caller
-      always has some content to display.
-    - Truncation may remove characters if their UTF-8 encoded form would
-      exceed the size limit; partial codepoints are dropped during
-      sanitization to ensure valid decoding.
-    - Side effects: logs warnings/info when truncation or debug logging
-      occurs. decode_processed_comments is called for logging but its
-      returned value is not otherwise used here.
+    Returns
+    -------
+    bytes
+        A byte string exactly `PROCESSED_COMMENTS_SIZE` bytes long
+        (unless `PROCESSED_COMMENTS_SIZE` is non-positive). The returned
+        block contains a sanitized UTF-8 comment (bytes before
+        `COMMENTS_SEPARATOR`), followed by `COMMENTS_SEPARATOR` and
+        random padding bytes. The sanitized portion is guaranteed to
+        decode as valid UTF-8; padding may be arbitrary binary data.
 
-    Args:
-        basename (str): Base name of an input file previously supplied;
-                        used as a fallback comment when no raw comment
-                        is present.
+    Notes
+    -----
+    Processing steps
+    - Read a raw comment via `get_raw_comments(basename)`. If empty, use
+      `basename` as the comment.
+    - Encode the comment to UTF-8 bytes. If the encoded bytes exceed
+      `PROCESSED_COMMENTS_SIZE`, they are truncated (a warning is
+      logged).
+    - To avoid partial-codepoint issues after truncation, the truncated
+      bytes are decoded with `errors='ignore'` and re-encoded to UTF-8,
+      producing a sanitized, valid-UTF-8 byte sequence.
+    - Append `COMMENTS_SEPARATOR` and random bytes from
+      `token_bytes(PROCESSED_COMMENTS_SIZE)`, then slice to the final
+      `PROCESSED_COMMENTS_SIZE` length.
+    - Debug/logging: sizes and the decoded comment are logged when
+      `UNSAFE_DEBUG` is set.
 
-    Returns:
-        bytes: A byte string padded and/or truncated to
-               PROCESSED_COMMENTS_SIZE bytes containing a UTF-8 valid
-               sanitized comment followed by a separator and random
-               padding.
+    Guarantees and side effects
+    - The sanitized comment portion decodes as UTF-8; partial codepoints
+      removed during sanitization are dropped.
+    - The function logs a warning when truncation occurs and logs the
+      decoded comment via `decode_processed_comments`.
+    - Uses helper functions: `get_raw_comments`, `token_bytes`,
+      `decode_processed_comments`, and logging helpers `log_w`, `log_d`,
+      `log_i`.
     """
     raw_comments: str = get_raw_comments(basename)
 
@@ -3080,7 +4037,7 @@ def get_processed_comments(basename: str) -> bytes:
         token_bytes(PROCESSED_COMMENTS_SIZE),
     ])[:PROCESSED_COMMENTS_SIZE]
 
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d(f'raw_comments: {[raw_comments]}, size: {raw_comments_size:,} B')
         log_d(f'processed_comments: {[processed_comments]}, '
               f'size: {len(processed_comments)} B')
@@ -3095,34 +4052,28 @@ def get_processed_comments(basename: str) -> bytes:
 
 def decode_processed_comments(processed_comments: bytes) -> Optional[str]:
     """
-    Processes a byte string of processed comments and attempts to decode
-    it into a valid comment (UTF-8 string).
+    Decode a processed comments byte block to a UTF-8 string.
 
-    The function takes a byte string of processed_comments and first
-    splits it into two parts at the first occurrence of the byte
-    COMMENTS_SEPARATOR (which is not valid in UTF-8). The left part
-    (before the separator, `processed_comments_part`) is then
-    interpreted as a valid comment, and an attempt is made to decode it
-    into a UTF-8 string. If the byte string contains an invalid UTF-8
-    byte sequence, the function will return None.
+    Parameters
+    ----------
+    processed_comments : bytes
+        Fixed-size processed comments block. The block contains the
+        actual comment bytes followed by a separator byte
+        `COMMENTS_SEPARATOR` and optional trailing padding; only the
+        bytes before the separator are considered.
 
-    Args:
-        processed_comments (bytes): The byte string containing processed
-                                    comments to be decoded.
+    Returns
+    -------
+    Optional[str]
+        Decoded UTF-8 string if the bytes before `COMMENTS_SEPARATOR`
+        form valid UTF-8; otherwise `None` when decoding fails.
 
-    Returns:
-        Optional[str]: The decoded UTF-8 string if successful, or None
-                       if decoding fails due to invalid UTF-8 byte
-                       sequences.
-
-    Notes:
-        - The function uses the `partition` method to split the input
-          byte string at the first occurrence of COMMENTS_SEPARATOR,
-          discarding any bytes that follow.
-        - If the left part of the input byte string is valid UTF-8, it
-          will be returned as a string.
-        - If a `UnicodeDecodeError` occurs during decoding, None is
-          returned.
+    Notes
+    -----
+    - The function uses `bytes.partition(COMMENTS_SEPARATOR)` and keeps
+      the left segment (bytes before the first separator) for decoding.
+    - Any bytes after the separator are ignored.
+    - A `UnicodeDecodeError` is caught and results in a `None` return.
     """
 
     # Split the input byte string at the first occurrence of
@@ -3142,115 +4093,129 @@ def decode_processed_comments(processed_comments: bytes) -> Optional[str]:
 
 
 def handle_comments(
-    action: ActionID,
     processed_comments: Optional[bytes],
-) -> bool:
+    ad: ActData,
+    crypt: Crypto,
+) -> tuple[ActData, Crypto]:
     """
-    Handles processed comments: encrypt/decrypt, authenticate with MAC,
-    and display when decrypting.
+    Process the fixed-size processed comments block: encrypt/decrypt,
+    authenticate with MAC, and (on decryption) decode and log the
+    comment.
 
-    This function performs the complete processing of the fixed-size
-    processed comments block as part of the protocol's I/O flow.
-    Behavior depends on the action mode:
+    Parameters
+    ----------
+    processed_comments : Optional[bytes]
+        Fixed-size comment bytes to encrypt when `ad.action` is an
+        encrypting mode (ENCRYPT, ENCRYPT_EMBED). Must be provided for
+        encryption; ignored for decryption.
+    ad : ActData
+        Action/context object mutated in-place. Required fields used by
+        this function include `action`, `in_file_obj`, and `err`. The
+        function updates `ad` (writes ciphertext, advances written_sum,
+        sets `ad.err` on failure, etc.) and returns it.
+    crypt : Crypto
+        Cryptographic context mutated in-place. This function
+        initializes a new MAC chunk, updates MAC state, and may update
+        stream-cipher state and session AAD-related fields.
 
-    Encrypting modes (ENCRYPT, ENCRYPT_EMBED)
+    Returns
+    -------
+    tuple[ActData, Crypto]
+        The updated `(ad, crypt)` pair. On error `ad.err` is set to
+        True.
 
-    - Prepares a new MAC chunk (init_new_mac_chunk()).
-    - Requires processed_comments to be provided (bytes) and raises
-      TypeError if None.
-    - Encrypts the processed_comments with feed_stream_cipher(...).
-    - Updates the running MAC with the encrypted comment bytes.
-    - Writes the encrypted comment to the output (write_data).
-    - Finalizes and writes the MAC tag for this chunk (write_mac_tag).
-    - Returns False on any write/encryption/MAC failure; True on success.
-
-    Decrypting modes (DECRYPT, EXTRACT_DECRYPT)
-
-    - Prepares a new MAC chunk (init_new_mac_chunk()).
-    - Reads exactly PROCESSED_COMMENTS_SIZE bytes from the input
-      (read_data).
-    - Updates the running MAC with the encrypted comment bytes.
-    - Reads and verifies the MAC tag for this chunk
-      (read_and_verify_mac_tag()); returns False on failure.
-    - Decrypts the encrypted comment with feed_stream_cipher(...).
-    - Decodes the decrypted processed comments to a string via
-      decode_processed_comments(...) and logs them.
-    - Returns False on any read/decryption/MAC failure; True on success.
-
-    Side effects and requirements
-
-    - Uses and modifies global/stateful helpers and containers:
-      init_new_mac_chunk, update_mac, write_data, read_data,
-      write_mac_tag, read_and_verify_mac_tag, feed_stream_cipher,
-      decode_processed_comments, BIO_D, and constants such as
-      PROCESSED_COMMENTS_SIZE.
-    - init_new_mac_chunk() is called at the start to reset nonce/MAC
-      state for this chunk.
-    - On encrypt paths the function consumes processed_comments input
-      and writes authenticated ciphertext.
-    - On decrypt paths the function logs the decoded comments but does
-      not return them; callers relying on the decoded value should
-      obtain it from logs or adapt the function.
-    - All MAC operations assume a pre-configured keyed MAC/hash
-      implementation and that update_mac records data into the active
-      MAC object.
-    - Errors: missing processed_comments in an encrypt path raises
-      TypeError; I/O, MAC, and crypto operation failures cause the
-      function to return False.
-
-    Args:
-        action (ActionID): Operation mode, one of ENCRYPT,
-            ENCRYPT_EMBED, DECRYPT, EXTRACT_DECRYPT.
-        processed_comments (Optional[bytes]): Fixed-size comment bytes
-            to encrypt when in an encrypting mode. Ignored (may be None)
-            in decrypting modes.
-
-    Returns:
-        bool: True on success, False on failure (I/O, MAC verification,
-              or crypto error).
+    Notes
+    -----
+    - Behavior is driven by `ad.action`:
+      - Encrypting modes (ENCRYPT, ENCRYPT_EMBED):
+        - Calls `init_new_mac_chunk()` to reset MAC/nonce state.
+        - In normal operation processed_comments is always provided for
+          encryption actions; a TypeError would only occur due to a
+          programming error.
+        - Encrypts `processed_comments` with `feed_stream_cipher`.
+        - Updates the running MAC with the encrypted bytes via
+          `update_mac`.
+        - Writes encrypted comments with `write_data` and writes the MAC
+          tag with `write_mac_tag`.
+      - Decrypting modes (DECRYPT, EXTRACT_DECRYPT):
+        - Calls `init_new_mac_chunk()` to reset MAC/nonce state.
+        - Reads `PROCESSED_COMMENTS_SIZE` bytes from `ad.in_file_obj`
+          using `read_data`; sets `ad.err` and returns on failure.
+        - Updates the running MAC with the encrypted bytes and verifies
+          the MAC tag via `read_and_verify_mac_tag`; sets `ad.err` and
+          returns on verification failure.
+        - Decrypts the ciphertext with `feed_stream_cipher`, decodes the
+          processed comments with `decode_processed_comments`, and logs
+          them.
+    - Side effects:
+      - Mutates `ad` and `crypt`.
+      - Calls helpers: `init_new_mac_chunk`, `feed_stream_cipher`,
+        `update_mac`, `write_data`, `write_mac_tag`, `read_data`,
+        `read_and_verify_mac_tag`,
+        and `decode_processed_comments`.
+    - Errors:
+      - Missing `processed_comments` when encrypting raises `TypeError`.
+      - I/O, MAC verification, or cryptographic failures set
+        `ad.err = True` and cause early return.
     """
-    init_new_mac_chunk()
+    crypt = init_new_mac_chunk(crypt)
 
-    enc_processed_comments: Optional[bytes]  # Encrypted processed_comments
+    enc_processed_comments: Optional[bytes]
 
-    if action in (ENCRYPT, ENCRYPT_EMBED):
+    if ad.action in (ENCRYPT, ENCRYPT_EMBED):
 
         if processed_comments is None:
             raise TypeError
 
-        enc_processed_comments = \
-            feed_stream_cipher(processed_comments, 'processed_comments')
+        enc_processed_comments, crypt = \
+            feed_stream_cipher(
+                input_data=processed_comments,
+                comment='processed_comments',
+                crypt=crypt,
+            )
 
-        update_mac(enc_processed_comments, 'enc_processed_comments')
+        crypt = update_mac(
+            chunk=enc_processed_comments,
+            comment='enc_processed_comments',
+            crypt=crypt,
+        )
 
-        if not write_data(enc_processed_comments):
-            return False
+        ad = write_data(data=enc_processed_comments, ad=ad)
+        if ad.err:
+            return ad, crypt
 
-        if not write_mac_tag():
-            return False
+        ad, crypt = write_mac_tag(ad=ad, crypt=crypt)
 
     else:  # DECRYPT, EXTRACT_DECRYPT
         enc_processed_comments = \
-            read_data(BIO_D['IN'], PROCESSED_COMMENTS_SIZE)
-
+            read_data(ad.in_file_obj, PROCESSED_COMMENTS_SIZE)
         if enc_processed_comments is None:
-            return False
+            ad.err = True
+            return ad, crypt
 
-        update_mac(enc_processed_comments, 'enc_processed_comments')
+        crypt = update_mac(
+            chunk=enc_processed_comments,
+            comment='enc_processed_comments',
+            crypt=crypt,
+        )
 
-        if not read_and_verify_mac_tag():
-            return False
+        ad, crypt = read_and_verify_mac_tag(ad=ad, crypt=crypt)
+        if ad.err:
+            return ad, crypt
 
         # Get decrypted processed_comments
-        processed_comments = feed_stream_cipher(
-            enc_processed_comments, 'enc_processed_comments')
+        processed_comments, crypt = feed_stream_cipher(
+            input_data=enc_processed_comments,
+            comment='enc_processed_comments',
+            crypt=crypt,
+        )
 
         decoded_comments: Optional[str] = \
             decode_processed_comments(processed_comments)
 
         log_i(f'comments:\n        {[decoded_comments]}')
 
-    return True
+    return ad, crypt
 
 
 # Perform action INFO
@@ -3259,15 +4224,20 @@ def handle_comments(
 
 def info_and_warnings() -> None:
     """
-    Logs general information, warnings, and debug information.
+    Log application info, warnings, and optional debug details.
 
-    This function performs the following actions:
-    1. Logs general information.
-    2. Iterates through a list of warnings and logs each one.
-    3. If debug mode is enabled, it logs additional debug information.
+    Notes
+    -----
+    - Emits an informational message (`APP_INFO`) via log_i.
+    - Iterates `APP_WARNINGS` and logs each warning with log_w.
+    - When `UNSAFE_DEBUG` is truthy, logs additional debug information
+      (`APP_UNSAFE_DEBUG_INFO`) via log_d.
 
-    Returns:
-        None
+    Returns
+    -------
+    None
+        This function only logs messages; it has no return value or side
+        effects beyond logging.
     """
 
     # Log general information
@@ -3278,171 +4248,170 @@ def info_and_warnings() -> None:
         log_w(warning)
 
     # Log debug information if debug mode is enabled
-    if DEBUG:
-        log_d(APP_DEBUG_INFO)
+    if UNSAFE_DEBUG:
+        log_d(APP_UNSAFE_DEBUG_INFO)
 
 
 # Perform actions ENCRYPT, DECRYPT, ENCRYPT_EMBED, EXTRACT_DECRYPT
 # --------------------------------------------------------------------------- #
 
 
-def encrypt_and_embed(action: ActionID) -> bool:
+def encrypt_and_embed(ad: ActData) -> ActData:
     """
-    Orchestrate a full encrypt/decrypt and (optional)
-    embed/extract operation.
+    Orchestrate a complete encrypt/decrypt operation with optional
+    embed/extract behavior.
 
-    This function gathers inputs via encrypt_and_embed_input(action), runs
-    garbage collection, and then performs the core operation by calling
-    encrypt_and_embed_handler(action, xxx).
+    Parameters
+    ----------
+    ad : ActData
+        Action/context object containing at minimum the `action` field.
+        The object is mutated in-place: input/output file handles,
+        sizes, positions, error flags, and timing/progress fields are
+        updated. Input/output streams are expected on `ad.in_file_obj`
+        and `ad.out_file_obj` as required by the workflow.
 
-    Args:
-        action (ActionID): Operation mode (ENCRYPT, ENCRYPT_EMBED,
-                           DECRYPT, EXTRACT_DECRYPT).
+    Returns
+    -------
+    ActData
+        The same `ad` object passed in, updated after running the
+        workflow. On failure `ad.err` will be True; otherwise the
+        operation completed successfully and relevant fields (for
+        example: written_sum, start_pos, end_pos, total_out_data_size)
+        are set.
 
-    Returns:
-        bool: True on success; False if input collection fails
-              or the handler returns False.
+    Notes
+    -----
+    - This function calls `encrypt_and_embed_input` to collect and
+      validate inputs and populate a `Crypto` context, runs a garbage
+      collection pass via `collect()`, then delegates the main work to
+      `encrypt_and_embed_handler`.
+    - Side effects include opening/setting `ad.in_file_obj` and
+      `ad.out_file_obj`, prompting the user through helper functions,
+      and writing to disk.
+    - Error conditions are reported by setting `ad.err` and returning
+      the mutated `ad` object.
     """
+    crypt: Crypto
 
     # Retrieve input parameters for the encryption and embedding process
-    xxx: Optional[EE] = encrypt_and_embed_input(action)
+    ad, crypt = encrypt_and_embed_input(ad)
 
     # If input retrieval fails, return False
-    if xxx is None:
-        return False
+    if ad.err:
+        return ad
 
     # Perform garbage collection before proceeding
     collect()
 
     # Call the handler function to perform the action
-    success: bool = encrypt_and_embed_handler(action, xxx)
+    ad = encrypt_and_embed_handler(ad=ad, crypt=crypt)
 
-    # Return the success status of the operation
-    return success
+    return ad
 
 
-def encrypt_and_embed_input(action: ActionID) -> Optional[EE]:
+def encrypt_and_embed_input(ad: ActData) -> tuple[ActData, Crypto]:
     """
-    Collect and validate inputs required to perform encryption,
-    embedding, or decryption, and return an EE instance populated with
-    those parameters.
+    Collect and validate inputs for encrypt/embed/decrypt workflows and
+    populate a Crypto context.
 
-    This function performs all user- and file-related preparation for
-    the encrypt/embed/decrypt workflow. It determines input and output
-    file paths and sizes, computes padded/unpadded sizes and padding,
-    generates or retrieves pad IKM and derived pad key (for encryption),
-    gathers processed comments, computes start/end positions for
-    embedding or extraction, reads required salts, prompts for Argon2
-    password and time cost, and confirms overwrite when needed.
+    Parameters
+    ----------
+    ad : ActData
+        Action/context object that will be read and mutated. Expected
+        fields include (but are not limited to): action, in_file_obj,
+        in_file_size, out_file_obj, padded_size, unpadded_size, pad_ikm
+        (for encryption), processed_comments, start_pos, end_pos,
+        max_start_pos, max_end_pos, err. The function updates `ad` and
+        returns it alongside a populated `Crypto` instance.
 
-    Behavior summary
-    - Opens and logs the input file (sets BIO_D['IN']).
-    - For encryption actions (ENCRYPT, ENCRYPT_EMBED):
-        - Generates pad IKM and derives pad key.
-        - Computes enc_contents_size, unpadded_size and pad_size, then
-          padded_size.
-        - Collects processed comments (using input filename as default
-          comment).
-    - For decryption/extraction actions (DECRYPT, EXTRACT_DECRYPT):
-        - Validates input file is large enough to contain a valid
-          cryptoblob.
-        - Uses input size (or user-provided start/end positions) to
-          determine padded_size.
-    - Sets up the output file (BIO_D['OUT']) for new files or selects an
-      embed location for ENCRYPT_EMBED.
-    - Determines start_pos and end_pos when embedding/extracting and
-      seeks file handles to those positions.
-    - Reads salts needed later and prompts for Argon2 password and time
-      cost.
-    - Requests user confirmation for overwrite when required.
-    - Returns an EE instance populated with collected values, or None on
-      error.
+    Returns
+    -------
+    tuple[ActData, Crypto]
+        Tuple containing the updated `ad` and a populated `Crypto`
+        instance. On failure the function sets `ad.err = True` and
+        returns (ad, crypt). The function never returns None.
 
-    Args:
-        action (ActionID): The action to perform; one of ENCRYPT,
-            ENCRYPT_EMBED, DECRYPT, EXTRACT_DECRYPT. This controls how
-            inputs are collected and validated.
+    Overview
+    --------
+    - Opens and logs the input file and its size.
+    - For encryption actions: generates pad IKM (crypt.pad_ikm), derives
+      the pad key, computes enc_contents_size, unpadded_size, pad_size,
+      and padded_size, and collects processed comments.
+    - For decryption/extraction actions: validates input size and uses
+      it to determine padded_size (or prompts the user for start and end
+      positions to compute it).
+    - Prepares the output file (new file creation or selecting an embed
+      location), logs paths and sizes, and determines start/end
+      positions for embed/extract flows.
+    - Reads salts required later, prompts for Argon2 password and time
+      cost, and requests overwrite confirmation when embedding.
+    - Validates that padded_size does not exceed allowed maximums and
+      seeks file handles to the selected positions.
 
-    Returns:
-        Optional[EE]: An EE instance with these attributes set on
-            success:
-            - in_file_size (int): Input file size (bytes).
-            - pad_ikm (Optional[bytes]): Pad input keying material
-              (randomly generated for encryption; None for decryption).
-            - unpadded_size (Optional[int]): Unpadded cryptoblob size
-              (for encryption) or computed during decryption/extraction.
-            - padded_size (int): Total padded size to read/write.
-            - processed_comments (Optional[bytes]): Comment bytes to
-              include (encryption) or validate (decryption).
-            - start_pos (Optional[int]): Start offset in the container
-              (for embed/extract modes) or None.
-            - end_pos (Optional[int]): End offset in the container (for
-              extract mode) or None.
-        Returns None if input collection or validation fails (I/O error,
-        user cancellation, size validation failure, or helper function
-        failure).
+    Side effects
+    ------------
+    - Opens input/output files and assigns them to fields on `ad`.
+    - May set integer and size-related fields on `ad` (for example
+      start_pos, max_end_pos, padded_size) and mutates `ad` accordingly.
+    - Logs progress via log_i/log_d/log_w/log_e and calls helpers that
+      may prompt the user.
 
-    Side effects / global state:
-    - Sets BIO_D['IN'] and BIO_D['OUT'] to opened file-like objects.
-    - May set INT_D['start_pos'] and INT_D['max_end_pos'] for embed flow.
-    - Calls functions which mutate global dictionaries (BYTES_D, INT_D,
-      FLOAT_D) and may write to disk.
-    - Logs informational, debug, warning and error messages via
-      log_i/log_d/log_w/log_e.
+    Failure modes
+    -------------
+    - Sets `ad.err = True` and returns early on:
+    - I/O errors from helper file functions;
+    - invalid sizes (too small or exceeding MAX_VALID_PADDED_SIZE);
+    - user cancellation of overwrite confirmation;
+    - helper function failures (get_salts, get_argon2_password, etc.).
+    - May raise TypeError elsewhere if required values are missing after
+      helper calls.
 
-    Failure modes:
-    - Returns None on invalid sizes, I/O problems, user cancellation,
-      exceeding maximum cryptoblob size, or if helper functions
-      (get_salts, get_argon2_password, get_argon2_time_cost, etc.) fail.
-    - May raise TypeError where the implementation requires non-None
-      values but receives None (e.g., unpadded_size or start_pos missing
-      when required).
-
-    Preconditions:
-    - Calling code should expect that helper functions perform
-      additional validation and user prompts; this function does not
-      re-check those validations beyond handling their return values.
+    Notes
+    -----
+    - The function populates crypt.pad_ikm only for encryption actions;
+      for other actions pad_ikm is not set.
+    - This function assumes helper functions perform detailed validation
+      and user interaction; it reacts to their return values rather than
+      re-checking the same conditions.
     """
+    action: ActionID = ad.action
 
-    # 0. Initialize variables
-    # ----------------------------------------------------------------------- #
+    if UNSAFE_DECRYPT and action in (DECRYPT, EXTRACT_DECRYPT):
+        for warning in UNSAFE_DECRYPT_WARNINGS:
+            log_w(warning)
 
-    pad_ikm: Optional[bytes] = None
-    unpadded_size: Optional[int] = None
+    ad.end_pos = None
+    ad.processed_comments = None
 
-    processed_comments: Optional[bytes] = None
-
-    start_pos: Optional[int] = None
-    end_pos: Optional[int] = None
+    crypt: Crypto = Crypto()
 
     # 1. Get input file path and size
     # ----------------------------------------------------------------------- #
 
     in_file_path: str
-    in_file_size: int
 
     # Retrieve the input file path, size, and file object
-    in_file_path, in_file_size, BIO_D['IN'] = get_input_file(action)
+    in_file_path, ad.in_file_size, ad.in_file_obj = get_input_file(action)
 
     # Log the input file path and size
-    log_i(f'path: {in_file_path!r}; size: {format_size(in_file_size)}')
+    log_i(f'path: {in_file_path!r}; size: {format_size(ad.in_file_size)}')
 
     # 2. Get pad_key
     # ----------------------------------------------------------------------- #
 
     if action in (ENCRYPT, ENCRYPT_EMBED):
 
-        pad_ikm = token_bytes(PAD_KEY_SIZE)
+        crypt.pad_ikm = token_bytes(PAD_KEY_SIZE)
 
         pad_key: bytes = hkdf_sha256(
-            input_key=pad_ikm,
+            input_key=crypt.pad_ikm,
             info=HKDF_INFO_PAD,
             length=PAD_KEY_SIZE
         )
 
-        if DEBUG:
-            log_d(f'pad_ikm:  {pad_ikm.hex()}')
-            log_d(f'pad_key:  {pad_key.hex()}')
+        if UNSAFE_DEBUG:
+            log_d(f'pad_ikm: {crypt.pad_ikm.hex()}')
+            log_d(f'pad_key: {pad_key.hex()}')
 
     # 3. Retrieve and verify additional sizes
     # ----------------------------------------------------------------------- #
@@ -3452,27 +4421,29 @@ def encrypt_and_embed_input(action: ActionID) -> Optional[EE]:
 
         # Get size of encrypted payload file contents (with MAC tags)
         enc_contents_size: int = \
-            get_enc_contents_size_from_contents(in_file_size)
+            get_enc_contents_size_from_contents(ad.in_file_size)
 
         # Get the size of unpadded cryptoblob
-        unpadded_size = enc_contents_size + MIN_VALID_UNPADDED_SIZE
+        ad.unpadded_size = enc_contents_size + MIN_VALID_UNPADDED_SIZE
 
-        if unpadded_size is None:
-            raise TypeError
+        pad_size = get_pad_size_from_unpadded(
+            unpadded_size=ad.unpadded_size,
+            pad_key=pad_key,
+        )
 
-        pad_size = get_pad_size_from_unpadded(unpadded_size, pad_key)
-        padded_size = unpadded_size + pad_size
+        ad.padded_size = ad.unpadded_size + pad_size
 
     # Handle decryption actions (DECRYPT, EXTRACT_DECRYPT) and validate
     # input file size
     else:
-        if in_file_size < MIN_VALID_UNPADDED_SIZE:
+        if ad.in_file_size < MIN_VALID_UNPADDED_SIZE:
+            ad.err = True
             log_e(f'input file is too small; size must be '
                   f'>= {format_size(MIN_VALID_UNPADDED_SIZE)}')
-            return None
+            return ad, crypt
 
     if action == DECRYPT:
-        padded_size = in_file_size
+        ad.padded_size = ad.in_file_size
 
     # 4. Get processed comments for their further encryption
     # ----------------------------------------------------------------------- #
@@ -3484,7 +4455,7 @@ def encrypt_and_embed_input(action: ActionID) -> Optional[EE]:
         except TypeError:
             basename = ''
 
-        processed_comments = get_processed_comments(basename)
+        ad.processed_comments = get_processed_comments(basename)
 
     # 5. Retrieve the output file path, size, and file object
     # ----------------------------------------------------------------------- #
@@ -3494,22 +4465,22 @@ def encrypt_and_embed_input(action: ActionID) -> Optional[EE]:
 
     # Set up output file based on the action
     if action in (ENCRYPT, DECRYPT):  # New file creation
-        out_file_path, BIO_D['OUT'] = get_output_file_new(action)
+        out_file_path, ad.out_file_obj = get_output_file_new(action)
         log_i(f'new empty file {out_file_path!r} created')
 
     elif action == ENCRYPT_EMBED:  # Existing file handling for encryption
-        out_file_path, out_file_size, BIO_D['OUT'] = \
+        out_file_path, out_file_size, ad.out_file_obj = \
             get_output_file_exist(
-                in_file_path,
-                padded_size,
-                action,
-        )
-        max_start_pos: int = out_file_size - padded_size
+                in_file_path=in_file_path,
+                min_out_size=ad.padded_size,
+                action=action,
+            )
+        ad.max_start_pos = out_file_size - ad.padded_size
         log_i(f'path: {out_file_path!r}')
 
     else:  # action == EXTRACT_DECRYPT, new file creation for decryption
-        out_file_path, BIO_D['OUT'] = get_output_file_new(action)
-        max_start_pos = in_file_size - MIN_VALID_UNPADDED_SIZE
+        out_file_path, ad.out_file_obj = get_output_file_new(action)
+        ad.max_start_pos = ad.in_file_size - MIN_VALID_UNPADDED_SIZE
         log_i(f'new empty file {out_file_path!r} created')
 
     # Log the size of the output file if applicable
@@ -3521,258 +4492,245 @@ def encrypt_and_embed_input(action: ActionID) -> Optional[EE]:
 
     # Get the starting position for the operation
     if action in (ENCRYPT_EMBED, EXTRACT_DECRYPT):
-        start_pos = get_start_position(max_start_pos, no_default=True)
-        log_i(f'start position: {start_pos} (offset: {start_pos:,} B)')
+        ad.start_pos = get_start_position(
+            max_start_pos=ad.max_start_pos,
+            no_default=True,
+        )
+        log_i(f'start position: {ad.start_pos} (offset: {ad.start_pos:,} B)')
 
         if action == ENCRYPT_EMBED:
-            # These values will be used in proceed_request()
-            INT_D['start_pos'] = start_pos
-            INT_D['max_end_pos'] = start_pos + padded_size
+            ad.max_end_pos = ad.start_pos + ad.padded_size
 
     # Get the ending position for extraction
     if action == EXTRACT_DECRYPT:
-        if start_pos is None:
-            raise TypeError
 
-        end_pos = get_end_position(
-            min_pos=start_pos + MIN_VALID_UNPADDED_SIZE,
-            max_pos=in_file_size,
+        ad.end_pos = get_end_position(
+            min_pos=ad.start_pos + MIN_VALID_UNPADDED_SIZE,
+            max_pos=ad.in_file_size,
             no_default=True,
         )
-        log_i(f'end position: {end_pos} (offset: {end_pos:,} B)')
+        log_i(f'end position: {ad.end_pos} (offset: {ad.end_pos:,} B)')
 
-        padded_size = end_pos - start_pos
+        ad.padded_size = ad.end_pos - ad.start_pos
 
-        if DEBUG:
-            log_d(f'cryptoblob size: {format_size(padded_size)}')
+        if UNSAFE_DEBUG:
+            log_d(f'cryptoblob size: {format_size(ad.padded_size)}')
 
     # 7. Check if the size of the cryptoblob exceeds the maximum valid size
     # ----------------------------------------------------------------------- #
 
-    if padded_size > MAX_VALID_PADDED_SIZE:
-        log_e(f'cryptoblob size is too big: {format_size(padded_size)}')
-        return None
+    if ad.padded_size > MAX_VALID_PADDED_SIZE:
+        ad.err = True
+        log_e(f'cryptoblob size is too big: {format_size(ad.padded_size)}')
+        return ad, crypt
 
     # 8. Set file pointers to the specified positions
     # ----------------------------------------------------------------------- #
 
     # Seek to the start position in the container
     if action in (ENCRYPT_EMBED, EXTRACT_DECRYPT):
-
-        if start_pos is None:
-            raise TypeError
-
         if action == ENCRYPT_EMBED:
-            if not seek_position(BIO_D['OUT'], start_pos):
-                return None
+            if not seek_position(ad.out_file_obj, offset=ad.start_pos):
+                ad.err = True
+                return ad, crypt
         else:
-            if not seek_position(BIO_D['IN'], start_pos):
-                return None
+            if not seek_position(ad.in_file_obj, offset=ad.start_pos):
+                ad.err = True
+                return ad, crypt
 
     # 9. Get salts: need for handling IKM and for performing Argon2
     # ----------------------------------------------------------------------- #
 
-    if not get_salts(in_file_size, end_pos, action):
-        return None
+    ad, crypt = get_salts(
+        input_size=ad.in_file_size,
+        end_pos=ad.end_pos,
+        ad=ad,
+        crypt=crypt,
+    )
+    if ad.err:
+        return ad, crypt
 
     # 10. Collect and handle IKM, and get the Argon2 password for
     # further key derivation
     # ----------------------------------------------------------------------- #
 
-    get_argon2_password(action)
+    crypt.argon2_password = get_argon2_password(
+        action=action,
+        blake2_salt=crypt.blake2_salt,
+    )
 
     # 11. Get time cost value
     # ----------------------------------------------------------------------- #
 
-    get_argon2_time_cost(action)
+    crypt.argon2_time_cost = get_argon2_time_cost(action)
 
     # 12. Ask user confirmation for proceeding
     # ----------------------------------------------------------------------- #
 
     if action == ENCRYPT_EMBED:
-        if not proceed_request(PROCEED_OVERWRITE, action):
+        if not proceed_request(proceed_type=PROCEED_OVERWRITE, ad=ad):
+            ad.err = True
             log_i('stopped by user request')
-            return None
 
-    # 13. Return the retrieved parameters for further processing
-    # ----------------------------------------------------------------------- #
-
-    xxx: EE = EE()
-
-    xxx.in_file_size = \
-        in_file_size
-
-    xxx.pad_ikm = \
-        pad_ikm
-
-    xxx.unpadded_size = \
-        unpadded_size
-
-    xxx.padded_size = \
-        padded_size
-
-    xxx.processed_comments = \
-        processed_comments
-
-    xxx.start_pos = \
-        start_pos
-
-    xxx.end_pos = \
-        end_pos
-
-    return xxx
+    return ad, crypt
 
 
-def encrypt_and_embed_handler(action: ActionID, xxx: EE) -> bool:
+def encrypt_and_embed_handler(ad: ActData, crypt: Crypto) -> ActData:
     """
-    Perform the core cryptographic workflow for encrypt or decrypt
-    actions and (optionally) embed the cryptoblob.
+    Perform the core cryptographic workflow for encrypt/decrypt and
+    optional embed/extract operations.
 
-    This function executes the end-to-end processing after user inputs
-    and high-level validation are complete. It derives working keys,
-    prepares and authenticates associated data (AAD), encrypts or
-    decrypts the padding and payload, writes or reads cryptographic
-    metadata (argon2 and blake2 salts, encrypted pad IKM), updates
-    progress counters, and ensures final integrity and synchronization.
+    This function implements the end-to-end cryptographic workflow for
+    the supported file actions: key derivation, pad handling, payload
+    processing, comment handling, and finalization (including optional
+    salts and fsync). It mutates and returns the provided ActData (`ad`)
+    and Crypto (`crypt`) objects; on error it sets `ad.err = True` and
+    returns the same `ad`.
 
-    Behavior summary
+    Parameters
+    ----------
+    ad : ActData
+        Action/context object that is read and mutated. Expected fields
+        used by this function include (but are not limited to):
+        - action: ActionID enum indicating the requested operation.
+        - in_file_obj, out_file_obj: file-like objects for input/output.
+        - in_file_size: size of the input file in bytes.
+        - padded_size, unpadded_size: sizes used for the cryptoblob
+          (bytes).
+        - pad_ikm: initial key material for pad derivation (bytes;
+          provided for encryption flows or recovered during decryption
+          flows).
+        - processed_comments: comment data to be encrypted/decrypted.
+        - written_sum: cumulative number of bytes written to output.
+        - start_pos, end_pos, max_start_pos: embedding/extraction
+          positions.
+        - total_out_data_size: expected total output size for progress
+          reporting.
+        - start_time, last_progress_time: timestamps for progress
+          reporting.
+        - err: boolean error flag (set to True on failure).
+        The function updates these fields (e.g., start_time,
+        last_progress_time, written_sum, end_pos) and returns the same
+        `ad` instance.
 
-    - Derives encryption and MAC keys via derive_keys().
-    - Clears sensitive in-memory secrets and triggers garbage collection.
-    - Initializes nonces, counters, and timing metrics.
-    - For encryption actions (ENCRYPT, ENCRYPT_EMBED):
-        Writes argon2 salt, encrypts and writes pad IKM, computes pad
-        size from provided unpadded/padded sizes, processes payload and
-        comments, writes blake2 salt, and (for ENCRYPT_EMBED) fsyncs
-        output.
-    - For decryption actions (DECRYPT, EXTRACT_DECRYPT):
-        Reads and decrypts the encrypted pad IKM, derives pad key,
-        computes pad size from padded size, validates sizes and MACs,
-        processes payload and comments, and logs final progress.
-    - Constructs session AAD from salts, encrypted pad IKM and size
-      fields and stores it in BYTES_D['session_aad'].
-    - Validates that total written bytes equal the expected output size
-      and returns False on mismatch or any step failure.
-    - Emits informational, debug, warning, and error logs throughout the
-      process.
+    crypt : Crypto
+        Cryptographic context used and updated by the workflow. Fields
+        read and/or written include (examples):
+        - argon2_password, argon2_salt, blake2_salt, enc_key_hash:
+          salts/hashes and password material used for AAD and key
+          derivation.
+        - enc_key, mac_key: derived keys for encryption and
+          authentication.
+        - pad_ikm: pad initial key material (may be derived or
+          decrypted).
+        - nonce and nonce_counter: streaming-cipher state.
+        - enc_sum, enc_chunk_count: optional debug counters when
+          UNSAFE_DEBUG.
+        The function mutates this object (deriving keys, updating
+        counters, storing salts and encrypted pad IKM, etc.).
 
-    Args:
-        action (ActionID): The operation mode; expected values include
-            ENCRYPT, ENCRYPT_EMBED, DECRYPT, EXTRACT_DECRYPT.
-        xxx (EE): An instance of the EE class containing input-related
-            values used by this handler:
-            in_file_size (int): original input payload file size (for
-                encryption).
-            pad_ikm (Optional[bytes]): pad input keying material
-                (present during encryption) or None (during decryption).
-            unpadded_size (Optional[int]): unpadded total size (provided
-                for encryption) or computed during decryption.
-            padded_size (int): total padded size read from metadata.
-            processed_comments (Optional[bytes]): comment bytes to
-                include (encryption) or validate (decryption).
-            start_pos (Optional[int]): start offset in the container
-                (used for embed-mode logging).
-            end_pos (Optional[int]): end offset in the container
-                (updated in embed mode). `end_pos` is set only for
-                EXTRACT_DECRYPT during input collection; for
-                ENCRYPT_EMBED it is computed and logged later in the
-                handler.
+    Returns
+    -------
+    ActData
+        The same `ad` object passed in, updated with results and
+        diagnostic fields. On failure the returned object will have
+        `ad.err is True`.
 
-    Returns:
-        bool: True on successful completion of all steps; False on any
-              error, validation failure, or I/O/authentication problem.
+    High-level behavior
+    -------------------
+    - Derives working keys and initializes nonce/counter state.
+    - Clears sensitive password material as soon as practical.
+    - For encryption actions, writes argon2_salt to output.
+    - Encrypts the pad IKM (when encrypting) or reads and decrypts the
+      encrypted_pad_ikm (when decrypting), deriving the pad key.
+    - Computes pad and payload sizes and validates them.
+    - Builds session AAD from relevant salts/hashes/encrypted fields and
+      size bytes.
+    - Processes padding, payload contents, and comments (encrypting or
+      decrypting as appropriate), updating progress counters and
+      timestamps.
+    - Optionally writes blake2_salt and calls fsync when embedding.
+    - Validates final written size against the expected output size.
+    - For embed actions, records and logs the cryptoblob location in the
+      container.
 
-    Side effects and global state
+    Error handling and side effects
+    -------------------------------
+    - On any I/O, MAC, or helper failure the function sets
+      `ad.err = True` and returns `ad`. Helper functions used throughout
+      are expected to set `ad.err` on failure where appropriate.
+    - Sensitive material (passwords, IKM, derived keys) is cleared as
+      early as possible; callers should avoid retaining those values
+      after this function.
+    - Emits logs via log_i/log_d/log_w/log_e; additional interactive
+      prompts or errors may be produced by helper functions called here.
+    - May set module-global state used by a termination handler (e.g.,
+      `file_obj_to_truncate_by_signal`) while writing output files.
 
-    - Reads and writes global dictionaries and resources such as
-      BYTES_D, INT_D, FLOAT_D, BIO_D and may call functions that mutate
-      other global state.
-    - May write to BIO_D['OUT'] and read from BIO_D['IN'].
-    - Stores session AAD into BYTES_D['session_aad'].
-    - Logs via log_i/log_e/log_w/log_d and updates progress counters.
-    - Calls functions that perform I/O (write_data, read_data),
-      cryptographic operations (feed_stream_cipher, hkdf_sha256,
-      derive_keys, init_nonce_counter), padding and comment handling
-      (handle_padding, handle_payload_file_contents, handle_comments),
-      and final synchronization (fsync_written_data).
+    Dependencies
+    ------------
+    Relies on the presence of these helpers and module-level names:
+    derive_keys, init_nonce_counter, init_new_mac_chunk,
+    feed_stream_cipher, hkdf_sha256, get_pad_size_from_padded,
+    get_contents_size_from_enc_contents,
+    get_enc_contents_size_from_contents, handle_padding,
+    handle_payload_file_contents, handle_comments, log_i, log_d, log_w,
+    log_e, log_progress_final, write_data, read_data,
+    fsync_written_data, format_size, collect, monotonic, UNSAFE_DEBUG,
+    NEW_OUT_FILE_ACTIONS, ENCRYPT, ENCRYPT_EMBED, DECRYPT,
+    EXTRACT_DECRYPT, MIN_VALID_UNPADDED_SIZE, PAD_KEY_SIZE,
+    HKDF_INFO_PAD, SIZE_BYTES_SIZE, BYTEORDER.
 
     Failure modes
-
-    - Returns False on I/O errors, MAC/authentication failures,
-      unexpected sizes, missing required fields, or any helper function
-      returning False.
-    - Raises TypeError where the implementation explicitly requires a
-      non-None value but receives None (e.g., missing pad_ikm or
-      unpadded_size during encryption).
+    -------------
+    Typical failure conditions that set `ad.err = True` include:
+    - I/O errors from read/write helpers.
+    - Authentication/MAC failures or corrupted inputs (e.g., invalid
+      MAC, missing or malformed encrypted_pad_ikm).
+    - Helper functions returning failure states.
+    - Final written size mismatch vs expected output size.
 
     Notes
-
-    - This function assumes its preconditions are met by prior
-      validation code (correct action, populated fields in xxx, and that
-      helper functions behave as documented).
-    - Sensitive values are deleted as soon as they are no longer needed;
-      ensure surrounding code follows similar hygiene.
+    -----
+    - This function assumes callers have performed necessary input
+      validation and populated required `ad` fields before invocation.
+    - Debug counters and verbose logging are controlled by
+      `UNSAFE_DEBUG`.
+    - The function mutates and returns the provided `ActData` instance
+      rather than producing a new object.
     """
-
-    # 0. Unpack values
-    # ----------------------------------------------------------------------- #
-
-    in_file_size: int = \
-        xxx.in_file_size
-
-    pad_ikm: Optional[bytes] = \
-        xxx.pad_ikm
-
-    unpadded_size: Optional[int] = \
-        xxx.unpadded_size
-
-    padded_size: int = \
-        xxx.padded_size
-
-    processed_comments: Optional[bytes] = \
-        xxx.processed_comments
-
-    start_pos: Optional[int] = \
-        xxx.start_pos
-
-    end_pos: Optional[int] = \
-        xxx.end_pos
 
     # 1. Derive keys needed for encryption/authentication
     # ----------------------------------------------------------------------- #
 
-    if not derive_keys():
-        return False
+    ad, crypt = derive_keys(ad=ad, crypt=crypt)
+    if ad.err:
+        return ad
 
     # 2. Clean up sensitive data from memory and trigger garbage collection
     # ----------------------------------------------------------------------- #
 
-    del BYTES_D['argon2_password']
-
+    del crypt.argon2_password
     collect()
 
     # 3. Initialize values
     # ----------------------------------------------------------------------- #
 
     # Initialize nonce counter for the current action
-    init_nonce_counter()
+    crypt = init_nonce_counter(crypt)
 
-    # Initialize the total written bytes counter
-    INT_D['written_sum'] = 0
+    ad.start_time = monotonic()
+    ad.last_progress_time = monotonic()
 
-    # Start timing the operation
-    FLOAT_D['start_time'] = monotonic()
-    FLOAT_D['last_progress_time'] = monotonic()
+    if UNSAFE_DEBUG:
+        crypt.enc_sum = 0
+        crypt.enc_chunk_count = 0
 
-    if DEBUG:
-        # Initialize the counter for the total size of encrypted/decrypted data
-        INT_D['enc_sum'] = 0
+    action: ActionID = ad.action
 
-        # Initialize the counter for the total number of encrypted chunks
-        INT_D['enc_chunk_count'] = 0
-
-    # Set the 'file_handler_started' flag (used for handling signals)
-    ANY_D['file_handler_started'] = None
+    if action in NEW_OUT_FILE_ACTIONS:
+        global file_obj_to_truncate_by_signal
+        file_obj_to_truncate_by_signal = ad.out_file_obj
 
     # 4. Write argon2_salt if encrypting
     # ----------------------------------------------------------------------- #
@@ -3780,13 +4738,14 @@ def encrypt_and_embed_handler(action: ActionID, xxx: EE) -> bool:
     if action in (ENCRYPT, ENCRYPT_EMBED):
         log_i('writing cryptoblob')
 
-        if DEBUG:
+        if UNSAFE_DEBUG:
             log_d('writing argon2_salt')
 
-        if not write_data(BYTES_D['argon2_salt']):
-            return False
+        ad = write_data(data=crypt.argon2_salt, ad=ad)
+        if ad.err:
+            return ad
 
-        if DEBUG:
+        if UNSAFE_DEBUG:
             log_d('argon2_salt written')
 
     else:
@@ -3795,96 +4754,104 @@ def encrypt_and_embed_handler(action: ActionID, xxx: EE) -> bool:
     # 5. Handle pad_ikm
     # ----------------------------------------------------------------------- #
 
-    init_new_mac_chunk()
+    crypt = init_new_mac_chunk(crypt)
 
     encrypted_pad_ikm: Optional[bytes]
 
     # encrypt pad_ikm, wrie encrypted_pad_ikm
     if action in (ENCRYPT, ENCRYPT_EMBED):
+        encrypted_pad_ikm, crypt = feed_stream_cipher(
+            input_data=crypt.pad_ikm,
+            comment='pad_ikm',
+            crypt=crypt,
+        )
 
-        if pad_ikm is None:
-            raise TypeError
-
-        encrypted_pad_ikm = feed_stream_cipher(pad_ikm, 'pad_ikm')
-
-        if DEBUG:
-            log_d(f'encrypted_pad_ikm:  {encrypted_pad_ikm.hex()}')
+        if UNSAFE_DEBUG:
+            log_d(f'encrypted_pad_ikm: {encrypted_pad_ikm.hex()}')
             log_d('writing encrypted_pad_ikm')
 
-        if not write_data(encrypted_pad_ikm):
-            return False
+        ad = write_data(data=encrypted_pad_ikm, ad=ad)
+        if ad.err:
+            return ad
 
-        if DEBUG:
-            log_d(f'encrypted_pad_ikm:  {encrypted_pad_ikm.hex()}')
+        if UNSAFE_DEBUG:
+            log_d(f'encrypted_pad_ikm: {encrypted_pad_ikm.hex()}')
             log_d('writing encrypted_pad_ikm completed')
 
     # get pad_ikm and pad_key
     else:
-
-        if DEBUG:
+        if UNSAFE_DEBUG:
             log_d('reading encrypted_pad_ikm')
 
-        encrypted_pad_ikm = read_data(BIO_D['IN'], PAD_KEY_SIZE)
+        encrypted_pad_ikm = read_data(ad.in_file_obj, PAD_KEY_SIZE)
 
         if encrypted_pad_ikm is None:
-            return False
+            ad.err = True
+            return ad
 
-        if DEBUG:
+        if UNSAFE_DEBUG:
             log_d('reading encrypted_pad_ikm completed')
 
-        pad_ikm = feed_stream_cipher(encrypted_pad_ikm, 'encrypted_pad_ikm')
+        crypt.pad_ikm, crypt = feed_stream_cipher(
+            input_data=encrypted_pad_ikm,
+            comment='encrypted_pad_ikm',
+            crypt=crypt,
+        )
 
         pad_key = hkdf_sha256(
-            input_key=pad_ikm,
+            input_key=crypt.pad_ikm,
             info=HKDF_INFO_PAD,
             length=PAD_KEY_SIZE,
         )
 
-        if DEBUG:
-            log_d(f'encrypted_pad_ikm:  {encrypted_pad_ikm.hex()}')
-            log_d(f'pad_ikm:            {pad_ikm.hex()}')
-            log_d(f'pad_key:            {pad_key.hex()}')
+        if UNSAFE_DEBUG:
+            log_d(f'encrypted_pad_ikm: {encrypted_pad_ikm.hex()}')
+            log_d(f'pad_ikm:           {crypt.pad_ikm.hex()}')
+            log_d(f'pad_key:           {pad_key.hex()}')
+
+    crypt.encrypted_pad_ikm = encrypted_pad_ikm
 
     # 6. Get pad_size
     # ----------------------------------------------------------------------- #
 
     if action in (ENCRYPT, ENCRYPT_EMBED):
 
-        if unpadded_size is None:
-            raise TypeError
-
-        pad_size: int = padded_size - unpadded_size
+        pad_size: int = ad.padded_size - ad.unpadded_size
 
     else:  # Decryption actions (DECRYPT, EXTRACT_DECRYPT)
-        pad_size = get_pad_size_from_padded(padded_size, pad_key)
+        pad_size = get_pad_size_from_padded(
+            padded_size=ad.padded_size,
+            pad_key=pad_key,
+        )
 
-        unpadded_size = padded_size - pad_size
+        ad.unpadded_size = ad.padded_size - pad_size
 
     # 7. Calculate, log, and validate sizes
     # ----------------------------------------------------------------------- #
 
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d('calculating additional sizes')
 
     # Determine the size of the payload file contents to be processed
     if action in (ENCRYPT, ENCRYPT_EMBED):
 
-        contents_size: Optional[int] = in_file_size
+        contents_size: Optional[int] = ad.in_file_size
 
     else:  # Decryption actions (DECRYPT, EXTRACT_DECRYPT)
 
-        enc_contents_size: int = unpadded_size - MIN_VALID_UNPADDED_SIZE
+        enc_contents_size: int = ad.unpadded_size - MIN_VALID_UNPADDED_SIZE
 
         contents_size = get_contents_size_from_enc_contents(enc_contents_size)
 
-        if DEBUG:
-            log_d(f'unpadded_size:  {unpadded_size}')
-            log_d(f'enc_contents_size:        {enc_contents_size}')
-            log_d(f'contents_size:  {contents_size}')
+        if UNSAFE_DEBUG:
+            log_d(f'unpadded_size:     {ad.unpadded_size}')
+            log_d(f'enc_contents_size: {enc_contents_size}')
+            log_d(f'contents_size:     {contents_size}')
 
         if contents_size is None:
+            ad.err = True
             log_e(MAC_FAIL_MESSAGE)
-            return False
+            return ad
 
     if contents_size is None:
         raise TypeError
@@ -3899,17 +4866,18 @@ def encrypt_and_embed_handler(action: ActionID, xxx: EE) -> bool:
         out_data_size = contents_size
 
     # For logging writing progress
-    INT_D['total_out_data_size'] = out_data_size
+    ad.total_out_data_size = out_data_size
 
     # Debug logging for sizes
-    if DEBUG:
-        log_d(f'payload file contents size:  {format_size(contents_size)}')
-        log_d(f'output data size:            {format_size(out_data_size)}')
+    if UNSAFE_DEBUG:
+        log_d(f'payload file contents size: {format_size(contents_size)}')
+        log_d(f'output data size:           {format_size(out_data_size)}')
 
     # Validate contents size (for decryption actions)
     if contents_size < 0:
+        ad.err = True
         log_e(MAC_FAIL_MESSAGE)
-        return False
+        return ad
 
     if action in (ENCRYPT, ENCRYPT_EMBED):
         log_i(f'data size to write: {format_size(out_data_size)}')
@@ -3917,233 +4885,215 @@ def encrypt_and_embed_handler(action: ActionID, xxx: EE) -> bool:
     # 8. Convert sizes to bytes for further authentication
     # ----------------------------------------------------------------------- #
 
-    padded_size_bytes: bytes = \
-        padded_size.to_bytes(SIZE_BYTES_SIZE, BYTEORDER)
+    crypt.padded_size_bytes = \
+        ad.padded_size.to_bytes(SIZE_BYTES_SIZE, BYTEORDER)
 
-    pad_size_bytes: bytes = \
+    crypt.pad_size_bytes = \
         pad_size.to_bytes(SIZE_BYTES_SIZE, BYTEORDER)
 
-    contents_size_bytes: bytes = \
+    crypt.contents_size_bytes = \
         contents_size.to_bytes(SIZE_BYTES_SIZE, BYTEORDER)
 
-    if DEBUG:
-        log_d(f'padded_size_bytes:    {padded_size_bytes.hex()}')
-        log_d(f'pad_size_bytes:       {pad_size_bytes.hex()}')
-        log_d(f'contents_size_bytes:  {contents_size_bytes.hex()}')
+    if UNSAFE_DEBUG:
+        log_d(f'padded_size_bytes:   {crypt.padded_size_bytes.hex()}')
+        log_d(f'pad_size_bytes:      {crypt.pad_size_bytes.hex()}')
+        log_d(f'contents_size_bytes: {crypt.contents_size_bytes.hex()}')
 
-    # 9. Construct AAD for this session/action
+    # 9. Handle padding
     # ----------------------------------------------------------------------- #
 
-    if DEBUG:
-        log_d('constructing the session AAD by concatenating the '
-              'following byte strings:')
-
-    aad_list: list[bytes] = [
-        BYTES_D['argon2_salt'],
-        BYTES_D['blake2_salt'],
-        encrypted_pad_ikm,
-        padded_size_bytes,
-        pad_size_bytes,
-        contents_size_bytes,
-        BYTES_D['enc_key_hash'],
-    ]
-
-    session_aad: bytes = b''.join(aad_list)
-
-    BYTES_D['session_aad'] = session_aad
-
-    if DEBUG:
-        for byte_string in aad_list:
-            log_d(f'- {byte_string.hex()}')
-
-        log_d(f'resulting session AAD:\n        {session_aad.hex()}')
-
-    # 10. Handle padding
-    # ----------------------------------------------------------------------- #
-
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d('handling padding')
 
-    if not handle_padding(pad_size, action):
-        return False
+    ad, crypt = handle_padding(pad_size=pad_size, ad=ad, crypt=crypt)
+    if ad.err:
+        return ad
 
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d('handling padding completed')
 
-    # 11. Handle contents of the payload file based on the action type
+    # 10. Handle contents of the payload file based on the action type
     # ----------------------------------------------------------------------- #
 
     if action in (DECRYPT, EXTRACT_DECRYPT):
         log_i(f'data size to write: {format_size(out_data_size)}')
 
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d('handling payload file contents')
 
-    if not handle_payload_file_contents(action, contents_size):
-        return False
+    ad, crypt = handle_payload_file_contents(
+        contents_size=contents_size,
+        ad=ad,
+        crypt=crypt,
+    )
+    if ad.err:
+        return ad
 
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d('handling payload file contents completed')
 
-    # 12. Handle comments based on the action type
+    # 11. Handle comments based on the action type
     # ----------------------------------------------------------------------- #
 
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d('handling comments')
 
-    if not handle_comments(action, processed_comments):
-        return False
+    ad, crypt = handle_comments(
+        processed_comments=ad.processed_comments,
+        ad=ad,
+        crypt=crypt,
+    )
+    if ad.err:
+        return ad
 
-    if DEBUG:
+    if UNSAFE_DEBUG:
         log_d('handling comments completed')
 
-    # 13. Summary
+    # 12. Summary
     # ----------------------------------------------------------------------- #
 
-    if DEBUG:
-        enc_sum: int = INT_D['enc_sum']
-        enc_chunk_count: int = INT_D['enc_chunk_count']
-
+    if UNSAFE_DEBUG:
         if action in (ENCRYPT, ENCRYPT_EMBED):
             log_d(f'encryption completed; total encrypted with ChaCha20: '
-                  f'{enc_chunk_count} chunks, {format_size(enc_sum)}')
+                  f'{crypt.enc_chunk_count} chunks, '
+                  f'{format_size(crypt.enc_sum)}')
         else:
             log_d(f'decryption completed; total decrypted with ChaCha20: '
-                  f'{enc_chunk_count} chunks, {format_size(enc_sum)}')
+                  f'{crypt.enc_chunk_count} chunks, '
+                  f'{format_size(crypt.enc_sum)}')
 
     # Log progress for decryption actions
     if action in (DECRYPT, EXTRACT_DECRYPT):
-        log_progress_final()
+        log_progress_final(ad)
 
-    # 14. Write blake2_salt if encrypting
+    # 13. Write blake2_salt if encrypting
     # ----------------------------------------------------------------------- #
 
     if action in (ENCRYPT, ENCRYPT_EMBED):
-        if DEBUG:
+        if UNSAFE_DEBUG:
             log_d('writing blake2_salt')
 
-        if not write_data(BYTES_D['blake2_salt']):
-            return False
+        ad = write_data(data=crypt.blake2_salt, ad=ad)
+        if ad.err:
+            return ad
 
-        if DEBUG:
+        if UNSAFE_DEBUG:
             log_d('blake2_salt written')
 
-        log_progress_final()
+        log_progress_final(ad)
 
-    # 15. Validate the total written size against the expected output size
+    # 14. Validate the total written size against the expected output size
     # -----------------------------------------------------------------------
 
-    if INT_D['written_sum'] != out_data_size:
-        written_sum: int = INT_D['written_sum']
-        log_e(f'written data size ({written_sum:,} B) does not '
+    if ad.written_sum != out_data_size:
+        ad.err = True
+        log_e(f'written data size ({ad.written_sum:,} B) does not '
               f'equal expected size ({out_data_size:,} B)')
-        return False
+        return ad
 
-    # 16. Synchronize data to disk if necessary
+    # 15. Synchronize data to disk if necessary
     # ----------------------------------------------------------------------- #
 
     if action == ENCRYPT_EMBED:
         log_i('syncing output data to disk')
         fsync_start_time: float = monotonic()
 
-        if not fsync_written_data():
-            return False
+        if not fsync_written_data(ad):
+            ad.err = True
+            return ad
 
         fsync_end_time: float = monotonic()
         log_i(f'synced in {round(fsync_end_time - fsync_start_time, 1)}s')
 
-    # 17. Log progress and locations
+    # 16. Log progress and locations
     # ----------------------------------------------------------------------- #
 
     # Log the location of the cryptoblob in the container if encrypting
     if action == ENCRYPT_EMBED:
-        end_pos = BIO_D['OUT'].tell()
+        ad.end_pos = ad.out_file_obj.tell()
         log_w('cryptoblob location is important for its further extraction!')
         log_i(f'remember cryptoblob location in container:\n'
-              f'        [{start_pos}:{end_pos}]')
+              f'        [{ad.start_pos}:{ad.end_pos}]')
 
-    return True
+    return ad
 
 
 # Perform actions EMBED, EXTRACT
 # --------------------------------------------------------------------------- #
 
 
-def embed(action: ActionID) -> bool:
+def embed(ad: ActData) -> ActData:
     """
-    Handles the embedding or extraction of a message based on the
-    specified action.
+    Orchestrate embed or extract: prepare inputs then perform the
+    operation.
 
-    This function orchestrates the process of embedding or extracting a
-    message by first retrieving the necessary input parameters
-    (start position and message size) through the `embed_input`
-    function. If the input retrieval is successful, it then calls the
-    `embed_handler` function to perform the actual operation.
+    Calls embed_input(ad) to open files and determine start position and
+    message size. If preparation succeeds (ad.err is False), calls
+    embed_handler(ad) to perform the read/write and checksum work.
 
-    Args:
-        action (ActionID): An integer indicating the action to perform.
-            - EMBED: Embed data into an existing output file.
-            - EXTRACT: Extract data from the container.
+    Parameters
+    ----------
+    ad : ActData
+        ActData instance with .action set to EMBED or EXTRACT. On return
+        the function will have updated fields from the called helpers
+        (e.g., .in_file_obj, .out_file_obj, .start_pos,
+        .total_out_data_size, .written_sum, and .err).
 
-    Returns:
-        bool: True if the embedding or extraction operation was
-              successful, False if the operation was canceled or failed.
-
-    Notes:
-        - If the input retrieval fails (returns None), the function
-          will return False immediately.
-        - The function relies on the `embed_input` and `embed_handler`
-          functions to handle the specifics of input retrieval and
-          data embedding/extraction, respectively.
+    Returns
+    -------
+    ActData
+        The same ActData instance. On failure ad.err is set True.
     """
+    ad = embed_input(ad)
+    if ad.err:
+        return ad
 
-    # Retrieve the start position and message size based on the action
-    input_values: Optional[tuple[int, int]] = embed_input(action)
-
-    # If input retrieval fails, return False
-    if input_values is None:
-        return False
-
-    # Unpack the start position and message size from the retrieved values
-    start_pos: int = input_values[0]
-    message_size: int = input_values[1]
-
-    # Call the handler to perform the embedding or extraction operation
-    success: bool = embed_handler(action, start_pos, message_size)
-
-    return success
+    ad = embed_handler(ad)
+    return ad
 
 
-def embed_input(action: ActionID) -> Optional[tuple[int, int]]:
+def embed_input(ad: ActData) -> ActData:
     """
-    Prepares the input file and determines the start and message sizes
-    for embedding or extracting.
+    Prepare input/output files and determine start position and message
+    size.
 
-    This function retrieves the input file based on the specified
-    action, logs relevant information about the file, and calculates the
-    start position and message size for either embedding or extracting.
-    It supports two actions: embedding data into an existing output file
-    (action EMBED) or extracting data from the container into a new file
-    (action EXTRACT).
+    Locates and opens the input file, prepares the output file (existing
+    for EMBED, new for EXTRACT), determines the allowed range for the
+    operation, prompts the user if needed, and stores start_pos and
+    total_out_data_size on the provided ActData instance.
 
-    Args:
-        action (ActionID): An integer indicating the action to perform.
-            - EMBED: Embed data into an existing output file.
-            - EXTRACT: Extract data from the container into a new file.
+    Parameters
+    ----------
+    ad : ActData
+        ActData instance with .action set to EMBED or EXTRACT. On return
+        the function sets:
+        - ad.in_file_obj: opened input file object
+        - ad.out_file_obj: opened output file object
+        - ad.start_pos (int): chosen start offset
+        - ad.total_out_data_size (int): number of bytes to transfer
+        The function sets ad.err = True if the user cancels or an error
+        occurs.
 
-    Returns:
-        Optional[tuple]: A tuple containing the start position (int) and
-            the message size (int) if successful, or None if the
-            operation was canceled by the user.
+    Returns
+    -------
+    ActData
+        The same ActData instance. If the operation was cancelled or
+        failed, ad.err will be True.
 
-    Notes:
-        - The function logs the path and size of the input file.
-        - For action EMBED, it retrieves the output file and its size,
-          and calculates the maximum starting position for embedding.
-        - For action EXTRACT, it creates a new output file and sets the
-          maximum starting position accordingly for extraction.
-        - The function prompts the user for confirmation if action EMBED
-          is selected and the embedding process is about to proceed.
+    Notes
+    -----
+    - For EMBED: verifies output file exists (get_output_file_exist) and
+      computes max_start_pos = out_file_size - in_file_size;
+      message_size = in_file_size. Prompts the user for confirmation via
+      proceed_request(PROCEED_OVERWRITE, ad).
+    - For EXTRACT: creates a new output file (get_output_file_new) and
+      uses max_start_pos = in_file_size; message_size is derived from
+      start/end positions.
+    - Uses get_start_position() and get_end_position() to obtain
+      user-selected offsets; logs path, sizes, start/end positions, and
+      message size.
+    - On user cancellation the function sets ad.err = True and logs the
+      stop.
     """
     in_file_path: str
     out_file_path: str
@@ -4154,23 +5104,33 @@ def embed_input(action: ActionID) -> Optional[tuple[int, int]]:
     max_start_pos: int
     message_size: int
 
+    action: ActionID = ad.action
+
+    if action == EMBED:
+        log_w('this action does not provide encryption and authentication!')
+    else:
+        log_w('this action does not provide authentication!')
+
     # Retrieve the input file path and size based on the action
-    in_file_path, in_file_size, BIO_D['IN'] = get_input_file(action)
+    in_file_path, in_file_size, ad.in_file_obj = get_input_file(action)
 
     # Log the path and size of the input file
     log_i(f'path: {in_file_path!r}; size: {format_size(in_file_size)}')
 
     if action == EMBED:
         # For embedding, retrieve the existing output file and its size
-        out_file_path, out_file_size, BIO_D['OUT'] = get_output_file_exist(
-            in_file_path, in_file_size, action)
+        out_file_path, out_file_size, ad.out_file_obj = get_output_file_exist(
+            in_file_path=in_file_path,
+            min_out_size=in_file_size,
+            action=action,
+        )
 
         max_start_pos = out_file_size - in_file_size
         log_i(f'path: {out_file_path!r}')
 
     else:  # action EXTRACT
         # For extraction, create a new output file
-        out_file_path, BIO_D['OUT'] = get_output_file_new(action)
+        out_file_path, ad.out_file_obj = get_output_file_new(action)
 
         max_start_pos = in_file_size
         log_i(f'new empty file {out_file_path!r} created')
@@ -4180,7 +5140,10 @@ def embed_input(action: ActionID) -> Optional[tuple[int, int]]:
         log_i(f'size: {format_size(out_file_size)}')
 
     # Get the starting position for embedding or extraction
-    start_pos = get_start_position(max_start_pos, no_default=True)
+    start_pos = get_start_position(
+        max_start_pos=max_start_pos,
+        no_default=True,
+    )
     log_i(f'start position: {start_pos} (offset: {start_pos:,} B)')
 
     if action == EMBED:
@@ -4190,9 +5153,9 @@ def embed_input(action: ActionID) -> Optional[tuple[int, int]]:
         log_i(f'end position: {end_pos} (offset: {end_pos:,} B)')
 
         # Prompt user for confirmation before proceeding
-        if not proceed_request(PROCEED_OVERWRITE, action):
+        if not proceed_request(proceed_type=PROCEED_OVERWRITE, ad=ad):
+            ad.err = True
             log_i('stopped by user request\n')
-            return None
     else:
         # For extraction, calculate end position and message size
         end_pos = get_end_position(
@@ -4205,120 +5168,165 @@ def embed_input(action: ActionID) -> Optional[tuple[int, int]]:
         message_size = end_pos - start_pos
         log_i(f'message size to retrieve: {format_size(message_size)}')
 
-    # Return the start position and message size
-    return start_pos, message_size
+    ad.start_pos = start_pos
+    ad.total_out_data_size = message_size
+
+    return ad
 
 
-def embed_handler(action: ActionID, start_pos: int, message_size: int) -> bool:
+def embed_handler(ad: ActData) -> ActData:
     """
-    Handles the embedding or extraction of a message in a specified
-    container.
+    Embed or extract a message from a container, writing data and
+    computing a checksum.
 
-    This function reads data from an input source, writes it to an
-    output destination, and computes a checksum of the written data.
-    It supports two actions: embedding data into a container (action
-    EMBED) or extracting data from the container into a new file (action
-    EXTRACT). The function also manages progress reporting and
-    synchronization of the output data.
+    This handler transfers `message_size` bytes between input and output
+    in chunked reads/writes, updates a running BLAKE2b checksum, reports
+    progress, and verifies the total written size. For embed operations
+    into a new output file, the output object is registered so a
+    termination handler can truncate an incomplete file; the output is
+    also fsynced after writing.
 
-    Args:
-        action (ActionID): An integer indicating the action to perform.
-            - EMBED: Embed data into the output container.
-            - EXTRACT: Extract data from the container into a new file.
-        start_pos (int): The position in the container where the
-                         embedding or extraction should start.
-        message_size (int): The total size of the message to be embedded
-                            or extracted in bytes.
+    Parameters
+    ----------
+    ad : ActData
+        Action/context object used and mutated. Required fields include:
+        - action (ActionID): EMBED or EXTRACT.
+        - start_pos (int): start offset in the relevant file.
+        - total_out_data_size (int): number of bytes to transfer
+          (message size).
+        - in_file_obj / out_file_obj: file-like objects for
+          reading/writing.
+        The function sets/updates:
+        - ad.start_time, ad.last_progress_time: monotonic timestamps for
+          progress.
+        - ad.written_sum: cumulative bytes written.
+        - ad.err: set to True on failure.
+        - ad.end_pos: (on EMBED) final position after writing.
 
-    Returns:
-        bool: True if the operation was successful, False otherwise.
+    Returns
+    -------
+    ActData
+        The same `ad` instance, updated. On failure `ad.err` is set True.
 
-    Notes:
-        - The function uses a debug mode to print positions and progress
-          information if the DEBUG flag is set.
-        - It handles reading and writing in chunks defined by
-          MAX_PT_CHUNK_SIZE.
-        - The function computes a checksum using the BLAKE2 hashing
-          algorithm and logs the checksum and the position of the
-          embedded or extracted message.
-        - If action EMBED is performed, it ensures that the output data
-          is synchronized after writing.
+    Behavior and error handling
+    ---------------------------
+    - If `action` is in `NEW_OUT_FILE_ACTIONS`, registers
+      `ad.out_file_obj` in module-global state so a termination handler
+      can truncate it if needed.
+    - Seeks to `start_pos` on the appropriate file object (output for
+      EMBED, input for EXTRACT); on seek failure sets `ad.err` and
+      returns.
+    - Transfers data in full chunks of `MAX_PT_CHUNK_SIZE` and a final
+      remainder chunk, using `read_data` and `write_data`. If any helper
+      signals failure (None or `ad.err`), returns with `ad.err = True`.
+    - Maintains a BLAKE2b digest (`CHECKSUM_SIZE` bytes) updated for
+      every transferred chunk; the hex digest is logged on success.
+    - Calls `log_progress_final(ad)` after transfer completes.
+    - Validates `ad.written_sum == message_size`; on mismatch sets
+      `ad.err`, logs an error, and returns.
+    - For EMBED, calls `fsync_written_data(ad)` and logs the duration;
+      on failure sets `ad.err` and returns.
+    - Logs the message checksum and, for EMBED, the message location
+      `[start_pos:end_pos]` (and a warning about remembering the
+      location).
+
+    Globals and dependencies
+    ------------------------
+    Relies on module-level names and helpers:
+    `NEW_OUT_FILE_ACTIONS`, `MAX_PT_CHUNK_SIZE`, `CHECKSUM_SIZE`,
+    `read_data`, `write_data`, `seek_position`, `log_i`, `log_w`,
+    `log_e`, `log_progress_final`, `fsync_written_data`, `format_size`,
+    and `monotonic`.
+
+    Notes
+    -----
+    - Progress logging and I/O error handling are delegated to helper
+      functions (`read_data`, `write_data`, etc.), which are expected to
+      set `ad.err` on failure where appropriate.
+    - The function mutates and returns the provided `ActData` instance.
+    - Must be called from the main thread at appropriate safe points if
+      used alongside signal-handling truncation logic.
     """
+    action: ActionID = ad.action
+    start_pos: int = ad.start_pos
+    message_size: int = ad.total_out_data_size
 
-    # Set the 'file_handler_started' flag (used for handling signals)
-    ANY_D['file_handler_started'] = None
+    if action in NEW_OUT_FILE_ACTIONS:
+        global file_obj_to_truncate_by_signal
+        file_obj_to_truncate_by_signal = ad.out_file_obj
 
     # Seek to the start position in the appropriate container
     if action == EMBED:
-        if not seek_position(BIO_D['OUT'], start_pos):
-            return False  # Return False if seeking fails
+        if not seek_position(ad.out_file_obj, offset=start_pos):
+            ad.err = True
+            return ad
 
         log_i('reading message from input and writing it over output')
 
     else:  # action == EXTRACT
-        if not seek_position(BIO_D['IN'], start_pos):
-            return False
+        if not seek_position(ad.in_file_obj, offset=start_pos):
+            ad.err = True
+            return ad
 
         log_i('reading message from input and writing it to output')
 
     # Initialize the BLAKE2 hash object for checksum calculation
     hash_obj: Any = blake2b(digest_size=CHECKSUM_SIZE)
 
-    # Start timing the operation
-    FLOAT_D['start_time'] = monotonic()
-    FLOAT_D['last_progress_time'] = monotonic()
+    ad.start_time = monotonic()
+    ad.last_progress_time = monotonic()
 
-    # Initialize the total written bytes counter
-    INT_D['written_sum'] = 0
+    ad.total_out_data_size = message_size
 
-    INT_D['total_out_data_size'] = message_size
-
-    # Calculate the number of complete chunks and remaining bytes
     full_chunks: int = message_size // MAX_PT_CHUNK_SIZE
     remain_size: int = message_size % MAX_PT_CHUNK_SIZE
 
     # Read and write complete chunks of data
     for _ in range(full_chunks):
+
         message_chunk: Optional[bytes] = \
-            read_data(BIO_D['IN'], MAX_PT_CHUNK_SIZE)
-
+            read_data(ad.in_file_obj, MAX_PT_CHUNK_SIZE)
         if message_chunk is None:
-            return False  # Return False if reading fails
+            ad.err = True
+            return ad
 
-        if not write_data(message_chunk):
-            return False  # Return False if writing fails
+        ad = write_data(data=message_chunk, ad=ad)
+        if ad.err:
+            return ad
 
-        hash_obj.update(message_chunk)  # Update the checksum with the chunk
+        hash_obj.update(message_chunk)
 
     # Write any remaining bytes that do not fit into a full chunk
     if remain_size:
-        message_chunk = read_data(BIO_D['IN'], remain_size)
 
+        message_chunk = read_data(ad.in_file_obj, remain_size)
         if message_chunk is None:
-            return False
+            ad.err = True
+            return ad
 
-        if not write_data(message_chunk):
-            return False
+        ad = write_data(data=message_chunk, ad=ad)
+        if ad.err:
+            return ad
 
-        # Update the checksum with the last chunk
         hash_obj.update(message_chunk)
 
-    log_progress_final()
+    log_progress_final(ad)
 
     # Validate the total written size against the expected output size
-    if INT_D['written_sum'] != message_size:
-        written_sum: int = INT_D['written_sum']
-        log_e(f'written data size ({written_sum:,} B) does not '
+    if ad.written_sum != message_size:
+        ad.err = True
+        log_e(f'written data size ({ad.written_sum:,} B) does not '
               f'equal expected size ({message_size:,} B)')
-        return False
+        return ad
 
     if action == EMBED:
         log_i('syncing output data to disk')
         fsync_start_time: float = monotonic()
 
         # Synchronize the output data to ensure all changes are flushed
-        if not fsync_written_data():
-            return False  # Return False if synchronization fails
+        if not fsync_written_data(ad):
+            ad.err = True
+            return ad
 
         fsync_end_time: float = monotonic()
         log_i(f'synced in {round(fsync_end_time - fsync_start_time, 1)}s')
@@ -4327,7 +5335,7 @@ def embed_handler(action: ActionID, start_pos: int, message_size: int) -> bool:
     message_checksum: str = hash_obj.hexdigest()
 
     # Get the current position in the output container
-    end_pos: int = BIO_D['OUT'].tell()
+    end_pos: int = ad.out_file_obj.tell()
 
     if action == EMBED:
         log_w('message location is important for its further extraction!')
@@ -4338,102 +5346,141 @@ def embed_handler(action: ActionID, start_pos: int, message_size: int) -> bool:
 
     log_i(f'message checksum:\n        {message_checksum}')
 
-    return True
+    return ad
 
 
 # Perform action CREATE_W_RANDOM
 # --------------------------------------------------------------------------- #
 
 
-def create_with_random(action: ActionID) -> bool:
+def create_with_random(ad: ActData) -> ActData:
     """
-    Creates a file of a specified size with random data.
+    Create a new output file and fill it with random data.
 
-    Args:
-        action (ActionID): The action identifier.
+    Orchestrates file creation (create_with_random_input) and the write
+    phase (create_with_random_handler). On success, ad.err remains False
+    and ad.written_sum == ad.total_out_data_size.
 
-    Returns:
-        bool: True if the operation was successful, False otherwise.
+    Parameters
+    ----------
+    ad : ActData
+        ActData instance with .action set. On return the function will
+        have updated .out_file_obj, .total_out_data_size, .written_sum,
+        and .err.
+
+    Returns
+    -------
+    ActData
+        The same ActData instance. ad.err is set to True on failure.
     """
-
-    # Initialize the output file and retrieve its size based on the action
-    out_file_size: int = create_with_random_input(action)
-
-    # Write random data to the newly created file
-    success: bool = create_with_random_handler(out_file_size)
-
-    # Return the success status of the operation
-    return success
+    ad = create_with_random_input(ad)
+    ad = create_with_random_handler(ad)
+    return ad
 
 
-def create_with_random_input(action: ActionID) -> int:
+def create_with_random_input(ad: ActData) -> ActData:
     """
-    Initializes a new output file based on the specified action and
-    returns its size.
+    Create a new empty output file for the given action and record its
+    size.
 
-    This function creates a new output file, logs a creation message,
-    and retrieves the size of the newly created file in bytes.
+    Uses ad.action to create and open a new output file, logs the
+    created path, stores the opened file object on ad.out_file_obj, and
+    sets ad.total_out_data_size to the file's size in bytes (typically
+    zero for a new file).
 
-    Args:
-        action (ActionID): The action ID that determines the output
-                           file.
+    Parameters
+    ----------
+    ad : ActData
+        ActData instance whose .action field selects the output file. On
+        return the function sets:
+        - ad.out_file_obj: opened output file object.
+        - ad.total_out_data_size (int): size of the created output file
+          in bytes.
 
-    Returns:
-        int: The size of the newly created output file in bytes.
+    Returns
+    -------
+    ActData
+        The same ActData instance with updated fields. On failure ad.err
+        should be set by the called helpers.
     """
-
-    # Create a new output file and retrieve its path
     out_file_path: str
 
-    out_file_path, BIO_D['OUT'] = get_output_file_new(action)
+    out_file_path, ad.out_file_obj = get_output_file_new(ad.action)
 
-    # Log the creation of the new file
     log_i(f'new empty file {out_file_path!r} created')
 
-    # Get the desired size of the newly created output file
-    out_file_size: int = get_output_file_size()
+    ad.total_out_data_size = get_output_file_size()
 
-    # Log the size of the new file
-    log_i(f'size: {format_size(out_file_size)}')
+    log_i(f'size: {format_size(ad.total_out_data_size)}')
 
-    # Return the size of the newly created output file
-    return out_file_size
+    return ad
 
 
-def create_with_random_handler(out_file_size: int) -> bool:
+def create_with_random_handler(ad: ActData) -> ActData:
     """
-    Writes random data in chunks of a specified size to the output file.
+    Write cryptographically random data to the output file in chunks and
+    report progress.
 
-    This function generates random data in specified chunk sizes and
-    writes it to the output file. It reports progress at regular
-    intervals.
+    This handler writes `ad.total_out_data_size` bytes of
+    cryptographically random data to `ad.out_file_obj` in chunked writes
+    of up to `MAX_PT_CHUNK_SIZE`. While writing, it sets the module
+    signal reference so a concurrent termination handler can truncate
+    the incomplete file. Progress timestamps and counters on the
+    provided `ActData` instance are updated; on error the function sets
+    `ad.err = True` and returns the same
+    `ActData` instance.
 
-    Args:
-        out_file_size (int): The total size of data to be written in
-                             bytes.
+    Parameters
+    ----------
+    ad : ActData
+        Action data with these expected fields before call:
+        - out_file_obj: a writable binary file-like object.
+        - total_out_data_size (int): total number of bytes to write.
+        The function sets/updates:
+        - ad.start_time (float): monotonic timestamp when writing
+          started.
+        - ad.last_progress_time (float): monotonic timestamp of last
+          progress.
+        - ad.written_sum (int): cumulative bytes written.
+        - ad.err (bool): set to True on failure.
 
-    Returns:
-        bool: True if all data was written successfully, False
-              otherwise.
+    Returns
+    -------
+    ActData
+        The same `ad` instance. On failure `ad.err` is set to True.
+
+    Behavior and error handling
+    ---------------------------
+    - Sets the module-global `file_obj_to_truncate_by_signal` to
+      `ad.out_file_obj` before writing and relies on callers/cleanup to
+      clear it afterward.
+    - Writes full-size chunks (MAX_PT_CHUNK_SIZE) using `token_bytes()`
+      and `write_data(data=..., ad=ad)` for each chunk.
+    - If `write_data` indicates an error (`ad.err`), returns immediately
+      with `ad.err` set True.
+    - After all chunks are written, calls `log_progress_final(ad)` to
+      record final progress.
+    - Verifies `ad.written_sum == ad.total_out_data_size`; on mismatch
+      logs an error via `log_e` and sets `ad.err = True`.
+
+    Globals and dependencies
+    ------------------------
+    Relies on module-level names and helpers:
+    `file_obj_to_truncate_by_signal`, `MAX_PT_CHUNK_SIZE`,
+    `token_bytes`, `write_data`, `log_i`, `log_e`, `log_progress_final`,
+    and `monotonic`.
     """
-
-    # Set the 'file_handler_started' flag (used for handling signals)
-    ANY_D['file_handler_started'] = None
+    global file_obj_to_truncate_by_signal
+    file_obj_to_truncate_by_signal = ad.out_file_obj
 
     log_i('writing random data')
 
-    # Start timing the operation
-    FLOAT_D['start_time'] = monotonic()
-    FLOAT_D['last_progress_time'] = monotonic()
-
-    # Initialize the total written bytes counter
-    INT_D['written_sum'] = 0
-
-    INT_D['total_out_data_size'] = out_file_size
+    ad.start_time = monotonic()
+    ad.last_progress_time = monotonic()
 
     # Calculate the number of complete chunks and remaining bytes to write
-    full_chunks: int = out_file_size // MAX_PT_CHUNK_SIZE
-    remain_size: int = out_file_size % MAX_PT_CHUNK_SIZE
+    full_chunks: int = ad.total_out_data_size // MAX_PT_CHUNK_SIZE
+    remain_size: int = ad.total_out_data_size % MAX_PT_CHUNK_SIZE
 
     # Write complete chunks of random data
     for _ in range(full_chunks):
@@ -4441,107 +5488,108 @@ def create_with_random_handler(out_file_size: int) -> bool:
         chunk: bytes = token_bytes(MAX_PT_CHUNK_SIZE)
 
         # Write the generated chunk to the output file
-        if not write_data(chunk):
-            return False
+        ad = write_data(data=chunk, ad=ad)
+        if ad.err:
+            return ad
 
     # Write any remaining bytes that do not fit into a full chunk
     if remain_size:
         # Generate the last chunk of random data
         chunk = token_bytes(remain_size)
 
-        if not write_data(chunk):
-            return False
+        ad = write_data(data=chunk, ad=ad)
+        if ad.err:
+            return ad
 
-    log_progress_final()
+    log_progress_final(ad)
 
     # Validate the total written size against the expected output size
-    if INT_D['written_sum'] != out_file_size:
-        written_sum: int = INT_D['written_sum']
-        log_e(f'written data size ({written_sum:,} B) does not '
-              f'equal expected size ({out_file_size:,} B)')
-        return False
+    if ad.written_sum != ad.total_out_data_size:
+        log_e(f'written data size ({ad.written_sum:,} B) does not '
+              f'equal expected size ({ad.total_out_data_size:,} B)')
+        ad.err = True
 
-    return True
+    return ad
 
 
 # Perform action OVERWRITE_W_RANDOM
 # --------------------------------------------------------------------------- #
 
 
-def overwrite_with_random(action: ActionID) -> bool:
+def overwrite_with_random(ad: ActData) -> ActData:
     """
-    Overwrites part of the output file with random data.
+    Overwrite a specified range of the output file with random data.
 
-    This function takes an action ID as input, retrieves the
-    corresponding start position and data size, and then overwrites the
-    specified range of data with random bytes.
+    Orchestrates the interactive input phase and the write phase: it
+    determines the overwrite range (overwrite_with_random_input), and if
+    that preparation succeeds, writes cryptographically random data to
+    the output file in chunks (overwrite_with_random_handler).
 
-    Args:
-        action (ActionID): The action identifier.
+    Parameters
+    ----------
+    ad : ActData
+        ActData instance with .action set. On success the function will
+        set .start_pos, .total_out_data_size, .out_file_obj, and update
+        .written_sum and .err as the operation progresses.
 
-    Returns:
-        bool: True if the overwrite operation is successful,
-              False otherwise.
+    Returns
+    -------
+    ActData
+        The same ActData instance. On failure ad.err is set True.
     """
+    ad = overwrite_with_random_input(ad)
+    if ad.err:
+        return ad
 
-    # Retrieve the start position and data size based on the action code
-    input_values: Optional[tuple[int, int]] = \
-        overwrite_with_random_input(action)
-
-    # If no valid values are returned, the operation cannot proceed
-    if input_values is None:
-        return False
-
-    # Unpack the start position and data size from the retrieved values
-    start_pos: int = input_values[0]
-    data_size: int = input_values[1]
-
-    # Perform the overwrite operation with the specified
-    # start position and data size
-    success: bool = overwrite_with_random_handler(start_pos, data_size)
-
-    return success
+    ad = overwrite_with_random_handler(ad)
+    return ad
 
 
-def overwrite_with_random_input(action: ActionID) -> Optional[tuple[int, int]]:
+def overwrite_with_random_input(ad: ActData) -> ActData:
     """
-    Prepares to overwrite a specified range of an output file with
-    random data.
+    Determine overwrite range for an output file and prepare ActData.
 
-    This function retrieves the output file's path and size based on the
-    provided action. It then determines the start and end positions for
-    the overwrite operation. If the specified range is valid and the
-    user confirms the action, it returns the start position and the size
-    of the data to be written.
+    Retrieves the output file path and size for the given action,
+    prompts the user for a start and end position, computes the data
+    size to be overwritten, and stores these values in the provided
+    ActData instance.
 
-    Args:
-        action (ActionID): An integer representing the action to be
-                           performed, which influences the output file
-                           retrieval process.
+    Parameters
+    ----------
+    ad : ActData
+        ActData instance whose .action field is used to locate the
+        output file. On success the function sets:
+        - ad.out_file_obj: opened output file object
+        - ad.start_pos (int): start offset for overwrite
+        - ad.total_out_data_size (int): number of bytes to write
+        The function sets ad.err = True if the operation is cancelled or
+        otherwise cannot proceed.
 
-    Returns:
-        Optional[tuple]: A tuple containing:
-            - start_pos (int): The starting position for the overwrite
-                               operation.
-            - data_size (int): The size of the data to be written.
-        Returns None if there is nothing to do, if the user cancels the
-        operation, or if the output file size is zero.
+    Returns
+    -------
+    ActData
+        The same ActData instance. If the operation is cancelled or
+        there is nothing to do, ad.err is set to True.
 
-    Notes:
-        - The function logs various stages of the process, including the
-          output file path, size, start and end positions, and the size
-          of the data to be written.
-        - The user is prompted for confirmation before proceeding with
-          the overwrite operation.
+    Notes
+    -----
+    - Uses get_output_file_exist() to obtain (path, size, file_obj).
+    - Uses get_start_position() and get_end_position() to determine the
+      overwrite range; computed data_size = end_pos - start_pos.
+    - Prompts the user for confirmation via
+      proceed_request(PROCEED_OVERWRITE, ad) and aborts (ad.err = True)
+      if the user declines.
+    - Logs path, sizes, start/end positions, and the data size to be
+      written.
     """
     out_file_path: str
     out_file_size: int
 
     # Retrieve the output file path and size based on the provided action
-    out_file_path, out_file_size, BIO_D['OUT'] = get_output_file_exist(
+    out_file_path, out_file_size, ad.out_file_obj = get_output_file_exist(
         in_file_path='',
         min_out_size=0,
-        action=action,
+        action=ad.action,
     )
     log_i(f'path: {out_file_path!r}; size: {format_size(out_file_size)}')
 
@@ -4564,61 +5612,71 @@ def overwrite_with_random_input(action: ActionID) -> Optional[tuple[int, int]]:
     data_size: int = end_pos - start_pos
     log_i(f'data size to write: {format_size(data_size)}')
 
+    ad.start_pos = start_pos
+    ad.total_out_data_size = data_size
+
     # Prompt the user for confirmation before proceeding
-    if not proceed_request(PROCEED_OVERWRITE, action):
+    if not proceed_request(proceed_type=PROCEED_OVERWRITE, ad=ad):
         log_i('stopped by user request')
-        return None  # Return None if the user cancels the operation
+        ad.err = True
 
-    # Return the starting position and the size of the data to be written
-    return start_pos, data_size
+    return ad
 
 
-def overwrite_with_random_handler(start_pos: int, data_size: int) -> bool:
+def overwrite_with_random_handler(ad: ActData) -> ActData:
     """
-    Overwrites a specified range of an output file with random data.
+    Overwrite a range of the output file with random data and
+    verify/sync.
 
-    This function seeks to the specified start position in the output
-    file and writes random data in chunks. It tracks the amount of data
-    written and logs progress at regular intervals. After writing the
-    data, it synchronizes the file to ensure that all changes are
-    flushed to disk.
+    Seeks to ad.start_pos in the output file and writes
+    ad.total_out_data_size bytes of cryptographically random data in
+    chunks. Tracks bytes written, logs progress, verifies the final
+    written size, and fsyncs the file.
 
-    Args:
-        start_pos (int): The starting position in the output file where
-                         the overwrite operation will begin.
-        data_size (int): The total size of the data to be written,
-                         in bytes.
+    Parameters
+    ----------
+    ad : ActData
+        ActData instance with at least these fields set/used:
+        - start_pos (int): starting position in the output file.
+        - total_out_data_size (int): number of bytes to write.
+        - out_file_obj: file-like object for writing.
+        The function updates ad.written_sum, ad.start_time,
+        ad.last_progress_time, and ad.err as it runs.
 
-    Returns:
-        bool: Returns True if the overwrite operation is successful,
-              or False if any errors occur during seeking, writing,
-              or synchronization.
+    Returns
+    -------
+    ActData
+        The same ActData instance with ad.err set to True on failure.
+        On success ad.err remains False and
+        ad.written_sum == total_out_data_size.
 
-    Notes:
-        - If the DEBUG flag is enabled, the function will print the
-          current positions of the input and output streams before and
-          after the write operation.
-        - The function writes data in chunks defined by `MAX_PT_CHUNK_SIZE`
-          and handles any remaining data that does not fit into a full
-          chunk.
-        - Progress is logged during the write operation, and the time
-          taken to synchronize the file is also logged.
+    Notes
+    -----
+    - Uses MAX_PT_CHUNK_SIZE to split writes into full chunks plus a
+      remainder.
+    - Writes are generated with token_bytes().
+    - write_data(ad, chunk) is expected to update ad.written_sum and
+      ad.err.
+    - If UNSAFE_DEBUG is enabled, current stream positions may be
+      logged.
+    - After writing, log_progress_final(ad) is called, then
+      fsync_written_data(ad)
+      is used to flush data to disk. Timing for fsync is logged.
+    - On mismatch between ad.written_sum and expected size, ad.err is
+      set and an error is logged.
     """
+    start_pos = ad.start_pos
+    data_size = ad.total_out_data_size
 
     # Seek to the specified start position in the output file
-    if not seek_position(BIO_D['OUT'], start_pos):
-        return False  # Return False if seeking fails
+    if not seek_position(ad.out_file_obj, offset=start_pos):
+        ad.err = True
+        return ad
 
     log_i('writing random data')
 
-    # Start timing the operation
-    FLOAT_D['start_time'] = monotonic()
-    FLOAT_D['last_progress_time'] = monotonic()
-
-    # Initialize the total written bytes counter
-    INT_D['written_sum'] = 0
-
-    INT_D['total_out_data_size'] = data_size
+    ad.start_time = monotonic()
+    ad.last_progress_time = monotonic()
 
     # Calculate the number of complete chunks and remaining bytes to write
     full_chunks: int = data_size // MAX_PT_CHUNK_SIZE
@@ -4626,43 +5684,42 @@ def overwrite_with_random_handler(start_pos: int, data_size: int) -> bool:
 
     # Write complete chunks of random data
     for _ in range(full_chunks):
-        # Generate a chunk of random data
         chunk: bytes = token_bytes(MAX_PT_CHUNK_SIZE)
-
-        if not write_data(chunk):  # Write the chunk to the output file
-            return False
+        ad = write_data(data=chunk, ad=ad)
+        if ad.err:
+            return ad
 
     # Write any remaining bytes that do not fit into a full chunk
     if remain_size:
-        # Generate the last chunk of random data
         chunk = token_bytes(remain_size)
+        ad = write_data(data=chunk, ad=ad)
+        if ad.err:
+            return ad
 
-        if not write_data(chunk):
-            return False
-
-    log_progress_final()
+    log_progress_final(ad)
 
     # Validate the total written size against the expected output size
-    if INT_D['written_sum'] != data_size:
-        written_sum: int = INT_D['written_sum']
-        log_e(f'written data size ({written_sum:,} B) does not '
+    if ad.written_sum != data_size:
+        ad.err = True
+        log_e(f'written data size ({ad.written_sum:,} B) does not '
               f'equal expected size ({data_size:,} B)')
-        return False
+        return ad
 
     log_i('syncing output data to disk')
 
     fsync_start_time: float = monotonic()
 
     # Synchronize the file to ensure all changes are flushed to disk
-    if not fsync_written_data():
-        return False  # Return False if synchronization fails
+    if not fsync_written_data(ad):
+        ad.err = True
+        return ad
 
     fsync_end_time: float = monotonic()
 
     # Log the time taken for fsync
     log_i(f'synced in {round(fsync_end_time - fsync_start_time, 1)}s')
 
-    return True
+    return ad
 
 
 # Misc
@@ -4671,181 +5728,235 @@ def overwrite_with_random_handler(start_pos: int, data_size: int) -> bool:
 
 def perform_file_action(action: ActionID) -> None:
     """
-    Execute a file-oriented action and perform cleanup.
+    Execute a file-oriented action, run cleanup, and log results.
 
-    This sets a marker in module state to indicate a file action is in
-    progress, dispatches the action handler from FILE_ACTION_MAP, and
-    runs post-action cleanup.
+    This function records that a file operation is in progress, creates
+    an ActData instance for the action, dispatches the corresponding
+    handler from FILE_ACTION_MAP, and always runs post-action cleanup.
 
-    Behavior
+    Parameters
+    ----------
+    action : ActionID
+        Identifier of the file action to perform. Must be a key in
+        FILE_ACTION_MAP.
 
-    - Sets ANY_D['action'] = action to mark that a file operation is
-      ongoing.
-    - Calls FILE_ACTION_MAP[action] and captures its boolean success
-      result.
-    - Always invokes post_action_clean_up(action, success) after the
-      handler returns.
-    - Logs debug warnings when DEBUG is enabled and logs
-      "action completed" on success.
+    Returns
+    -------
+    None
+        Performs side effects (calls handler, cleanup, logging) and does
+        not return a value.
 
-    Args:
-        action (ActionID): Action identifier (expected range matches
-                           FILE_ACTION_MAP keys).
+    Behavior and error handling
+    ---------------------------
+    - Initializes a new `ActData` object `ad` and sets:
+    - `ad.action` to the provided action,
+    - `ad.written_sum` to 0,
+    - `ad.err` to False.
+    - If `UNSAFE_DEBUG` is true, logs each message in
+      `UNSAFE_DEBUG_WARNINGS` via `log_w`.
+    - Dispatches the action handler: `ad = FILE_ACTION_MAP[action](ad)`.
+    - Always calls `post_action_clean_up(ad)` after the handler returns.
+    - If the handler indicates success (`ad.err` is False), logs
+      "action completed" with `log_i`.
+    - Handlers are expected to mutate and/or return the `ActData`
+      instance, setting `ad.err` to a truthy value on failure.
 
-    Returns:
-        None
-
-    Notes:
-
-    - The function relies on global state (ANY_D, DEBUG,
-      FILE_ACTION_MAP, DEBUG_WARNINGS).
-    - Handlers in FILE_ACTION_MAP are expected to return a bool
-      indicating success.
-    - post_action_clean_up is responsible for releasing resources and
-      any final logging.
+    Globals and dependencies
+    ------------------------
+    Relies on these module-level names being defined:
+    `ANY_D`, `UNSAFE_DEBUG`, `UNSAFE_DEBUG_WARNINGS`, `FILE_ACTION_MAP`,
+    `ActData`, `post_action_clean_up`, `log_w`, and `log_i`.
     """
-    if DEBUG:
-        for warning in DEBUG_WARNINGS:
+    if UNSAFE_DEBUG:
+        for warning in UNSAFE_DEBUG_WARNINGS:
             log_w(warning)
 
-    ANY_D['action'] = action
+    ad: ActData = ActData()
 
-    success: bool = FILE_ACTION_MAP[action](action)
+    ad.action = action
+    ad.written_sum = 0
+    ad.err = False
 
-    post_action_clean_up(action, success)
+    ad = FILE_ACTION_MAP[action](ad)
 
-    if success:
+    post_action_clean_up(ad)
+
+    if not ad.err:
         log_i('action completed')
 
 
-def post_action_clean_up(action: ActionID, success: bool) -> None:
+def post_action_clean_up(ad: ActData) -> None:
     """
     Perform resource cleanup and post-action housekeeping.
 
-    Closes any open input/output file objects from BIO_D, removes a
-    partially written output file when appropriate, clears module state
-    dictionaries, and triggers garbage collection.
+    Closes any open input/output file objects referenced by the provided
+    ActData, removes a partially written output file when appropriate,
+    clears the module-level signal flag that may reference an output
+    file, and triggers a garbage-collection pass.
 
-    Behavior
+    Parameters
+    ----------
+    ad : ActData
+        ActData instance describing the just-performed action. Expected
+        attributes used by this function:
+        - in_file_obj (optional): input file-like object to close.
+        - out_file_obj (optional): output file-like object to close or
+          truncate.
+        - action (ActionID): performed action (used to decide
+          output-file handling).
+        - err (bool): indicates whether the action failed.
 
-    - If BIO_D contains 'IN', closes that file.
-    - If BIO_D contains 'OUT':
-        - If success is True or the action is not one that creates a new
-          output file (NEW_OUT_FILE_ACTIONS), closes the output file.
-        - Otherwise (failed write/auth failure for a new output file),
-          truncates the output and calls remove_output_path(action) to
-          remove it.
-    - Clears global state dictionaries: ANY_D, BIO_D, INT_D, BOOL_D,
-      BYTES_D, FLOAT_D.
-    - Calls collect() to run a garbage collection pass.
+    Returns
+    -------
+    None
 
-    Args:
-        action (ActionID): The performed action (used to decide
-                           output-file handling).
-        success (bool): True if the action completed successfully;
-                        False otherwise.
-
-    Returns:
-        None
-
-    Side effects:
-
-    - I/O: may close/truncate/remove files.
-    - Mutates and clears global state.
+    Notes
+    -----
+    - If `ad.in_file_obj` exists, it is closed via `close_file()`.
+    - If `ad.out_file_obj` exists:
+        - If the action succeeded (`ad.err` is False) or the action does
+          not create a new output file (`ad.action not in
+          NEW_OUT_FILE_ACTIONS`), the output file is closed via
+          `close_file()`.
+        - Otherwise (failed write for an action that creates a new
+          output file), the output file is truncated via
+          `truncate_output_file(ad)` and `remove_output_path(ad)` is
+          called to remove the partial file.
+    - The module-level reference `file_obj_to_truncate_by_signal` is
+      cleared (set to `None`) unconditionally.
+    - `collect()` is called to run a garbage-collection pass.
+    - This function performs non-signal-safe cleanup and must be invoked
+      from normal program flow (not directly from a signal handler).
     """
     check_for_signal()  # Check if a termination signal has been received
 
-    if 'IN' in BIO_D:
-        close_file(BIO_D['IN'])
+    if hasattr(ad, 'in_file_obj'):
+        close_file(ad.in_file_obj)
 
-    if 'OUT' in BIO_D:
-        if success or action not in NEW_OUT_FILE_ACTIONS:
-            close_file(BIO_D['OUT'])
+    if hasattr(ad, 'out_file_obj'):
+        if not ad.err or ad.action not in NEW_OUT_FILE_ACTIONS:
+            close_file(ad.out_file_obj)
         else:
-            truncate_output_file()
-            remove_output_path(action)
+            truncate_output_file(ad)
+            remove_output_path(ad)
 
-    ANY_D.clear()
-    BIO_D.clear()
-    INT_D.clear()
-    BOOL_D.clear()
-    BYTES_D.clear()
-    FLOAT_D.clear()
+    global file_obj_to_truncate_by_signal
+    file_obj_to_truncate_by_signal = None
 
     collect()
 
 
-def cli_handler() -> bool:
+def cli_handler() -> tuple[bool, bool]:
     """
-    Handles command line interface arguments to determine if debug mode
-    is enabled.
+    Parse command-line arguments and return feature flags.
 
-    This function checks the command line arguments provided to the
-    script (from sys.argv):
-    - If no arguments are provided, debug mode is set to False.
-    - If the first argument is '--unsafe-debug', it sets the debug mode
-      to True.
-    - If any other arguments are provided, an error is logged, and the
-      program exits.
+    This function inspects sys.argv[1:] and interprets a small, explicit
+    set of supported options. Duplicate arguments are ignored (arguments
+    are treated as a set). Behavior is strict: any unrecognized option
+    causes an error message (printed to stderr-styled output), displays
+    the help text, and exits the process.
 
-    Returns:
-        bool: True if debug mode is enabled, False otherwise.
+    Supported options
+    -----------------
+    --help
+        Print the help message and exit with status 0.
+    --unsafe-debug
+        Enable unsafe debug mode; returned as the first boolean in the
+        tuple.
+    --unsafe-decrypt
+        Enable unsafe decrypt mode (unsafe — releases plaintext even if
+        MAC verification failed); returned as the second boolean in the
+        tuple.
+
+    Returns
+    -------
+    tuple[bool, bool]
+        (unsafe_debug_enabled, unsafe_decrypt_enabled)
+        - unsafe_debug_enabled: True when '--unsafe-debug' is present
+          (False otherwise).
+        - unsafe_decrypt_enabled: True when '--unsafe-decrypt' is
+          present (False otherwise).
+
+    Behavior on invalid input
+    -------------------------
+    If any unrecognized option is present, prints an error line showing
+    the invalid option (with ERR/RES color markers) to stderr, prints
+    the help message to stderr, and exits with status 1. When '--help'
+    is explicitly requested the help message is printed to stdout and
+    the process exits with status 0.
+
+    Notes
+    -----
+    - The function uses a set of argv[1:], so argument order and
+      duplicates are discarded.
+    - HELP_MESSAGE, argv, stderr, and color markers (ERR, RES) are
+      expected to be defined in the module scope.
     """
-    debug_enabled: bool
+    help_enabled: bool = False
+    unsafe_debug_enabled: bool = False
+    unsafe_decrypt_enabled: bool = False
 
-    if not argv[1:]:
-        debug_enabled = False
-    elif argv[1:] == ['--unsafe-debug']:
-        debug_enabled = True
-    else:
-        log_e(f'invalid command line options: {argv[1:]}')
-        exit(1)
+    user_options: set[str] = set(argv[1:])
 
-    return debug_enabled
+    for option in user_options:
+
+        if option == '--help':
+            help_enabled = True
+
+        elif option == '--unsafe-debug':
+            unsafe_debug_enabled = True
+
+        elif option == '--unsafe-decrypt':
+            unsafe_decrypt_enabled = True
+
+        else:
+            print(f'{ERR}Error: invalid option: {option!r}{RES}\n')
+            print(HELP_MESSAGE, file=stderr)
+            sys_exit(1)
+
+    if help_enabled:
+        print(HELP_MESSAGE)
+        sys_exit(0)
+
+    return unsafe_debug_enabled, unsafe_decrypt_enabled
 
 
 def signal_handler(signum: int, frame: Optional[FrameType]) -> None:
     """
-    Signal handler to request orderly termination while remaining
-    signal-safe.
+    Signal-safe handler that requests orderly termination.
 
-    Sets the module-level boolean flag termination_signal_received to
-    True. The main thread should poll this flag at safe points, perform
-    any non-signal-safe cleanup (flush/close/truncate files, release
-    resources), and then exit.
+    Sets the module-level flag `termination_signal_received` to True so
+    the main thread can perform non-signal-safe cleanup and exit. If no
+    file handler is running, the handler writes a brief message to
+    stderr using the signal-safe `os.write` and calls `os_exit(1)` to
+    terminate immediately.
 
-    Behavior
+    Parameters
+    ----------
+    signum : int
+        Signal number delivered to the process.
+    frame : Optional[FrameType]
+        Current stack frame (may be `None`).
 
-    - If the handler is invoked a second time while
-      termination_signal_received is already True, it returns
-      immediately (no-op).
-    - If ANY_D['file_handler_started'] exists, the handler only sets the
-      flag and returns so the main thread can finish an in-progress file
-      write and perform cleanup.
-    - If no file handler is running, the handler writes a brief message
-      ("Exit.") to file descriptor 2 using a signal-safe low-level write
-      and then calls _exit(1) to terminate the process immediately.
+    Returns
+    -------
+    None
 
-    Safety and constraints
-
-    - The handler performs only signal-safe operations: setting a simple
-      global boolean and a single os.write on a safe file descriptor. It
-      avoids high-level I/O, allocation, locking, and other non
-      async-signal-safe APIs.
-    - All non-signal-safe cleanup must be performed by the main thread
-      after it observes termination_signal_received is True.
-    - The handler tolerates os.write failures (ignores OSError) to avoid
-      raising exceptions inside the signal context.
-
-    Args:
-        signum (int): Signal number delivered to the process.
-        frame (Optional[FrameType]): Current stack frame (may be None).
-
-    Side effects
-
-    - Sets the global termination_signal_received to True on first
-      invocation.
-    - May call _exit(1) if no file handler is active.
+    Notes
+    -----
+    - The handler performs only async-signal-safe operations: setting a
+      simple global boolean and a single `os.write` on file
+      descriptor 2. It ignores `OSError` from `os.write` to avoid
+      raising exceptions in the handler.
+    - If `termination_signal_received` is already `True`, the handler
+      is a no-op.
+    - If `file_obj_to_truncate_by_signal` is not `None` (indicating an
+      in-progress file operation), the handler sets the flag and returns
+      so the main thread can finish and clean up.
+    - If no file handler is active, a short message is written to stderr
+      and `os_exit(1)` is invoked to terminate immediately.
+    - All non-signal-safe cleanup must be done by the main thread after
+      it observes `termination_signal_received == True`.
     """
     global termination_signal_received
 
@@ -4855,107 +5966,154 @@ def signal_handler(signum: int, frame: Optional[FrameType]) -> None:
     # Main thread checks and performs cleanup/exit
     termination_signal_received = True
 
-    if 'file_handler_started' in ANY_D:
+    if file_obj_to_truncate_by_signal is not None:
         return
 
     try:
-        write(2, b'\nExit.\n')
+        write(2, TERMINATED_MESSAGE)
     except OSError:
         pass
 
-    _exit(1)
+    os_exit(1)
 
 
 def check_for_signal() -> None:
     """
-    Check for a termination signal and perform safe cleanup/exit.
+    Perform main-thread cleanup and exit if a termination signal was
+    received.
 
-    If the module-level flag termination_signal_received (set by the
-    signal handler) is True, this function performs cleanup for actions
-    that write a new output file (ENCRYPT, DECRYPT, EXTRACT,
-    EXTRACT_DECRYPT, CREATE_W_RANDOM). Cleanup includes calling flush(),
-    attempting to truncate the output file to zero length (ftruncate)
-    and closing it. After cleanup the function writes a short message to
-    stderr (using a signal-safe os.write) and exits with status 1.
+    When a termination signal has been recorded by the signal handler
+    (termination_signal_received is true), this function performs non-
+    signal-safe cleanup for any in-progress output-file operation,
+    writes a
+    brief termination message to stderr using a signal-safe os.write,
+    and then exits the process with status code 1.
 
-    Behavior and assumptions:
+    Parameters
+    ----------
+    None
 
-    - This must be called from the main thread at safe points (after
-      critical I/O sections). The signal handler itself only sets the
-      flag and returns.
-    - All non-signal-safe operations (flush, ftruncate, close) are
-      performed here, not in the signal handler.
-    - OSError and ValueError raised during cleanup are suppressed to
-      ensure the process still terminates.
+    Returns
+    -------
+    None
+        Performs side effects (flush, ftruncate, close, write, exit) and
+        does not return.
 
-    Example usage:
-    # in main loop or immediately after finishing a write operation
+    Behavior and error handling
+    ---------------------------
+    - Must be invoked from the main thread at safe points. The signal
+      handler itself must only set `termination_signal_received`.
+    - If no termination signal has been recorded, the function returns
+      immediately.
+    - If `file_obj_to_truncate_by_signal` is not None, the function
+      will:
+      1. Flush the file object,
+      2. Truncate its underlying file descriptor to zero bytes via
+         `ftruncate`,
+      3. Close the file object.
+      Any OSError or ValueError raised during these steps is suppressed
+      to avoid interfering with process termination.
+    - Writes a short termination message to file descriptor 2 using a
+      signal-safe `write(fd, bytes)` call. OSError from `write` is
+      ignored.
+    - Calls `sys_exit(1)` to terminate the process.
+
+    Globals and dependencies
+    ------------------------
+    Relies on these module-level names being defined:
+    `termination_signal_received`, `file_obj_to_truncate_by_signal`,
+    `ftruncate`, `TERMINATED_MESSAGE`, `write`, and `sys_exit`.
+
+    Examples
+    --------
+    # Periodically call from main loop to react to signals:
     check_for_signal()
     """
     if not termination_signal_received:
         return
 
     # Clean up: truncate incomplete output
-    if ANY_D['action'] in NEW_OUT_FILE_ACTIONS:
-        if 'OUT' in BIO_D:
-            try:
-                BIO_D['OUT'].flush()
-                ftruncate(BIO_D['OUT'].fileno(), 0)
-                BIO_D['OUT'].close()
-            except (OSError, ValueError):
-                pass
+    if file_obj_to_truncate_by_signal is not None:
+        try:
+            file_obj_to_truncate_by_signal.flush()
+            ftruncate(file_obj_to_truncate_by_signal.fileno(), 0)
+            file_obj_to_truncate_by_signal.close()
+        except (OSError, ValueError):
+            pass
 
     try:
-        write(2, b'\nExit: action interrupted.\n')
+        write(2, TERMINATED_MESSAGE)
     except OSError:
         pass
 
-    exit(1)
+    sys_exit(1)
 
 
 def prevent_coredump() -> None:
     """
-    Prevents the generation of core dumps by setting the core dump size
-    limit to 0.
+    Disable core dumps by setting RLIMIT_CORE to zero.
 
-    This function uses the setrlimit system call to disable the core
-    dump generation by setting both the soft and hard limits for
-    RLIMIT_CORE to 0. This is useful in scenarios where creating a core
-    dump could lead to unintentional exposure of sensitive information
-    (e.g., cryptographic keys) in case of a process crash.
+    Calls setrlimit(RLIMIT_CORE, (0, 0)) to set both the soft and hard
+    core-file size limits to 0, preventing core dump creation on POSIX
+    systems. Useful to avoid accidental leakage of sensitive memory
+    (for example, cryptographic material) if the process crashes.
 
-    Note:
-        This function is intended for use on POSIX-compliant operating
-        systems.
+    Notes
+    -----
+    - Intended for POSIX-compliant systems; setrlimit may not exist on
+      non-POSIX platforms.
+    - Exceptions (OSError, ValueError) are caught; when UNSAFE_DEBUG is
+      true the error is logged.
     """
     try:
         setrlimit(RLIMIT_CORE, (0, 0))
     except (OSError, ValueError) as error:
-        if DEBUG:
+        if UNSAFE_DEBUG:
             log_e(f'{error}')
 
 
 def main() -> NoReturn:
     """
-    Main entry point for the application.
+    Program entry point: initialize, register signal handlers, and run
+    loop.
 
-    This function initializes the program, registers signal handlers for
-    SIGINT, SIGQUIT, SIGTERM, and (on non-Windows platforms) SIGHUP, and then
-    enters an infinite loop that repeatedly prompts the user to select
-    an action and executes the corresponding operation. The loop runs
-    until the user chooses the "exit" action.
+    Initializes runtime settings, registers signal handlers (SIGINT,
+    SIGTERM, and on POSIX also SIGHUP and SIGQUIT), optionally disables
+    core dumps, and enters the main interactive loop that prompts the
+    user for actions and dispatches them until the user chooses to exit.
 
-    Returns:
-        NoReturn: The function never returns; it terminates only when
-                  the application exits explicitly.
+    Parameters
+    ----------
+    None
 
-    Note:
-        The signal handlers allow the application to shut down cleanly
-        when it receives SIGINT, SIGQUIT, SIGTERM, or SIGHUP, ensuring
-        resources are released properly.
+    Returns
+    -------
+    NoReturn
+        This function does not return; it exits the process on
+        termination.
+
+    Notes
+    -----
+    - When UNSAFE_DEBUG is enabled, initial debug warnings from
+      UNSAFE_DEBUG_WARNINGS are logged.
+    - If RESOURCE_MODULE_AVAILABLE is True, prevent_coredump() is
+      called.
+    - Signal handlers are set to signal_handler for graceful
+      termination.
+    - The main loop repeatedly calls select_action(); when
+      select_action() returns EXIT the process exits with status 0. INFO
+      triggers info_and_warnings(), other actions are handled by
+      perform_file_action(action).
+    - Graceful cleanup is performed only if a file operation is in
+      progress; otherwise, the process terminates immediately via
+      os_exit(1).
     """
-    if DEBUG:
-        for warning in DEBUG_WARNINGS:
+    if UNSAFE_DEBUG:
+        for warning in UNSAFE_DEBUG_WARNINGS:
+            log_w(warning)
+
+    if UNSAFE_DECRYPT:
+        for warning in UNSAFE_DECRYPT_WARNINGS:
             log_w(warning)
 
     if RESOURCE_MODULE_AVAILABLE:
@@ -4972,7 +6130,7 @@ def main() -> NoReturn:
         action: ActionID = select_action()
 
         if action == EXIT:
-            exit(0)
+            sys_exit(0)
         elif action == INFO:
             info_and_warnings()
         else:
@@ -4981,6 +6139,13 @@ def main() -> NoReturn:
 
 # Define constants
 # --------------------------------------------------------------------------- #
+
+
+# ANSI escape codes for terminal text formatting
+BOL: Final[str] = '\x1b[1m'  # Bold text
+ERR: Final[str] = '\x1b[1;97;101m'  # Bold white text, red background
+WAR: Final[str] = '\x1b[1;93;40m'  # Bold yellow text, black background
+RES: Final[str] = '\x1b[0m'  # Reset formatting to default
 
 
 # Version of the application
@@ -4992,18 +6157,19 @@ APP_INFO: Final[str] = f"""tird v{APP_VERSION}
         Homepage: https://github.com/hakavlad/tird"""
 
 # Debug information string for the Python version
-APP_DEBUG_INFO: Final[str] = f'Python version {version!r}'
+APP_UNSAFE_DEBUG_INFO: Final[str] = f'Python version {version!r}'
 
 # Warnings related to the application usage
 APP_WARNINGS: Final[tuple[str, ...]] = (
     'The author does not have a background in cryptography.',
     'The code has no automated test coverage.',
-    'tird has not been independently security audited by humans.',
+    'tird has not been independently security-audited by humans.',
     'tird is ineffective in a compromised environment; executing it in such '
-    'cases may cause disastrous data leaks.',
+    'cases may cause catastrophic data leaks.',
     'tird is unlikely to be effective when used with short and predictable '
     'keys.',
-    'tird does not erase its sensitive data from memory after use.',
+    'tird does not erase its sensitive data from memory after use; '
+    'keys may persist in memory after program exit.',
     'Sensitive data may leak into swap space.',
     'tird does not sort digests of keyfiles and passphrases in constant-time.',
     'Overwriting file contents does not guarantee secure destruction of data '
@@ -5012,10 +6178,10 @@ APP_WARNINGS: Final[tuple[str, ...]] = (
     'encrypted information.',
     'tird protects data, not the user; it cannot prevent torture if you are '
     'under suspicion.',
-    'Key derivation consumes 1 GiB RAM, which may lead to performance issues '
-    'or crashes on low-memory systems.',
+    'Key derivation consumes 1 GiB of RAM, which may lead to performance '
+    'issues or crashes on low-memory systems.',
     'Integrity/authenticity over availability — altering even a single byte '
-    'of a cryptoblob prevents decryption',
+    'of a cryptoblob prevents decryption.',
     'Development is not complete, and there may be backward compatibility '
     'issues.',
 )
@@ -5030,8 +6196,37 @@ APP_MENU: Final[str] = f"""{BOL}
     6. Encrypt & Embed   7. Extract & Decrypt
     8. Create w/ Random  9. Overwrite w/ Random
     ———————————————————————————————————————————
-A0. Select an option [0-9]:{RES} """
+A0. SELECT AN OPTION [0-9]:{RES} """
 
+UNSAFE_DEBUG_WARNINGS: Final[list[str]] = [
+    'Unsafe Debug Mode enabled! Sensitive data will be exposed!',
+    'do not enter real passphrases or sensitive information!',
+]
+
+UNSAFE_DECRYPT_WARNINGS: Final[list[str]] = [
+    'Unsafe Decrypt Mode enabled: plaintext will be released even '
+    'if integrity/authenticity checks fail!',
+    'only use when availability is more important than integrity, '
+    'and you understand the risks!',
+]
+
+MAC_FAIL_MESSAGE: Final[str] = \
+    'decryption failed: invalid data or incorrect keys'
+
+TERMINATED_MESSAGE: Final[bytes] = \
+    f'\n{ERR}Terminated by signal{RES}\n'.encode()
+
+HELP_MESSAGE: Final[str] = f"""{APP_INFO}
+
+Start without options for normal usage.
+
+Options:
+    --help
+        print this message and exit
+    --unsafe-debug
+        enable unsafe debug mode
+    --unsafe-decrypt
+        release plaintext even if MAC verification failed (dangerous)"""
 
 # Constants for action types
 EXIT: Final[ActionID] = 0  # Exit
@@ -5045,9 +6240,26 @@ EXTRACT_DECRYPT: Final[ActionID] = 7  # Extract & Decrypt
 CREATE_W_RANDOM: Final[ActionID] = 8  # Create w/ Random
 OVERWRITE_W_RANDOM: Final[ActionID] = 9  # Overwrite w/ Random
 
-# Actions that creates new output file.
-NEW_OUT_FILE_ACTIONS: Final[tuple[ActionID, ...]] = \
-    (ENCRYPT, DECRYPT, EXTRACT, EXTRACT_DECRYPT, CREATE_W_RANDOM)
+# Actions that creates new output file
+NEW_OUT_FILE_ACTIONS: Final[set[ActionID]] = \
+    {ENCRYPT, DECRYPT, EXTRACT, EXTRACT_DECRYPT, CREATE_W_RANDOM}
+
+# Define a type for functions that take an ActionID and return a boolean
+ActionFunction = Callable[[ActData], ActData]
+
+# Dictionary mapping action identifiers to their corresponding file
+# handling functions. This dictionary includes actions that interact
+# with files and the user.
+FILE_ACTION_MAP: Final[dict[ActionID, ActionFunction]] = {
+    ENCRYPT: encrypt_and_embed,
+    DECRYPT: encrypt_and_embed,
+    EMBED: embed,
+    EXTRACT: embed,
+    ENCRYPT_EMBED: encrypt_and_embed,
+    EXTRACT_DECRYPT: encrypt_and_embed,
+    CREATE_W_RANDOM: create_with_random,
+    OVERWRITE_W_RANDOM: overwrite_with_random,
+}
 
 # Dictionary mapping user input to actions/descriptions
 ACTIONS: Final[dict[str, tuple[ActionID, str]]] = {
@@ -5062,7 +6274,7 @@ ACTIONS: Final[dict[str, tuple[ActionID, str]]] = {
         decrypt file; display decrypted comments
         and write decrypted contents to new file"""),
     '4': (EMBED, """action 4:
-        embed file contents (no encryption):
+        embed file contents:
         write input file contents over output file contents"""),
     '5': (EXTRACT, """action 5:
         extract file contents (no decryption) to new file"""),
@@ -5079,40 +6291,13 @@ ACTIONS: Final[dict[str, tuple[ActionID, str]]] = {
         overwrite file contents with random data"""),
 }
 
-# Define a type for functions that take an ActionID and return a boolean
-ActionFunction = Callable[[ActionID], bool]
-
-# Dictionary mapping action identifiers to their corresponding file
-# handling functions. This dictionary includes actions that interact
-# with files and the user.
-FILE_ACTION_MAP: Final[dict[ActionID, ActionFunction]] = {
-    ENCRYPT: encrypt_and_embed,
-    DECRYPT: encrypt_and_embed,
-    EMBED: embed,
-    EXTRACT: embed,
-    ENCRYPT_EMBED: encrypt_and_embed,
-    EXTRACT_DECRYPT: encrypt_and_embed,
-    CREATE_W_RANDOM: create_with_random,
-    OVERWRITE_W_RANDOM: overwrite_with_random,
-}
-
-
-# Global dictionaries for various data types
-# (constant references, mutable contents)
-ANY_D: Final[dict[str, Any]] = {}
-BIO_D: Final[dict[Literal['IN', 'OUT'], BinaryIO]] = {}
-INT_D: Final[dict[str, int]] = {}
-BOOL_D: Final[dict[str, bool]] = {}
-BYTES_D: Final[dict[str, bytes]] = {}
-FLOAT_D: Final[dict[str, float]] = {}
-
 # Size constants for data representation
-K: Final[int] = 2 ** 10  # KiB
-M: Final[int] = 2 ** 20  # MiB
-G: Final[int] = 2 ** 30  # GiB
-T: Final[int] = 2 ** 40  # TiB
-P: Final[int] = 2 ** 50  # PiB
-E: Final[int] = 2 ** 60  # EiB
+KIB: Final[int] = 2 ** 10
+MIB: Final[int] = 2 ** 20
+GIB: Final[int] = 2 ** 30
+TIB: Final[int] = 2 ** 40
+PIB: Final[int] = 2 ** 50
+EIB: Final[int] = 2 ** 60
 
 # Valid answers for boolean queries, representing both true and false options
 VALID_BOOL_ANSWERS: Final[str] = 'Y, y, 1, N, n, 0'
@@ -5129,14 +6314,14 @@ PROCEED_REMOVE: Final[bool] = False
 
 # Size in bytes for processed comments;
 # comments are padded or truncated to this size
-PROCESSED_COMMENTS_SIZE: Final[int] = K
+PROCESSED_COMMENTS_SIZE: Final[int] = KIB
 
 # Invalid UTF-8 byte constant that separates comments from random data
 # (UTF-8 strings cannot contain the byte 0xFF)
 COMMENTS_SEPARATOR: Final[bytes] = b'\xff'
 
 # Minimum interval for progress updates
-MIN_PROGRESS_INTERVAL: Final[float] = 5.0
+MIN_PROGRESS_INTERVAL: Final[float] = 5
 
 # Byte order for data representation
 BYTEORDER: Final[Literal['big', 'little']] = 'little'
@@ -5145,14 +6330,13 @@ BYTEORDER: Final[Literal['big', 'little']] = 'little'
 UNICODE_NF: Final[Literal['NFC', 'NFD', 'NFKC', 'NFKD']] = 'NFC'
 
 # Normalized and encoded passphrases will be truncated to this value
-PASSPHRASE_SIZE_LIMIT: Final[int] = 2 * K  # 2048 B
+PASSPHRASE_SIZE_LIMIT: Final[int] = 2 * KIB  # 2048 B
 
 # Maximum size limit for random output file
 RAND_OUT_FILE_SIZE_LIMIT: Final[int] = 2 ** 64  # 16 EiB
 
-# Salt constants for cryptographic operations
-ONE_SALT_SIZE: Final[int] = 16
-SALTS_SIZE: Final[int] = ONE_SALT_SIZE * 2
+# Salt size for cryptographic operations
+SALT_SIZE: Final[int] = 16
 
 # ChaCha20 constants
 ENC_KEY_SIZE: Final[int] = 32  # 256-bit key size
@@ -5165,7 +6349,7 @@ BLOCK_COUNTER_INIT_BYTES: Final[bytes] = \
 # read and write operations. Changing this value breaks backward
 # compatibility, as it defines the size of the data that can be
 # encrypted with a single nonce.
-MAX_PT_CHUNK_SIZE: Final[int] = 16 * M  # 16 MiB, optimized for embedding
+MAX_PT_CHUNK_SIZE: Final[int] = 16 * MIB
 
 # BLAKE2 constants
 PERSON_SIZE: Final[int] = 16
@@ -5182,10 +6366,10 @@ CHECKSUM_SIZE: Final[int] = 32
 MAX_CT_CHUNK_SIZE: Final[int] = MAX_PT_CHUNK_SIZE + MAC_TAG_SIZE
 
 # HKDF info labels (public, stable identifiers used as HKDF info)
-# Used to derive specific keys from the Argon2 tag
+# Used to derive specific keys
 HKDF_INFO_ENCRYPT: Final[bytes] = b'ENCRYPT'
-HKDF_INFO_PAD: Final[bytes] = b'PAD'
 HKDF_INFO_MAC: Final[bytes] = b'MAC'
+HKDF_INFO_PAD: Final[bytes] = b'PAD'
 
 # Defines the byte size of the byte string that specifies
 # the length of the data being passed to the MAC function.
@@ -5198,35 +6382,37 @@ MAX_PAD_SIZE_PERCENT: Final[int] = 25
 
 # Argon2 constants
 ARGON2_TAG_SIZE: Final[int] = 32
-ARGON2_MEMORY_COST: Final[int] = G
+ARGON2_MEMORY_COST: Final[int] = GIB
 DEFAULT_ARGON2_TIME_COST: Final[int] = 4
 MIN_ARGON2_TIME_COST: Final[int] = DEFAULT_ARGON2_TIME_COST
 
-# Minimum vilid cryptoblob size
+# Minimum valid cryptoblob size
 MIN_VALID_UNPADDED_SIZE: Final[int] = \
-    SALTS_SIZE + PAD_KEY_SIZE + PROCESSED_COMMENTS_SIZE + MAC_TAG_SIZE * 2
+    SALT_SIZE * 2 + PAD_KEY_SIZE + PROCESSED_COMMENTS_SIZE + MAC_TAG_SIZE * 2
 
 # Maximum valid cryptoblob size
 MAX_VALID_PADDED_SIZE: Final[int] = 256 ** SIZE_BYTES_SIZE - 1
-
-# Check if debug mode is enabled via command line arguments
-DEBUG: Final[bool] = cli_handler()
-
-DEBUG_WARNINGS: Final[list[str]] = [
-    'debug mode enabled! Sensitive data will be exposed!',
-    'do not enter real passphrases or sensitive information!',
-]
-
-MAC_FAIL_MESSAGE: Final[str] = \
-    'decryption FAILED: invalid data or incorrect keys'
 
 # Flag set by signal handler when a termination signal is received;
 # main thread must check it and perform cleanup.
 termination_signal_received: bool = False
 
+# File object to truncate on signal termination, or None if not set
+file_obj_to_truncate_by_signal: Optional[BinaryIO] = None
+
 
 # Start the application
 # --------------------------------------------------------------------------- #
+
+
+# Adjust ANSI codes for Windows platform, which does not support them
+if platform == 'win32':
+    just_fix_windows_console()
+
+
+CLI_VALUES: Final[tuple[bool, bool]] = cli_handler()
+UNSAFE_DEBUG: Final[bool] = CLI_VALUES[0]
+UNSAFE_DECRYPT: Final[bool] = CLI_VALUES[1]
 
 
 if __name__ == '__main__':
