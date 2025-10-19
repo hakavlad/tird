@@ -31,22 +31,25 @@
 > - [Hidden File System and Container Format](#hidden-file-system-and-container-format)
 > - [Storing and Carrying Concealed Encrypted Data](#storing-and-carrying-concealed-encrypted-data)
 > - [Time-lock Encryption](#time-lock-encryption)
+> - [Command-line Options](#command-line-options)
+> - [Unsafe Debug Mode](#unsafe-debug-mode)
+> - [Unsafe Decrypt Mode](#unsafe-decrypt-mode)
 > - [Tradeoffs and Limitations](#tradeoffs-and-limitations)
 > - [Warnings](#warnings)
-> - [Debug Mode](#debug-mode)
 > - [LLM reports](#llm-reports)
 > - [Requirements](#requirements)
-> - [TODO](#todo)
 > - [Feedback](#feedback)
+> - [TODO](#todo)
+> - [Documentation](#documentation)
 
 </details>
 
 ## About
 
-`tird` /tɪrd/ *(an acronym for "this is random data")* is a file encryption tool focused on
+`tird` /tɪrd/ *(an acronym for "this is random data")* is a file encryption tool focused on two key areas:
 
-- <ins>minimizing metadata</ins> and
-- <ins>hiding encrypted data</ins>.
+- Minimizing metadata.
+- Hiding encrypted data.
 
 With `tird`, you can:
 
@@ -69,7 +72,7 @@ With `tird`, you can:
     - Authenticated symmetric encryption.
     - Minimizing metadata leakage.
     - Hiding encrypted data.
-    - Resisting [coercive](https://en.wikipedia.org/wiki/Coercion) attacks.
+    - Resisting coercive attacks.
 - ⚓ **Stable format:** Ensure a stable encrypted-data format with no [cryptographic agility](https://en.wikipedia.org/wiki/Cryptographic_agility) for long-term storage.
 - ⚪ **Simplicity:** Ensure simplicity and avoid [feature creep](https://en.wikipedia.org/wiki/Feature_creep); refuse to implement features not directly related to the primary security goals.
 
@@ -133,7 +136,7 @@ A detailed description of these options with examples can be found [here](https:
 The payload that will be encrypted during cryptoblob creation consists of:
 
 - **Contents of one file (optional):** A regular file or a block device (entire disk/partition). If omitted, an empty file payload is encrypted.
-- **Comments (optional):** Arbitrary UTF‑8 string, up to 1 KiB. By default the input file name is used. Decrypted comments are shown at decryption.
+- **Comments (optional):** Arbitrary UTF‑8 string, up to 1 KiB. By default, the input file name is used. Decrypted comments are shown upon decryption.
 
 Specifying the payload in the UI looks as follows:
 
@@ -146,7 +149,7 @@ D2. COMMENTS (DEFAULT='files.zip'): The X-Files, zip (секретные мат�
 
 ## Input Keying Material
 
-`tird` provides the option to use the contents of keyfiles and passphrase to derive one-time keys.
+`tird` provides the option to use the contents of keyfiles and a passphrase to derive one-time keys.
 
 - **Keyfiles (optional):** Zero, one, or multiple keyfile paths; order of inputs does not matter. A keyfile path may be:
   - A <ins>regular file</ins>. The contents of the keyfile will be hashed, and its digest will be used for further key stretching and key derivation.
@@ -215,8 +218,8 @@ For more details, refer to the [specification](https://github.com/hakavlad/tird/
 - PURB format:
   - Encrypted files look like random data.
   - Encrypted files have a randomized size: do not reveal the payload size.
-- Comments are constant-padded, no reveal its size or existence.
-- Do not prove that the entered keys are incorrect.
+- Comments are constant-padded, do not reveal their size or existence.
+- Does not prove that the entered keys are incorrect.
 - Prompt-based CLI: no leakage of used options through shell history.
 - The output file path is user-defined and is not related to the input file path by default.
 - Optional: hiding encrypted data in containers.
@@ -235,7 +238,7 @@ You can encrypt files and embed cryptoblobs into containers starting at arbitrar
 
 Any file, disk, or partition larger than the minimum cryptoblob size (1128 B) can be a valid container. Cryptoblobs can be embedded into any area.
 
-**Examples of Valid Containers Include:**
+**Examples of Valid Containers include:**
 
 1. Specially generated files with random data.
 2. Disk areas containing random data. For example, you can overwrite a disk with random data, format it in FAT32 or exFAT, and use a large portion of the disk, leaving a few dozen MB from the beginning. The disk will appear empty unless you add some files to it.
@@ -427,15 +430,19 @@ In unsafe decrypt mode `tird` will release plaintext even if authentication fail
 - [PyNaCl](https://pypi.org/project/PyNaCl/) >= 1.2.0 (provides fast implementations of `Argon2` and `BLAKE2`)
 - [colorama](https://pypi.org/project/colorama/) >= 0.4.6 (Windows-specific)
 
-## TODO
-
-Write or improve the documentation:
-
-- Features
-- User Guide
-- Specification
-- Design Rationale
-
 ## Feedback
 
 Please feel free to ask questions, leave feedback, or provide critiques in the [Discussions](https://github.com/hakavlad/tird/discussions) section.
+
+## TODO
+
+Improve the documentation.
+
+## Documentation
+
+- 📜&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md">man&nbsp;page</a>
+- 📑&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md">Specification</a>
+- 📄&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md">Input&nbsp;Options</a>
+- 📖&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md">Tutorial</a>
+- ❓&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/FAQ.md">FAQ</a>
+- 📥&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/INSTALLATION.md">Installation</a>
