@@ -13,7 +13,7 @@ memory-hard Argon2id key derivation.
 Key features:
 - PURB-format encrypted blobs: randomized size, uniformly random-looking
   ciphertext.
-- Padded & encrypted comments: metadata hidden; no plaintext leakage.
+- Padded and encrypted comments: no plaintext leakage.
 - Hidden data embedding: cryptoblobs can be written into existing files.
 - Time-lock encryption: configurable Argon2id parameters
   (default: 1 GiB RAM, 4 ops).
@@ -1948,7 +1948,7 @@ def get_argon2_time_cost(action: ActionID) -> int:
 
         break
 
-    log_i(f'time cost: {time_cost}')
+    log_i(f'time cost: {time_cost:,}')
 
     if action in (ENCRYPT, ENCRYPT_EMBED) and \
             time_cost != DEFAULT_ARGON2_TIME_COST:
@@ -6171,6 +6171,7 @@ APP_WARNINGS: Final[tuple[str, ...]] = (
     'tird does not erase its sensitive data from memory after use; '
     'keys may persist in memory after program exit.',
     'Sensitive data may leak into swap space.',
+    'Filesystem timestamps are not sanitized — may leak operational metadata.',
     'tird does not sort digests of keyfiles and passphrases in constant-time.',
     'Overwriting file contents does not guarantee secure destruction of data '
     'on the media.',
@@ -6218,15 +6219,20 @@ TERMINATED_MESSAGE: Final[bytes] = \
 
 HELP_MESSAGE: Final[str] = f"""{APP_INFO}
 
-Start without options for normal usage.
+Usage:
+    tird [--unsafe-debug] [--unsafe-decrypt]
+
+    Start without options for normal usage.
 
 Options:
-    --help
-        print this message and exit
-    --unsafe-debug
-        enable unsafe debug mode
-    --unsafe-decrypt
-        release plaintext even if MAC verification failed (dangerous)"""
+    --help            print this help message and exit
+    --unsafe-debug    enable unsafe debug mode
+    --unsafe-decrypt  release plaintext even if MAC verification
+                      failed (dangerous)
+
+Examples:
+    $ tird
+    $ tird --unsafe-debug"""
 
 # Constants for action types
 EXIT: Final[ActionID] = 0  # Exit
