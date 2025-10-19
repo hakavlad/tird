@@ -174,7 +174,11 @@ K2. CONFIRM PASSPHRASE:
 
 <img src="https://i.imgur.com/wAJyAJc.png" width="280" alt="256 shades of grey">
 
-Data encrypted with `tird` cannot be distinguished from random data without knowledge of the keys. It also does not contain identifiable headers. `tird` produces cryptoblobs that contain [randomized padding](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding) with uniform random data (PURBs). This minimizes metadata leaks from the file format and makes it possible to hide cryptoblobs among other random data.
+- **PURB format**:
+  - Data that looks random and contains no identifiable headers; it cannot be distinguished from random data without the corresponding keys. This property allows cryptoblobs to be hidden among other random data.
+  - [Randomized size](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding): padding length is chosen uniformly between 0% and 25% of the unpadded cryptoblob size (equivalently, up to 20% of the final cryptoblob size). Padding length is chosen uniformly from the allowed interval.
+- **Comments** are padded (or truncated) to a fixed size of 1 KiB before encryption, fully concealing their original length. 
+- **Bilaterally applied salts**: overwriting the beginning or the end of the cryptoblob (or storing an incomplete cryptoblob) makes successful decryption impossible.
 
 <details>
   <summary>&nbsp;<b>Show cryptoblob scheme</b></summary>
@@ -185,7 +189,7 @@ Data encrypted with `tird` cannot be distinguished from random data without know
 |     Salt for key stretching used with Argon2 (16 B)    |
 +————————————————————————————————————————————————————————+
 | ChaCha20 output:                                       |
-|     Ecrypted pad_ikm (8 B)                             |
+|     Encrypted pad_ikm (8 B)                            |
 +————————————————————————————————————————————————————————+
 | CSPRNG/BLAKE2 output:                                  |
 |     Randomized padding (0-25% of the unpadded size)    |
@@ -198,7 +202,7 @@ Data encrypted with `tird` cannot be distinguished from random data without know
 |     Encrypted padded comments (1 KiB) + MAC tag (32 B) |
 +————————————————————————————————————————————————————————+
 | CSPRNG output:                                         |
-|     Salt for prehashing IKM used with BLAKE2 (16 B)    |
+|     Salt for pre‑hashing IKM used with BLAKE2 (16 B)   |
 +————————————————————————————————————————————————————————+
 ```
 
@@ -440,9 +444,9 @@ Improve the documentation.
 
 ## Documentation
 
-- 📜&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md">man&nbsp;page</a>
+- 📜&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md">`tird`(1) man&nbsp;page</a>
 - 📑&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md">Specification</a>
 - 📄&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md">Input&nbsp;Options</a>
-- 📖&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md">Tutorial</a>
-- ❓&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/FAQ.md">FAQ</a>
+- 📖&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md">Tutorial/Demo</a>
+- ❓&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/FAQ.md">FAQ/Rationale</a>
 - 📥&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/INSTALLATION.md">Installation</a>
