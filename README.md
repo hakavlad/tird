@@ -46,7 +46,7 @@
 
 ## About
 
-`tird` /tɪrd/ *(an acronym for "this is random data")* is a file encryption tool focused on minimizing metadata and resisting coercive attacks.
+`tird` /tɪrd/ *(an acronym for "this is random data")* is a file encryption tool focused on minimizing metadata and resisting coercion.
 
 With `tird`, you can:
 
@@ -172,7 +172,7 @@ K2. CONFIRM PASSPHRASE:
 
 - **PURB format**:
   - Data that looks random and contains no identifiable headers; it cannot be distinguished from random data without the corresponding keys. This property allows cryptoblobs to be hidden among other random data.
-  - [Randomized size](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding): padding length is chosen uniformly between 0% and 25% of the unpadded cryptoblob size (equivalently, up to 20% of the final cryptoblob size). Padding length is chosen uniformly from the allowed interval.
+  - [Randomized size](https://en.wikipedia.org/wiki/Padding_(cryptography)#Randomized_padding): padding length is chosen uniformly between 0% and 25% of the unpadded cryptoblob size (equivalently, up to 20% of the final cryptoblob size).
 - **Comments** are padded (or truncated) to a fixed size of 1 KiB before encryption, fully concealing their original length. 
 - **Bilaterally applied salts**: overwriting the beginning or the end of the cryptoblob (or storing an incomplete cryptoblob) makes successful decryption impossible.
 
