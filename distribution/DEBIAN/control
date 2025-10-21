@@ -7,28 +7,27 @@ Maintainer: Alexey Avramov <hakavlad@gmail.com>
 Priority: optional
 Homepage: https://github.com/hakavlad/tird
 Description: tool for encrypting files and hiding encrypted data
- tird (an acronym for "this is random data") is a file encryption tool
- focused on minimizing metadata and hiding encrypted data.
+ tird /tɪrd/ (an acronym for "this is random data") is a file encryption
+ tool focused on minimizing metadata and resisting coercion.
  .
  With tird, you can:
  1. Create files filled with random data to use as containers or
  keyfiles.
- 2. Overwrite the contents of devices and regular files with random
- data. This can be used to prepare containers and to destroy residual
- data.
- 3. Encrypt file contents and comments. The encrypted file format
- (called cryptoblob) is a padded uniform random blob (PURB): it looks
- like random data and has a randomized size. This reduces metadata
- leakage from file format and length, and also allows cryptoblobs to be
- hidden among random data. You can use keyfiles and passphrases at your
- choice.
- 4. Create steganographic (hidden, undetectable) user-driven file
- systems inside container files and devices. Unlike VeraCrypt and
- Shufflecake containers, tird containers do not contain headers at all;
- the user specifies the location of the data in the container and is
- responsible for ensuring that this location is separated from the
- container.
- 5. Prevent or resist coercive attacks (keywords: key disclosure law,
- rubber-hose cryptanalysis, xkcd 538). tird provides some forms of
- plausible deniability out of the box, even if you encrypt files without
- hiding them in containers.
+ 2. Overwrite the contents of block devices and regular files with
+ random data to prepare containers or destroy residual data.
+ 3. Encrypt file contents and comments with keyfiles and passphrases.
+ The encrypted data format (cryptoblob) is a padded uniform random blob
+ (PURB): it looks like random data and has a randomized size. This
+ reduces metadata leakage from file format and length and allows
+ cryptoblobs to be hidden among random data.
+ 4. Create steganographic (hidden, undetectable) user-driven filesystems
+ inside container files and block devices. Unlike VeraCrypt and
+ Shufflecake, tird containers do not contain headers; the user specifies
+ the data locations inside the container and is responsible for keeping
+ those locations separate. Any random-looking region of a file or block
+ device may be used as a container.
+ 5. Prevent fast access to decrypted data using time-lock encryption.
+ .
+ tird is designed to resist coercive key-disclosure attacks (rubber-hose
+ cryptanalysis, xkcd 538) and offers built-in plausible deniability —
+ even when encrypted files are stored outside containers.
