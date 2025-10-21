@@ -38,9 +38,9 @@
 > - [Warnings](#warnings)
 > - [LLM reports](#llm-reports)
 > - [Requirements](#requirements)
-> - [Feedback](#feedback)
-> - [TODO](#todo)
 > - [Documentation](#documentation)
+> - [TODO](#todo)
+> - [Feedback](#feedback)
 
 </details>
 
@@ -434,14 +434,6 @@ In unsafe decrypt mode `tird` will release plaintext even if authentication fail
 - [PyNaCl](https://pypi.org/project/PyNaCl/) >= 1.2.0 (provides fast implementations of `Argon2` and `BLAKE2`)
 - [colorama](https://pypi.org/project/colorama/) >= 0.4.6 (Windows-specific)
 
-## Feedback
-
-Please feel free to ask questions, leave feedback, or provide critiques in the [Discussions](https://github.com/hakavlad/tird/discussions) section.
-
-## TODO
-
-Improve the documentation.
-
 ## Documentation
 
 - 📜&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md">`tird`(1) man&nbsp;page</a>
@@ -450,3 +442,11 @@ Improve the documentation.
 - 📖&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md">Tutorial/Demo</a>
 - ❓&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/FAQ.md">FAQ/Rationale</a>
 - 📥&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/INSTALLATION.md">Installation</a>
+
+## TODO
+
+Improve the documentation.
+
+## Feedback
+
+Please feel free to ask questions, leave feedback, or provide critiques in the [Discussions](https://github.com/hakavlad/tird/discussions) section.
