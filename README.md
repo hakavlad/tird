@@ -46,10 +46,7 @@
 
 ## About
 
-`tird` /tɪrd/ *(an acronym for "this is random data")* is a file encryption tool focused on two key areas:
-
-- Minimizing metadata.
-- Hiding encrypted data.
+`tird` /tɪrd/ *(an acronym for "this is random data")* is a file encryption tool focused on minimizing metadata and resisting coercive attacks.
 
 With `tird`, you can:
 
@@ -71,7 +68,6 @@ With `tird`, you can:
 - 🛡️ **File protection:** Ensure protection of individual files, including:
     - Authenticated symmetric encryption.
     - Minimizing metadata leakage.
-    - Hiding encrypted data.
     - Resisting coercive attacks.
 - ⚓ **Stable format:** Ensure a stable encrypted-data format with no [cryptographic agility](https://en.wikipedia.org/wiki/Cryptographic_agility) for long-term storage.
 - ⚪ **Simplicity:** Ensure simplicity and avoid [feature creep](https://en.wikipedia.org/wiki/Feature_creep); refuse to implement features not directly related to the primary security goals.
