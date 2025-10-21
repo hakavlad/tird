@@ -6149,7 +6149,7 @@ RES: Final[str] = '\x1b[0m'  # Reset formatting to default
 
 
 # Version of the application
-APP_VERSION: Final[str] = '0.22.0'
+APP_VERSION: Final[str] = '0.30.0'
 
 # Information string for the application
 APP_INFO: Final[str] = f"""tird v{APP_VERSION}

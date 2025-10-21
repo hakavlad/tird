@@ -13,7 +13,7 @@ where = [ "src" ]
 
 [project]
 name = "tird"
-version = "0.22.0"
+version = "0.30.0"
 license = "0BSD"
 maintainers = [
     { name = "Alexey Avramov", email = "hakavlad@gmail.com" },
