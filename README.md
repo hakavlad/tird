@@ -46,7 +46,7 @@
 
 ## About
 
-`tird` /tɪrd/ *(an acronym for "this is random data")* is a file encryption tool focused on <ins>minimizing metadata</ins> and <ins>resisting coercion</ins>.
+`tird` /tɪrd/ *(an acronym for "this is random data")* is a file encryption tool that minimizes metadata and hides encrypted data.
 
 With `tird`, you can:
 
@@ -56,7 +56,7 @@ With `tird`, you can:
 4. Create [steganographic](https://en.wikipedia.org/wiki/Steganography) (hidden, undetectable) user-driven filesystems inside container files and block devices. Unlike [VeraCrypt](https://veracrypt.fr) and [Shufflecake](https://shufflecake.net/), `tird` containers do not contain headers; the user specifies the data locations inside the container and is responsible for keeping those locations separate. Any random-looking region of a file or block device may be used as a container.
 5. Prevent fast access to decrypted data using time-lock encryption.
 
-`tird` is designed to resist [coercive](https://en.wikipedia.org/wiki/Coercion) [key-disclosure](https://en.wikipedia.org/wiki/Key_disclosure_law) attacks ([rubber-hose cryptanalysis](https://en.wikipedia.org/wiki/Deniable_encryption), [xkcd 538](https://xkcd.com/538/)) and offers built-in [plausible deniability](https://en.wikipedia.org/wiki/Plausible_deniability) — even when encrypted files are stored outside containers.
+`tird` offers built-in [plausible deniability](https://en.wikipedia.org/wiki/Plausible_deniability), even when encrypted files are stored outside containers. It also helps resist [coercive](https://en.wikipedia.org/wiki/Coercion) [key-disclosure](https://en.wikipedia.org/wiki/Key_disclosure_law) attacks ([rubber-hose cryptanalysis](https://en.wikipedia.org/wiki/Deniable_encryption), [xkcd 538](https://xkcd.com/538/)).
 
 > \[!WARNING]
 > Before using `tird`, please read the "[Warnings](#warnings)" section. Security depends not only on the tool but on your actions: secure key storage, operating in a safe environment, and avoiding debug mode with real data.
@@ -78,7 +78,7 @@ With `tird`, you can:
 - [x] **Padded and encrypted comments:** no plaintext hints about content.
 - [x] **Hidden data embedding (optional):** conceal cryptoblobs inside random/encrypted containers for plausible deniability.
 - [x] **Time-lock encryption (optional):** slow offline PoW-based key derivation to delay decryption (anti-coercion).
-- [x] **Fully committing ChaCha20-BLAKE2b AEAD:** secure authenticated encryption.
+- [x] **Robust authenticated encryption**: fully committing, quantum-safe ChaCha20-BLAKE2b AEAD.
 - [x] **Strong key stretching:** Argon2id (libsodium "sensitive" profile) — 1 GiB memory, 1 lane, 4 passes (default and minimum).
 - [x] **Arbitrary key material:** derive keys from passphrases, files, block devices, or directories — order does not matter.
 - [x] **Prompt-based CLI:** intuitive and interactive, no flags to memorize.
@@ -208,11 +208,15 @@ For more details, refer to the [specification](https://github.com/hakavlad/tird/
 
 ## Low Observability and Minimizing Metadata
 
-> While the content of an encrypted message is protected, its size, its provenance, its destination… are not. Data is hidden, metadata is shown.
+> While the content of an encrypted message is protected, its size, its provenance, its destination… are not. Data is hidden, metadata is shown. Sometimes, that’s all your enemy needs to uncover your secrets.
 
 <i>— <a href="https://loup-vaillant.fr/articles/rolling-your-own-crypto">Loup Vaillant</a></i>
 
-|![](https://i.imgur.com/ArRAis1.jpeg)<br>Vs.<br>![](https://i.imgur.com/Oa3y3qg.jpeg)|
+> We kill people based on metadata.
+
+<i>— <a href="https://abcnews.go.com/blogs/headlines/2014/05/ex-nsa-chief-we-kill-people-based-on-metadata">Michael Hayden</a></i>
+
+|![](https://i.imgur.com/Oa3y3qg.jpeg)<br>Vs.<br>![](https://i.imgur.com/ArRAis1.jpeg)|
 |-|
 
 - PURB format:
@@ -294,6 +298,10 @@ The next image visualizes how hard it is to distinguish one random data entry fr
 </details>
 
 ## Storing and Carrying Concealed Encrypted Data
+
+> Carry everywhere. It is your right.
+
+<i>— <a href="https://xcancel.com/rittenhouse2a/status/2015839135039184962">Kyle Rittenhouse</a></i>
 
 Please look at the following screenshot.
 
@@ -415,9 +423,9 @@ In unsafe decrypt mode `tird` will release plaintext even if authentication fail
 - ⚠️ Integrity/authenticity over availability — altering even a single byte of a cryptoblob prevents decryption.
 - ⚠️ Development is not complete, and there may be backward compatibility issues.
 
-## LLM reports
+## LLM Reports
 
-<img src="https://i.imgur.com/Ab8rSlc.jpeg" width="200" alt="">
+<img src="https://i.imgur.com/aBFKfVO.jpeg" width="200" alt="">
 
 - [Tird Code Security Audit Report (v0.19.0)](https://gemini.google.com/share/6390743bb873); Target: [d016bd5](https://github.com/hakavlad/tird/tree/d016bd51571cd24ea0b21b8959dc01c4e7a69bee); Date: April 13, 2025; Auditor: Gemini 2.5 Pro (experimental)
 - [Security Audit Report: tird.py (v0.19.0)](https://gemini.google.com/share/82c80109c0c9); Target: [105f2dd](https://github.com/hakavlad/tird/tree/105f2ddbcace2802e2372f25c7aaae028ae4b357); Date: April 24, 2025; Auditor: Gemini 2.5 Pro (experimental)
