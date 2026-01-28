@@ -317,7 +317,7 @@ If you are interested in hiding data outside the visible file system, then `tird
 
 ## Time-lock Encryption
 
-<img src="https://i.imgur.com/65xm1mK.jpeg" width="280" alt="TLE image">
+<img src="https://i.imgur.com/0X6rcsa.jpeg" width="280" alt="TLE image">
 
 Time-lock encryption (TLE) can be used to prevent an adversary from quickly accessing plaintexts in the event of an IKM compromise (in case of user coercion, for example). In our implementation, it is actually a PoW-based time-lock key derivation. The "Time cost" input option specifies the number of Argon2 passes. If you specify a sufficiently high number of passes, it will take a significant amount of time to perform them. However, an attacker will require the same amount of time when using similar hardware. The execution of Argon2 cannot be accelerated through parallelization, so it is expected that the time spent by an attacker will be approximately the same as that spent by the defender.
 
