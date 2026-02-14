@@ -10,6 +10,8 @@
 
 ---
 
+<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embedding.gif" width="860" alt="Animation: visualization of embedding">
+
 # `tird`
 
 [![Releases](https://img.shields.io/github/v/release/hakavlad/tird?color=blue&label=Release)](https://github.com/hakavlad/tird/releases)
