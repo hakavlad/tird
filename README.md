@@ -1,50 +1,19 @@
-<img src="https://raw.githubusercontent.com/hakavlad/tird/main/images/logo2.png" width="800" alt="Logo">
-
-<h4 align="left">
-  📜&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md">man&nbsp;page</a>&nbsp;&nbsp;&nbsp;
+<h4>
+  🏠&nbsp;<a href="https://github.com/hakavlad/tird">Home</a>&nbsp;&nbsp;&nbsp;
   📑&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md">Specification</a>&nbsp;&nbsp;&nbsp;
+  📜&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md">man&nbsp;page</a>&nbsp;&nbsp;&nbsp;
   📄&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md">Input&nbsp;Options</a>&nbsp;&nbsp;&nbsp;
   📖&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md">Tutorial</a>&nbsp;&nbsp;&nbsp;
   ❓&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/FAQ.md">FAQ</a>&nbsp;&nbsp;&nbsp;
-  📥&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/INSTALLATION.md">Installation</a>
-</h4><br>
+  📥&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/INSTALLATION.md">Install</a>
+</h4>
+
+---
+
+# `tird`
 
 [![Releases](https://img.shields.io/github/v/release/hakavlad/tird?color=blue&label=Release)](https://github.com/hakavlad/tird/releases)
 [![PyPI](https://img.shields.io/pypi/v/tird?color=blue&label=PyPI)](https://pypi.org/project/tird/)
-[![CodeQL](https://github.com/hakavlad/tird/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/hakavlad/tird/actions/workflows/github-code-scanning/codeql)
-[![trivy](https://github.com/hakavlad/tird/actions/workflows/trivy.yml/badge.svg)](https://github.com/hakavlad/tird/actions/workflows/trivy.yml)
-[![Bandit](https://github.com/hakavlad/tird/actions/workflows/bandit.yml/badge.svg)](https://github.com/hakavlad/tird/actions/workflows/bandit.yml)
-[![Semgrep](https://github.com/hakavlad/tird/actions/workflows/semgrep.yml/badge.svg)](https://github.com/hakavlad/tird/actions/workflows/semgrep.yml)
-
-<details>
-  <summary>&nbsp;<b>Table of Contents</b></summary>
-
-> - [About](#about)
-> - [Goals](#goals)
-> - [Features](#features)
-> - [Usage](#usage)
-> - [Input Options](#input-options)
-> - [Payload](#payload)
-> - [Input Keying Material](#input-keying-material)
-> - [Encrypted Data Format](#encrypted-data-format)
-> - [Low Observability and Minimizing Metadata](#low-observability-and-minimizing-metadata)
-> - [Hidden File System and Container Format](#hidden-file-system-and-container-format)
-> - [Storing and Carrying Concealed Encrypted Data](#storing-and-carrying-concealed-encrypted-data)
-> - [Time-lock Encryption](#time-lock-encryption)
-> - [Command-line Options](#command-line-options)
-> - [Unsafe Debug Mode](#unsafe-debug-mode)
-> - [Unsafe Decrypt Mode](#unsafe-decrypt-mode)
-> - [Tradeoffs and Limitations](#tradeoffs-and-limitations)
-> - [Warnings](#warnings)
-> - [LLM reports](#llm-reports)
-> - [Requirements](#requirements)
-> - [Documentation](#documentation)
-> - [TODO](#todo)
-> - [Feedback](#feedback)
-
-</details>
-
-## About
 
 `tird` /tɪrd/ *(an acronym for "this is random data")* is a file encryption tool that minimizes metadata and hides encrypted data.
 
