@@ -366,7 +366,7 @@ In unsafe decrypt mode `tird` will release plaintext even if authentication fail
   - A password generator.
 - `tird` cannot handle (encrypt/embed) more than one file in one pass. Encryption of directories and multiple files is not supported.
 - `tird` does not sanitize filesystem metadata (atime, mtime, ctime).
-- `tird`'s encryption speed is not very high (up to 430 MiB/s in my tests).
+- `tird`'s encryption speed is not very high (up to 730 MiB/s in my tests on modern hardware).
 
 ## Warnings
 
