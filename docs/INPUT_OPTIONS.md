@@ -10,46 +10,49 @@
 
 ---
 
+
+
 # \[WIP] Input Options
 
-There are 5 groups of input options: A (Action), C (Custom), D (Data), K (Keys), P (Proceed).
+There are 4 groups of input options: A (Action), D (Data), K (Keys), P (Proceed).
 
 <table>
 
-<tr><td><b>A</b></td><td><b>
-&nbsp;<a href="#a0-select-an-option">A0. Select an option</a></li>
+<tr><td><b><code>A</code></b></td><td><b>
+&nbsp;<a href="#a0-select-an-option"><code>A0. SELECT AN OPTION</code></a></li>
 </b></td></tr>
 
-<tr><td><b>C</b></td><td><b>
-&nbsp;<a href="#c0-use-custom-settings">C0. Use custom settings?</a><br>
-&nbsp;<a href="#c1-time-cost">C1. Time cost</a><br>
-&nbsp;<a href="#c2-max-padding-size">C2. Max padding size</a><br>
-&nbsp;<a href="#c3-set-fake-mac-tag">C3. Set fake MAC tag?</a>
+<tr><td><b><code>D</code></b></td><td><b>
+&nbsp;<a href="#d1-input-file-path"><code>D1. INPUT FILE PATH</code></a><br>
+&nbsp;<a href="#d2-comments"><code>D2. COMMENTS</code></a><br>
+&nbsp;<a href="#d3-output-file-path"><code>D3. OUTPUT FILE PATH</code></a><br>
+&nbsp;<a href="#d4-output-file-size"><code>D4. OUTPUT FILE SIZE</code></a><br>
+&nbsp;<a href="#d5-start-position"><code>D5. START POSITION</code></a><br>
+&nbsp;<a href="#d6-end-position"><code>D6. END POSITION</code></a><br>
 </b></td></tr>
 
-<tr><td><b>D</b></td><td><b>
-&nbsp;<a href="#d1-input-file-path">D1. Input file path</a><br>
-&nbsp;<a href="#d2-comments">D2. Comments</a><br>
-&nbsp;<a href="#d3-output-file-path">D3. Output file path</a><br>
-&nbsp;<a href="#d4-output-file-size">D4. Output file size</a><br>
-&nbsp;<a href="#d5-start-position">D5. Start position</a><br>
-&nbsp;<a href="#d6-end-position">D6. End position</a><br>
+<tr><td><b><code>K</code></b></td><td><b>
+&nbsp;<a href="#k1-keyfile-path"><code>K1. KEYFILE PATH</code></a><br>
+&nbsp;<a href="#k2-passphrase"><code>K2. PASSPHRASE</code><a><br>
+&nbsp;<a href="#k3-time-cost"><code>K3. TIME COST</code></a><br>
 </b></td></tr>
 
-<tr><td><b>K</b></td><td><b>
-&nbsp;<a href="#k1-keyfile-path">K1. Keyfile path</a><br>
-&nbsp;<a href="#k2-passphrase">K2. Passphrase<a>
-</b></td></tr>
-
-<tr><td><b>P</b></td><td><b>
-&nbsp;<a href="#p0-proceed">P0. Proceed?</a>
+<tr><td><b><code>P</code></b></td><td><b>
+&nbsp;<a href="#p0-proceed"><code>P0. PROCEED?</code></a>
 </b></td></tr>
 
 </table>
 
+
+
 ---
 
-## A0. Select an option
+
+
+
+
+
+## `A0. SELECT AN OPTION`
 
 **Data type:** `int`
 
@@ -70,7 +73,7 @@ Select an option from the MENU list (select the action to perform).
     6. Encrypt & Embed   7. Extract & Decrypt
     8. Create w/ Random  9. Overwrite w/ Random
     ———————————————————————————————————————————
-A0. Select an option [0-9]:
+A0. SELECT AN OPTION [0-9]:
 ```
 
 Enter a number and press Enter.
@@ -191,150 +194,22 @@ A0. Select an option [0-9]: 2
 
 </details>
 
----
 
-## C0. Use custom settings?
 
-**Used in:** Actions `2`|`3`|`6`|`7`
 
-**Data type:** `bool`
 
-**Valid values:** `Y`|`y`|`1` to set `True`; `N`|`n`|`0` to set `False`
 
-**Default value:** `False`
 
-### Examples
-
-<details>
-  <summary>&nbsp;<b>Show Examples</b></summary>
-
-Context: actions `2`|`3`|`6`|`7` with default value:
-```
-C0. Use custom settings? (Y/N, default=N):
-    I: use custom settings: False
-```
-
-Context: `2`|`3`|`6`|`7` with default value with debug messages enabled:
-```
-C0. Use custom settings? (Y/N, default=N):
-    I: use custom settings: False
-    D: time cost: 4
-    D: max padding size, %: 20
-    D: set fake MAC tag: False
-```
-
-Context: actions `2`|`6`:
-```
-C0. Use custom settings? (Y/N, default=N): y
-    I: use custom settings: True
-    W: decryption will require the same [C1] and [C2] values!
-```
-
-Context: actions `3`|`7`:
-```
-C0. Use custom settings? (Y/N, default=N): y
-    I: use custom settings: True
-```
-
-</details>
 
 ---
 
-## C1. Time cost
 
-**Used in:** Actions `2`|`3`|`6`|`7`
 
-**Data type:** `int`
 
-**Valid values:** From `1` to `2^32 - 1` (`4294967295`)
 
-**Default value:** `4`
 
-### Examples
 
-<details>
-  <summary>&nbsp;<b>Show Examples</b></summary>
-
-Context: actions `2`|`3`|`6`|`7` with default value:
-```
-C1. Time cost (default=4):
-    I: time cost: 4
-```
-
-Context: actions `2`|`3`|`6`|`7`:
-```
-C1. Time cost (default=4): 1000
-    I: time cost: 1,000
-```
-
-</details>
-
----
-
-## C2. Max padding size
-
-**Used in:** Actions `2`|`3`|`6`|`7`
-
-**Data type:** `int`
-
-**Valid values:** From `0` to `10^20` (one hundred quintillion)
-
-**Default value:** `20`
-
-### Examples
-
-<details>
-  <summary>&nbsp;<b>Show Examples</b></summary>
-
-Context: actions `2`|`3`|`6`|`7` with default value:
-```
-C2. Max padding size, % (default=20):
-    I: max padding size, %: 20
-```
-
-Context: actions `2`|`3`|`6`|`7`:
-```
-C2. Max padding size, % (default=20): 1000
-    I: max padding size, %: 1,000
-```
-
-</details>
-
----
-
-## C3. Set fake MAC tag?
-
-**Used in:** Actions `2`|`6`
-
-**Data type:** `bool`
-
-**Valid values:** `Y`|`y`|`1` to set `True`; `N`|`n`|`0` to set `False`
-
-**Default value:** `False`
-
-### Examples
-
-<details>
-  <summary>&nbsp;<b>Show Examples</b></summary>
-
-Context: actions `2`|`6` with default value:
-```
-C3. Set fake MAC tag? (Y/N, default=N):
-    I: set fake MAC tag: False
-```
-
-Context: actions `2`|`6`:
-```
-C3. Set fake MAC tag? (Y/N, default=N): 1
-    I: set fake MAC tag: True
-    W: then further integrity/authenticity checks are impossible!
-```
-
-</details>
-
----
-
-## D1. Input file path
+## `D1. INPUT FILE PATH`
 
 **Used in:** Actions `2`-`7`
 
@@ -432,9 +307,24 @@ D1. File to encrypt and embed: file.bin
 
 </details>
 
+
+
+
+
+
+
+
 ---
 
-## D2. Comments
+
+
+
+
+
+
+
+
+##  `D2. COMMENTS`
 
 **Used in:** Actions `2`|`6`
 
@@ -495,9 +385,26 @@ D2. Comments (optional, up to 512 B): Argon2 erzeugt einen großen Vektor im Arb
 
 </details>
 
+
+
+
+
+
+
+
 ---
 
-## D3. Output file path
+
+
+
+
+
+
+
+
+
+
+## `D3. OUTPUT FILE PATH`
 
 **Used in:** Actions `2`-`9`
 
@@ -591,9 +498,29 @@ D3. File to overwrite: /dev/sdc
 
 </details>
 
+
+
+
+
+
+
+
+
 ---
 
-## D4. Output file size
+
+
+
+
+
+
+
+
+
+
+
+
+##  `D4. OUTPUT FILE SIZE`
 
 **Used in:** Action `8`
 
@@ -620,9 +547,22 @@ D4. Output file size in bytes: 32
 
 </details>
 
+
+
+
+
+
+
 ---
 
-## D5. Start position
+
+
+
+
+
+
+
+## `D5. START POSITION`
 
 **Used in:** actions `4`|`5`|`6`|`7`|`9`
 
@@ -663,9 +603,23 @@ D5. Start position [0; 32973056], default=0: 2623552
 
 </details>
 
+
+
+
+
+
+
+
+
 ---
 
-## D6. End position
+
+
+
+
+
+
+## `D6. END POSITION`
 
 **Used in:** actions `5`|`7`|`9`
 
@@ -709,9 +663,23 @@ D6. End position [4423; 32973056], default=32973056: 543432
 
 </details>
 
+
+
+
+
+
+
+
+
 ---
 
-## K1. Keyfile path
+
+
+
+
+
+
+## `K1. KEYFILE PATH`
 
 **Used in:** Actions `2`|`3`|`6`|`7`
 
@@ -889,9 +857,17 @@ K1. Keyfile path (optional): emptydir
 
 </details>
 
+
+
+
+
 ---
 
-## K2. Passphrase
+
+
+
+
+## `K2. PASSPHRASE`
 
 **Used in:** Actions `2`|`3`|`6`|`7`
 
@@ -1032,9 +1008,65 @@ K2. Confirm passphrase:
 
 </details>
 
+
+
+
+
+
+
+
 ---
 
-## P0. Proceed?
+
+
+
+
+
+## `K3. TIME COST`
+
+**Used in:** Actions `2`|`3`|`6`|`7`
+
+**Data type:** `int`
+
+**Valid values:** From `1` to `2^32 - 1` (`4294967295`)
+
+**Default value:** `4`
+
+### Examples
+
+<details>
+  <summary>&nbsp;<b>Show Examples</b></summary>
+
+Context: actions `2`|`3`|`6`|`7` with default value:
+```
+C1. Time cost (default=4):
+    I: time cost: 4
+```
+
+Context: actions `2`|`3`|`6`|`7`:
+```
+C1. Time cost (default=4): 1000
+    I: time cost: 1,000
+```
+
+</details>
+
+
+
+
+
+
+
+
+
+---
+
+
+
+
+
+
+## `P0. PROCEED?`
 
 **Used in:** Actions `2`-`9`
 
@@ -1119,3 +1151,6 @@ P0. Proceed removing? (Y/N, default=Y): N
 ```
 
 </details>
+
+
+
