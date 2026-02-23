@@ -96,7 +96,7 @@ There are 4 groups of input options: A (Action), D (Data), K (Keys), P (Proceed)
 +——————————————————————+————————————————————————+
 ```
 
-A detailed description of these options with examples can be found [here](https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md).
+A detailed description of these options with examples can be found [here](https://github.com/hakavlad/tird/blob/main/docs/input_options/README.md).
 
 ## Payload
 
@@ -413,7 +413,7 @@ In unsafe decrypt mode `tird` will release plaintext even if authentication fail
 
 - 📜&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/MANPAGE.md">`tird`(1) man&nbsp;page</a>
 - 📑&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/SPECIFICATION.md">Specification</a>
-- 📄&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md">Input&nbsp;Options</a>
+- 📄&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/input_options/README.md">Input&nbsp;Options</a>
 - 📖&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/tutorial/README.md">Tutorial/Demo</a>
 - ❓&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/FAQ.md">FAQ/Rationale</a>
 - 📥&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/INSTALLATION.md">Installation</a>

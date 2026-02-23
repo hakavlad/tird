@@ -1,4 +1,4 @@
-% tird(1) | General Commands Manual
+% TIRD(1) | General Commands Manual
 
 # NAME
 
@@ -44,34 +44,30 @@ $ tird
 A0. Select an option [0-9]:
 ```
 
-A detailed description of these options with examples can be found here: <https://github.com/hakavlad/tird/blob/main/docs/INPUT_OPTIONS.md>.
-
 # INPUT OPTIONS
 
-There are 5 groups of input options: A (Action), C (Custom), D (Data), K (Keys), P (Proceed). They are numbered for ease of description.
+There are 4 groups of input options: A (Action), D (Data), K (Keys), P (Proceed). They are numbered for ease of description.
 
 ```
-+——————————————————————————+————————————————————————+
-| A0. Select an option     | A. Select an action    |
-+——————————————————————————+————————————————————————+
-| C0. Use custom settings? |                        |
-| C1. Time cost            | C. Set custom settings |
-| C2. Max padding size     |                        |
-| C3. Set fake MAC tag?    |                        |
-+——————————————————————————+————————————————————————+
-| D1. Input file path      |                        |
-| D2. Comments             | D. Enter data,         |
-| D3. Output file path     |    data location,      |
-| D4. Output file size     |    data size           |
-| D5. Start position       |                        |
-| D6. End position         |                        |
-+——————————————————————————+————————————————————————+
-| K1. Keyfile path         | K. Specify input       |
-| K2. Passphrase           |    keying material     |
-+——————————————————————————+————————————————————————+
-| P0. Proceed?             | P. Confirm to continue |
-+——————————————————————————+————————————————————————+
++——————————————————————+————————————————————————+
+| A0. SELECT AN OPTION | A. Select an action    |
++——————————————————————+————————————————————————+
+| D1. INPUT FILE PATH  |                        |
+| D2. COMMENTS         | D. Enter data,         |
+| D3. OUTPUT FILE PATH |    data location,      |
+| D4. OUTPUT FILE SIZE |    data size           |
+| D5. START POSITION   |                        |
+| D6. END POSITION     |                        |
++——————————————————————+————————————————————————+
+| K1. KEYFILE PATH     | K. Enter values        |
+| K2. PASSPHRASE       |    related to          |
+| K3. TIME COST        |    key derivation      |
++——————————————————————+————————————————————————+
+| P0. PROCEED?         | P. Confirm to continue |
++——————————————————————+————————————————————————+
 ```
+
+A detailed description of these options with examples can be found here: <https://github.com/hakavlad/tird/blob/main/docs/input_options/README.md>.
 
 # GOALS
 

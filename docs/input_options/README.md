@@ -12,8 +12,6 @@
 
 # \[WIP] Input Options
 
-There are 4 groups of input options: A (Action), D (Data), K (Keys), P (Proceed).
-
 <table>
 
 <tr><td><b><code>A</code></b></td><td><b>
