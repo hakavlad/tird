@@ -42,7 +42,7 @@ build-deb:
 	tar -czf $(DEB_USR)/share/doc/$(NAME)/docs.tar.gz docs
 
 	cp -r distribution/DEBIAN distribution/build/$(NAME)/
-	fakeroot dpkg-deb --build distribution/build/$(NAME)
+	fakeroot dpkg-deb --build --compression=gzip distribution/build/$(NAME)
 	@echo "Debian package built successfully."
 
 install-deb:
