@@ -10,7 +10,7 @@
 
 ---
 
-<img src="https://raw.githubusercontent.com/hakavlad/tird/refs/heads/main/images/embedding/embedding.gif" width="860" alt="Animation: visualization of embedding">
+![Logo: random data visualization](https://raw.githubusercontent.com/hakavlad/tird/main/images/logo3.png)
 
 # `tird`
 
@@ -138,8 +138,6 @@ K2. CONFIRM PASSPHRASE:
 ```
 
 ## Encrypted Data Format
-
-<img src="https://i.imgur.com/wAJyAJc.png" width="280" alt="256 shades of grey">
 
 - **PURB format**:
   - Data that looks random and contains no identifiable headers; it cannot be distinguished from random data without the corresponding keys. This property allows cryptoblobs to be hidden among other random data.
@@ -393,14 +391,6 @@ In unsafe decrypt mode `tird` will release plaintext even if authentication fail
 - ⚠️ Key derivation consumes 1 GiB RAM, which may lead to performance issues or crashes on low-memory systems.
 - ⚠️ Integrity/authenticity over availability — altering even a single byte of a cryptoblob prevents decryption.
 - ⚠️ Development is not complete, and there may be backward compatibility issues.
-
-## LLM Reports
-
-<img src="https://i.imgur.com/aBFKfVO.jpeg" width="200" alt="">
-
-- [Tird Code Security Audit Report (v0.19.0)](https://gemini.google.com/share/6390743bb873); Target: [d016bd5](https://github.com/hakavlad/tird/tree/d016bd51571cd24ea0b21b8959dc01c4e7a69bee); Date: April 13, 2025; Auditor: Gemini 2.5 Pro (experimental)
-- [Security Audit Report: tird.py (v0.19.0)](https://gemini.google.com/share/82c80109c0c9); Target: [105f2dd](https://github.com/hakavlad/tird/tree/105f2ddbcace2802e2372f25c7aaae028ae4b357); Date: April 24, 2025; Auditor: Gemini 2.5 Pro (experimental)
-- [Tird Security Review (v0.20.0)](https://gemini.google.com/share/754c591bab98); Target: [ba504f9](https://github.com/hakavlad/tird/tree/ba504f92f5f40a8557ab4e1e5c6cc7fbc689a0cd); Date: May 4, 2025; Auditor: Gemini 2.5 Pro (experimental)
 
 ## Requirements
 
