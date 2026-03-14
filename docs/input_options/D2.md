@@ -15,26 +15,26 @@
 <table>
 
 <tr><td><b><code>A</code></b></td><td><b>
-&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/input_options/A0.md"><code>A0. SELECT AN OPTION</code></a></li>
+&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/input_options/A0.md#a0-select-an-option"><code>A0. SELECT AN OPTION</code></a></li>
 </b></td></tr>
 
 <tr><td><b><code>D</code></b></td><td><b>
-&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/input_options/D1.md"><code>D1. INPUT FILE PATH</code></a><br>
-&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/input_options/D2.md"><code>D2. COMMENTS</code></a><br>
-&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/input_options/D3.md"><code>D3. OUTPUT FILE PATH</code></a><br>
-&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/input_options/D4.md"><code>D4. OUTPUT FILE SIZE</code></a><br>
-&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/input_options/D5.md"><code>D5. START POSITION</code></a><br>
-&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/input_options/D6.md"><code>D6. END POSITION</code></a><br>
+&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/input_options/D1.md#d1-input-file-path"><code>D1. INPUT FILE PATH</code></a><br>
+&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/input_options/D2.md#d2-comments"><code>D2. COMMENTS</code></a><br>
+&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/input_options/D3.md#d3-output-file-path"><code>D3. OUTPUT FILE PATH</code></a><br>
+&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/input_options/D4.md#d4-output-file-size"><code>D4. OUTPUT FILE SIZE</code></a><br>
+&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/input_options/D5.md#d5-start-position"><code>D5. START POSITION</code></a><br>
+&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/input_options/D6.md#d6-end-position"><code>D6. END POSITION</code></a><br>
 </b></td></tr>
 
 <tr><td><b><code>K</code></b></td><td><b>
-&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/input_options/K1.md"><code>K1. KEYFILE PATH</code></a><br>
-&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/input_options/K2.md"><code>K2. PASSPHRASE</code><a><br>
-&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/input_options/K3.md"><code>K3. TIME COST</code></a><br>
+&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/input_options/K1.md#k1-keyfile-path"><code>K1. KEYFILE PATH</code></a><br>
+&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/input_options/K2.md#k2-passphrase"><code>K2. PASSPHRASE</code><a><br>
+&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/input_options/K3.md#k3-time-cost"><code>K3. TIME COST</code></a><br>
 </b></td></tr>
 
 <tr><td><b><code>P</code></b></td><td><b>
-&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/input_options/P0.md"><code>P0. PROCEED?</code></a>
+&nbsp;<a href="https://github.com/hakavlad/tird/blob/main/docs/input_options/P0.md#p0-proceed"><code>P0. PROCEED?</code></a>
 </b></td></tr>
 
 </table>
