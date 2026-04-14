@@ -12,7 +12,7 @@
 
 ![Logo: random data visualization](https://raw.githubusercontent.com/hakavlad/tird/main/images/logo3.png)
 
-# `tird`
+# `tird` & `tirdFS`
 
 [![Releases](https://img.shields.io/github/v/release/hakavlad/tird?color=blue&label=Release)](https://github.com/hakavlad/tird/releases)
 [![PyPI](https://img.shields.io/pypi/v/tird?color=blue&label=PyPI)](https://pypi.org/project/tird/)
@@ -24,7 +24,7 @@ With `tird`, you can:
 1. Create files filled with random data to use as containers or keyfiles.
 2. Overwrite the contents of block devices and regular files with random data to prepare containers or destroy residual data.
 3. Encrypt file contents and comments with keyfiles and passphrases. The encrypted data format (cryptoblob) is a [padded uniform random blob (PURB)](https://en.wikipedia.org/wiki/PURB_(cryptography)): it looks like random data and has a randomized size. This reduces metadata leakage from file format and length and allows cryptoblobs to be hidden among random data. 
-4. Create [steganographic](https://en.wikipedia.org/wiki/Steganography) (hidden, undetectable) user-driven filesystems inside container files and block devices. Unlike [VeraCrypt](https://veracrypt.fr) and [Shufflecake](https://shufflecake.net/), `tird` containers do not contain headers; the user specifies the data locations inside the container and is responsible for keeping those locations separate. Any random-looking region of a file or block device may be used as a container.
+4. Create [steganographic](https://en.wikipedia.org/wiki/Steganography) (hidden, undetectable) user-driven filesystems (`tirdFS`) inside container files and block devices. Unlike [VeraCrypt](https://veracrypt.fr) and [Shufflecake](https://shufflecake.net/), `tirdFS` containers do not contain headers; the user specifies the data locations inside the container and is responsible for keeping those locations separate. Any random-looking region of a file or block device may be used as a container.
 5. Prevent fast access to decrypted data using time-lock encryption.
 
 `tird` offers built-in [plausible deniability](https://en.wikipedia.org/wiki/Plausible_deniability), even when encrypted files are stored outside containers. It also helps resist [coercive](https://en.wikipedia.org/wiki/Coercion) [key-disclosure](https://en.wikipedia.org/wiki/Key_disclosure_law) attacks ([rubber-hose cryptanalysis](https://en.wikipedia.org/wiki/Deniable_encryption), [xkcd 538](https://xkcd.com/538/)).
@@ -197,19 +197,21 @@ For more details, refer to the [specification](https://github.com/hakavlad/tird/
 - The output file path is user-defined and is not related to the input file path by default.
 - Optional: hiding encrypted data in containers.
 
-## Hidden File System and Container Format
+## `tirdFS` — User-driven Steganographic File System
 
 `tird` employs a technique that is [described](https://en.wikipedia.org/wiki/List_of_steganography_techniques#Digital) as follows:
 
 > Concealing data within encrypted data or within random data. The message to conceal is encrypted, then used to overwrite part of a much larger block of encrypted data or a block of random data (an unbreakable cipher like the one-time pad generates ciphertexts that look perfectly random without the private key).
 
-You can encrypt files and embed cryptoblobs into containers starting at arbitrary positions. After writing the cryptoblob, you will need to remember its location in the container (the starting and ending positions), which will be used later to extract the cryptoblobs. In this way, you can create a **hidden, headerless, user-driven file system** inside a container:
+You can encrypt files and embed cryptoblobs into containers starting at arbitrary positions. After writing the cryptoblob, you will need to remember its location in the container (the starting and ending positions), which will be used later to extract the cryptoblobs. In this way, you can create `tirdFS` — **hidden, headerless, user-driven file system** inside a container:
 
 - It is **hidden** because it is impossible to distinguish between random container data and cryptoblob data, as well as to determine the location of written cryptoblobs without knowing the positions and keys.
 - It is **headerless** because containers do not contain any headers; all data about cryptoblob locations must be stored separately by the user.
 - The starting position of the cryptoblob in the container is **user-defined**, and the **user must** store both the starting and ending positions separately from the container. This is why it is called a **user-driven file system**.
 
-Any file, disk, or partition larger than the minimum cryptoblob size (1128 B) can be a valid container. Cryptoblobs can be embedded into any area.
+`tirdFS` is not a *mounted* filesystem with internal metadata structures. It is a *user-managed* hidden storage model built from independently placed cryptoblobs.
+
+Any file, disk, or partition larger than the minimum cryptoblob size (1160 B) can be a valid container. Cryptoblobs can be embedded into any area.
 
 **Examples of Valid Containers include:**
 
@@ -239,6 +241,17 @@ Any file, disk, or partition larger than the minimum cryptoblob size (1128 B) ca
 |         | Random data |
 +—————————+—————————————+
 ```
+
+**User-managed Header**
+
+Separate user-managed `tirdFS` text header might look like the following:
+```
+[100000000:100345765] secret_video.mp4
+[100345765:234765345] various_secrets.zip
+[12654876456:14765345098] Epstein_files_part1.zip
+```
+
+That is, it should typically contain the location of each cryptoblob in the container plus a brief comment. However, the user is free to determine how to store positions and what to include in such a header. 
 
 #### Visualization of Embedding
 
