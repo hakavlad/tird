@@ -32,16 +32,16 @@ With `tird`, you can:
 > \[!WARNING]
 > Before using `tird`, please read the "[Warnings](#warnings)" section. Security depends not only on the tool but on your actions: secure key storage, operating in a safe environment, and avoiding debug mode with real data.
 
-🔜 Format stabilization and a formal specification are planned for v1.0.0.
+Format stabilization and a formal specification are planned for v1.0.0.
 
 ## Goals
 
-- 🛡️ **File protection:** Ensure protection of individual files, including:
+1. **File protection:** Ensure protection of individual files, including:
     - Authenticated symmetric encryption.
-    - Minimizing metadata leakage.
+    - Minimizing metadata leakage, including hiding encrypted data.
     - Resisting coercive attacks.
-- ⚓ **Stable format:** Ensure a stable encrypted-data format with no [cryptographic agility](https://en.wikipedia.org/wiki/Cryptographic_agility) for long-term storage.
-- ⚪ **Simplicity:** Ensure simplicity and avoid [feature creep](https://en.wikipedia.org/wiki/Feature_creep); refuse to implement features not directly related to the primary security goals.
+2. **Stable format:** Ensure a stable encrypted-data format with no [cryptographic agility](https://en.wikipedia.org/wiki/Cryptographic_agility) for long-term storage.
+3. **Simplicity:** Ensure simplicity and avoid [feature creep](https://en.wikipedia.org/wiki/Feature_creep); refuse to implement features not directly related to the primary security goals.
 
 ## Features 
 
