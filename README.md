@@ -37,11 +37,11 @@ Format stabilization and a formal specification are planned for v1.0.0.
 ## Goals
 
 1. **File protection:** Ensure protection of individual files, including:
-    - Authenticated symmetric encryption.
-    - Minimizing metadata leakage, including hiding encrypted data.
-    - Resisting coercive attacks.
-2. **Stable format:** Ensure a stable encrypted-data format with no [cryptographic agility](https://en.wikipedia.org/wiki/Cryptographic_agility) for long-term storage.
-3. **Simplicity:** Ensure simplicity and avoid [feature creep](https://en.wikipedia.org/wiki/Feature_creep); refuse to implement features not directly related to the primary security goals.
+    - Confidentiality and integrity using authenticated symmetric encryption.
+    - Minimize metadata leakage, including hiding the presence of encrypted data.
+    - Prevent or resist coercive attacks.
+2. **Stable format:** Maintain a stable encrypted-data format without [cryptographic agility](https://en.wikipedia.org/wiki/Cryptographic_agility) for long-term storage.
+3. **Simplicity:** Prioritize simplicity and avoid [feature creep](https://en.wikipedia.org/wiki/Feature_creep); refuse to implement features not directly related to the primary security goals.
 
 ## Features 
 
